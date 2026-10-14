@@ -1,0 +1,29 @@
+# Environment variables
+.env
+.env.local
+
+# Databases & local state
+*.db
+*.sqlite
+*.sqlite3
+data/
+hedge_fund_portfolio.db
+config/settings.json
+
+# Python cache & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+ENV/
+
+# Output artifacts
+outputs/
+*.log
+*.tmp
+
+# OS specific
+.DS_Store
+Thumbs.db
