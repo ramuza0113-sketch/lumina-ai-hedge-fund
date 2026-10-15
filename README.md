@@ -15,8 +15,19 @@
 [![Blog](https://img.shields.io/badge/Blog-prompter--note.com-2563eb.svg)](https://prompter-note.com)
 [![note](https://img.shields.io/badge/note-prompter__note-41C9B4.svg)](https://note.com/prompter_note)
 [![LINE](https://img.shields.io/badge/LINE-@396geimu-06C755.svg?logo=line&logoColor=white)](https://lin.ee/U4TKsUN)
+<br><br>
+<a href="https://www.producthunt.com/posts/lumina-capital" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=lumina-capital&theme=dark" alt="Lumina Capital - Autonomous Multi-Agent AI Hedge Fund Studio | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
 
 [English](#-overview) | [コミュニティ・公式リンク](#-connect-with-the-author--community) | [日本語ドキュメント](#-日本語概要-japanese-summary)
+
+<br><br>
+
+<p align="center">
+  <img src="docs/assets/lumina_3d_causal_graph.gif" width="100%" alt="Lumina Capital 3D Causal Knowledge Graph Demo" style="border-radius: 8px; box-shadow: 0 0 35px rgba(0, 240, 255, 0.2);" />
+</p>
+<p align="center">
+  <em>🕸️ Real-time 3D Causal Knowledge Graph (Graphiti × Neo4j)</em>
+</p>
 
 </div>
 
@@ -160,6 +171,16 @@ This project is built upon and inspired by the incredible open-source research a
 - [OpenBB Platform](https://github.com/OpenBB-finance/OpenBB) (Financial market data infrastructure)
 - [TradingAgents](https://github.com/TauricResearch/TradingAgents) & [ai-hedge-fund](https://github.com/virattt/ai-hedge-fund) (Multi-agent debate paradigms)
 - [3d-force-graph](https://github.com/vasturiano/3d-force-graph) by Vasco Asturiano (3D network visualization)
+
+---
+
+## 🌟 Star History
+
+<p align="center">
+  <a href="https://star-history.com/#ramuza0113-sketch/lumina-ai-hedge-fund&Date">
+    <img src="https://api.star-history.com/svg?repos=ramuza0113-sketch/lumina-ai-hedge-fund&type=Date&theme=dark" width="100%" alt="Star History Chart" />
+  </a>
+</p>
 
 ---
 
