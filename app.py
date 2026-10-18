@@ -81,11 +81,18 @@ def main():
         
         st.markdown("---")
         st.markdown("""
-        <div style="font-size: 0.78rem; color: #64748b; line-height: 1.5;">
+        <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 12px; margin-bottom: 12px; text-align: center;">
+            <div style="font-size: 0.85rem; font-weight: 600; color: #f8fafc; margin-bottom: 4px;">⭐ Support Lumina Open Source</div>
+            <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 10px; line-height: 1.4;">If you find this research platform valuable, please star us on GitHub!</div>
+            <a href="https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund" target="_blank" style="display: inline-block; background: #2563eb; color: #ffffff; padding: 6px 14px; border-radius: 6px; font-size: 0.8rem; text-decoration: none; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                ⭐ Star on GitHub
+            </a>
+        </div>
+        <div style="font-size: 0.78rem; color: #64748b; line-height: 1.5; text-align: center;">
             <strong>Lumina Capital OSS</strong><br>
             Research & Educational Platform.<br>
             License: CC BY-NC 4.0 (Non-Commercial)<br>
-            <a href="https://github.com" target="_blank" style="color: #38bdf8; text-decoration: none;">GitHub Repository</a>
+            <a href="https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund" target="_blank" style="color: #38bdf8; text-decoration: none;">GitHub Repository ↗</a>
         </div>
         """, unsafe_allow_html=True)
 

@@ -10,6 +10,8 @@
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://streamlit.io)
 [![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph-orange.svg)](https://github.com/langchain-ai/langgraph)
 [![TimesFM](https://img.shields.io/badge/Forecasting-Google%20TimesFM-red.svg)](https://github.com/google-research/timesfm)
+[![GitHub stars](https://img.shields.io/github/stars/ramuza0113-sketch/lumina-ai-hedge-fund?style=social)](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund)
+[![GitHub forks](https://img.shields.io/github/forks/ramuza0113-sketch/lumina-ai-hedge-fund?style=social)](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/network/members)
 <br>
 [![X Follow](https://img.shields.io/badge/X-@prompter__note-000000.svg?logo=x&logoColor=white)](https://x.com/prompter_note)
 [![Blog](https://img.shields.io/badge/Blog-prompter--note.com-2563eb.svg)](https://prompter-note.com)
@@ -17,6 +19,12 @@
 [![LINE](https://img.shields.io/badge/LINE-@396geimu-06C755.svg?logo=line&logoColor=white)](https://lin.ee/U4TKsUN)
 <br><br>
 <a href="https://www.producthunt.com/posts/lumina-capital" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=lumina-capital&theme=dark" alt="Lumina Capital - Autonomous Multi-Agent AI Hedge Fund Studio | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
+
+<br><br>
+
+> [!TIP]
+> ⭐️ **Found this project inspiring? Give it a Star!**  
+> If you find Lumina Capital helpful or educational, please consider hitting the **⭐️ Star** button on the top right. It helps support active open-source research and continuous development of new factor models!
 
 [English](#-overview) | [コミュニティ・公式リンク](#-connect-with-the-author--community) | [日本語ドキュメント](#-日本語概要-japanese-summary)
 
@@ -121,6 +129,9 @@ Persists trade reflections (Reflexion) and SEC 10-K supply-chain relationships i
 
 ## ⚡ Quickstart
 
+> [!TIP]
+> ⭐️ **Please consider starring this repository** if you're cloning or testing it locally! Your star supports active research, continuous maintenance of quantitative factor models, and future agent enhancements.
+
 ### 1. Clone the Repository
 ```bash
 git clone https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund.git
@@ -177,6 +188,12 @@ This project is built upon and inspired by the incredible open-source research a
 ## 🌟 Star History
 
 <p align="center">
+  <a href="https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund">
+    <img src="https://img.shields.io/badge/⭐_Star_on_GitHub-Lumina_Capital-yellow?style=for-the-badge&logo=github" alt="Star on GitHub" />
+  </a>
+</p>
+
+<p align="center">
   <a href="https://star-history.com/#ramuza0113-sketch/lumina-ai-hedge-fund&Date">
     <img src="https://api.star-history.com/svg?repos=ramuza0113-sketch/lumina-ai-hedge-fund&type=Date&theme=dark" width="100%" alt="Star History Chart" />
   </a>
@@ -205,6 +222,8 @@ Join our growing community of quantitative researchers, AI developers, and algor
 
 単なるシミュレーション（PoC）にとどまらず、手数料やスリッページを強制控除した高精度ペーパートレード、急落時に10秒単位で物理執行する独立番犬センチネル、Interactive Brokers（IBKR）のブラケット注文アダプターを備えています。
 個人での研究・学習目的には完全無料（CC BY-NC 4.0）でご利用いただけます。
+
+もし本プロジェクトが研究や学習の参考になりましたら、ぜひ右上の **⭐️ Star** で応援していただけると励みになります！
 
 ### ⚠️ 免責事項・法的留意事項 (Financial & Legal Disclaimer)
 - **研究・教育・学術検証専用**: 本ソフトウェアはアルゴリズム取引およびAIマルチエージェントシステムの技術研究・学術検証・シミュレーション教育を目的として公開されています。
