@@ -432,29 +432,160 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
                     st.toast("最新の市場スキャンが完了しました！", icon="⚡")
                     st.rerun()
 
+            def _loc_screener_item(raw_it, l):
+                if l == "ja":
+                    return raw_it
+                loc = dict(raw_it)
+                sym = loc.get("symbol", "")
+                en_name_map = {
+                    "7011.T": "Mitsubishi Heavy Industries",
+                    "7012.T": "Kawasaki Heavy Industries",
+                    "7013.T": "IHI Corporation",
+                    "5803.T": "Fujikura",
+                    "5802.T": "Sumitomo Electric",
+                    "6301.T": "Komatsu",
+                    "8058.T": "Mitsubishi Corp",
+                    "8001.T": "ITOCHU Corp",
+                    "8031.T": "Mitsui & Co",
+                    "8053.T": "Sumitomo Corp",
+                    "8002.T": "Marubeni",
+                    "7203.T": "Toyota Motor",
+                    "7267.T": "Honda Motor",
+                    "6758.T": "Sony Group",
+                    "6501.T": "Hitachi",
+                    "6146.T": "DISCO Corporation",
+                    "6857.T": "Advantest",
+                    "8035.T": "Tokyo Electron",
+                    "9984.T": "SoftBank Group",
+                    "3778.T": "Sakura Internet",
+                    "5401.T": "Nippon Steel",
+                    "8306.T": "Mitsubishi UFJ Financial",
+                    "8316.T": "Sumitomo Mitsui Financial",
+                    "8411.T": "Mizuho Financial",
+                    "9432.T": "NTT",
+                    "9433.T": "KDDI",
+                    "4063.T": "Shin-Etsu Chemical",
+                    "6861.T": "Keyence",
+                    "7974.T": "Nintendo"
+                }
+                en_cat_map = {
+                    "7011.T": "Defense Leader, Aerospace & Gas Turbines",
+                    "7012.T": "Defense, Aircraft Engines & Hydrogen",
+                    "7013.T": "Defense, Jet Engines & Space",
+                    "5803.T": "AI Datacenter Cabling & Optical Fiber",
+                    "5802.T": "Power Grid Infrastructure & Harnesses",
+                    "6301.T": "World #2 Construction Machinery & Mining",
+                    "NVDA": "Generative AI Chips & GPU King",
+                    "MSFT": "Azure Cloud & OpenAI Premier Partner",
+                    "GOOGL": "Gemini AI, Search & YouTube",
+                    "META": "Open Source AI (Llama) & Social Ecosystem",
+                    "AMZN": "AWS Cloud & E-commerce Automation",
+                    "PLTR": "Enterprise & Defense AI Platform",
+                    "AVGO": "Custom AI ASICs & VMware",
+                    "TSLA": "EV, Autonomous FSD & Humanoid Robotics",
+                    "8058.T": "Top General Trading House & Progressive Dividend",
+                    "7203.T": "Global Automotive Leader",
+                    "AAPL": "Ecosystem & Share Buyback King"
+                }
+                en_thesis_map = {
+                    "7011.T": "Surging defense budgets and next-gen turbine demand. Powerful momentum leader.",
+                    "5803.T": "Near-monopoly in ultra-high-density optical connectors for generative AI datacenters.",
+                    "NVDA": "Dominates ~90% of AI datacenter infrastructure. Exponential Blackwell architecture demand.",
+                    "8058.T": "Warren Buffett favorite. Robust resource/non-resource cash flows with strong buybacks.",
+                    "PLTR": "Accelerating enterprise AIP adoption with expanding defense contracts and S&P 500 inclusion.",
+                    "6301.T": "High-margin IoT fleet via Komtrax with durable mining demand and steady dividend growth."
+                }
+                if sym in en_name_map:
+                    loc["name"] = en_name_map[sym]
+                if sym in en_cat_map:
+                    loc["category"] = en_cat_map[sym]
+                if sym in en_thesis_map:
+                    loc["thesis"] = en_thesis_map[sym]
+                return loc
+
+            def _loc_watchlist_item(raw_it, l):
+                if l == "ja":
+                    return raw_it
+                loc = dict(raw_it)
+                n = loc.get("name", "")
+                c = loc.get("category", "")
+                name_repl = {
+                    "アクセル": "Axell Corp",
+                    "日本取引所グループ": "Japan Exchange Group (JPX)",
+                    "太陽誘電": "Taiyo Yuden",
+                    "セブン＆アイ・ホールディングス": "Seven & i Holdings",
+                    "キーウェアソリューションズ": "Keyware Solutions",
+                    "グラファイトデザイン": "Graphite Design",
+                    "トーセイ": "Tosei Corp",
+                    "三菱重工業": "Mitsubishi Heavy Industries",
+                    "川崎重工業": "Kawasaki Heavy Industries",
+                    "フジクラ": "Fujikura",
+                    "コマツ": "Komatsu",
+                    "三菱商事": "Mitsubishi Corp",
+                    "トヨタ自動車": "Toyota Motor",
+                    "ソニーグループ": "Sony Group",
+                    "日立製作所": "Hitachi",
+                    "アッヴィ": "AbbVie",
+                    "アクセンチュア": "Accenture",
+                    "マイクロン": "Micron Technology",
+                    "メルク": "Merck & Co"
+                }
+                for k, v in name_repl.items():
+                    n = n.replace(k, v)
+                loc["name"] = n
+
+                cat_repl = [
+                    ("AI速報発掘: ", "AI Catalyst: "),
+                    ("AI速報発掘:", "AI Catalyst: "),
+                    ("バイオ・医薬品", "Biotech & Pharma"),
+                    ("バイオテクノロジー・眼科疾患治療", "Biotech & Ophthalmology"),
+                    ("半導体設計・ファブレス", "Semiconductor Design & Fabless"),
+                    ("金融取引所・金融サービス", "Financial Exchanges & Services"),
+                    ("電子部品", "Electronic Components"),
+                    ("DX推進・デジタルマーケティング", "DX & Digital Marketing"),
+                    ("小売・コンビニエンスストア", "Retail & Convenience Stores"),
+                    ("製薬・ヘルスケア", "Pharma & Healthcare"),
+                    ("希少疾患・バイオ医薬品", "Rare Diseases & Biopharma"),
+                    ("ITサービス・セキュリティ", "IT Services & Cybersecurity"),
+                    ("半導体メモリ", "Semiconductor Memory"),
+                    ("ITコンサルティング・SI", "IT Consulting & SI"),
+                    ("スポーツ用品・ゴルフ用品", "Sporting Goods & Golf Equipment"),
+                    ("医療機器", "Medical Devices"),
+                    ("不動産・ファンド運用", "Real Estate & Asset Management"),
+                    ("好材料株", "Catalyst Stock"),
+                    ("マイ監視", "Custom Monitored")
+                ]
+                for k, v in cat_repl:
+                    c = c.replace(k, v)
+                loc["category"] = c
+                return loc
+
             brief = st.session_state.get('hf_market_brief', {})
             if brief:
+                mood_text = "Bullish / Prime Dip-Buying Window" if lang == "en" else brief.get('market_mood', '強気 (Bullish) / 押し目買い好機')
+                lead_text = "Avoid emotional top-buying. Diversified capital allocation combining Warren Buffett's wide moats with Cathie Wood's AI innovation delivers the highest reward ratio." if lang == "en" else brief.get('lead_advice', '')
                 st.markdown(f"""
                 <div style="background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size: 0.88rem;">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-                        <span style="font-weight: bold; color: #38bdf8;">🌐 AI市場地合い診断: {brief.get('market_mood', '良好')}</span>
-                        <span style="font-size: 11px; color: #94a3b8;">リアルタイムマクロ速報</span>
+                        <span style="font-weight: bold; color: #38bdf8;">🌐 {'AI Market Regime:' if lang == 'en' else 'AI市場地合い診断:'} {mood_text}</span>
+                        <span style="font-size: 11px; color: #94a3b8;">{'Real-time Macro Radar' if lang == 'en' else 'リアルタイムマクロ速報'}</span>
                     </div>
                     <div style="color: #cbd5e1; font-size: 0.83rem;">
-                        <strong>💡 今週の着眼点:</strong> {brief.get('lead_advice', '')}
+                        <strong>💡 {'Key Focus:' if lang == 'en' else '今週の着眼点:'}</strong> {lead_text}
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
 
             screener_items = st.session_state.get('hf_screener_results', [])
             if screener_items:
-                st.markdown("<div style='font-size: 12px; font-weight: bold; color: #34d399; margin-bottom: 8px;'>🎯 発掘された本日のおすすめ銘柄（クリックで作戦会議へ即投入）:</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='font-size: 12px; font-weight: bold; color: #34d399; margin-bottom: 8px;'>{'🎯 AI-Selected Opportunities (Click to Convene Council):' if lang == 'en' else '🎯 発掘された本日のおすすめ銘柄（クリックで作戦会議へ即投入）:'}</div>", unsafe_allow_html=True)
                 
                 for i in range(0, len(screener_items), 2):
                     col_card1, col_card2 = st.columns(2)
                     for c_idx, col_tgt in enumerate([col_card1, col_card2]):
                         if i + c_idx < len(screener_items):
-                            item = screener_items[i + c_idx]
+                            raw_item = screener_items[i + c_idx]
+                            item = _loc_screener_item(raw_item, lang)
                             with col_tgt:
                                 with st.container(border=True):
                                     top_c1, top_c2 = st.columns([2.5, 1])
@@ -462,14 +593,20 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
                                         st.markdown(f"**{item['name']}** (`{item['symbol']}`)")
                                         st.caption(f"{item['category']}")
                                     with top_c2:
-                                        st.markdown(f"<div style='text-align: right;'><span style='background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); padding: 2px 8px; border-radius: 6px; font-weight: bold; font-size: 12px;'>AI {item['ai_score']}点</span></div>", unsafe_allow_html=True)
+                                        score_txt = f"AI {item['ai_score']} pts" if lang == "en" else f"AI {item['ai_score']}点"
+                                        st.markdown(f"<div style='text-align: right;'><span style='background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); padding: 2px 8px; border-radius: 6px; font-weight: bold; font-size: 12px;'>{score_txt}</span></div>", unsafe_allow_html=True)
                                         st.markdown(f"<div style='text-align: right; font-weight: bold; font-size: 13px; color: #f8fafc; margin-top: 2px;'>{item['current_price']:,.2f} {item['currency']}</div>", unsafe_allow_html=True)
                                     
                                     st.markdown(f"<div style='font-size: 11px; color: #94a3b8; line-height: 1.4; margin: 4px 0 8px 0;'>💡 {item['thesis']}</div>", unsafe_allow_html=True)
                                     
-                                    m_pbr = f"PBR: {item['pb']:.2f}倍" if item.get('pb') else ""
-                                    m_div = f"配当: {item['dividend_yield']}%" if item.get('dividend_yield') else ""
-                                    m_ret = f"20日: {item['return_20d_pct']:+}%" if item.get('return_20d_pct') else ""
+                                    if lang == "en":
+                                        m_pbr = f"PBR: {item['pb']:.2f}x" if item.get('pb') else ""
+                                        m_div = f"Div: {item['dividend_yield']}%" if item.get('dividend_yield') else ""
+                                        m_ret = f"20D: {item['return_20d_pct']:+}%" if item.get('return_20d_pct') else ""
+                                    else:
+                                        m_pbr = f"PBR: {item['pb']:.2f}倍" if item.get('pb') else ""
+                                        m_div = f"配当: {item['dividend_yield']}%" if item.get('dividend_yield') else ""
+                                        m_ret = f"20日: {item['return_20d_pct']:+}%" if item.get('return_20d_pct') else ""
                                     tag_text = " | ".join(filter(None, [m_pbr, m_div, m_ret]))
                                     if tag_text:
                                         st.caption(f"{'Metrics:' if lang == 'en' else '指標:'} {tag_text}")
@@ -519,9 +656,10 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
             else:
                 st.markdown(f"<div style='font-size: 12px; font-weight: bold; color: #38bdf8; margin: 8px 0 4px 0;'>{'Currently Monitored Custom Tickers:' if lang == 'en' else '現在登録中のカスタム巡回銘柄:'}</div>", unsafe_allow_html=True)
                 for c_it in custom_items:
+                    c_it_loc = _loc_watchlist_item(c_it, lang)
                     c_col_info, c_col_del = st.columns([4, 1])
                     with c_col_info:
-                        st.markdown(f"⭐ **{c_it['name']}** (`{c_it['symbol']}`) - {c_it.get('category', 'Custom')}")
+                        st.markdown(f"⭐ **{c_it_loc['name']}** (`{c_it_loc['symbol']}`) - {c_it_loc.get('category', 'Custom')}")
                     with c_col_del:
                         if st.button("🗑️ " + ("Delete" if lang == "en" else "削除"), key=f"del_watch_{c_it['symbol']}", use_container_width=True):
                             MarketScreener.remove_custom_ticker(c_it['symbol'])
@@ -543,49 +681,72 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
                         st.rerun()
             else:
                 top_b1, top_b2 = st.columns([3, 1])
+                theme_lbl = "📌 Weekly Investment Theme:" if lang == "en" else "📌 今週の投資テーマ:"
+                cio_lbl = "👑 CIO Strategic Thesis:" if lang == "en" else "👑 CIO戦略声明:"
+                updated_lbl = "Last Updated:" if lang == "en" else "最終更新:"
+                scan_lbl = "Universe: Global 100 Tickers" if lang == "en" else f"走査対象: 日米欧 {briefing.get('total_universe_scanned', 100)}銘柄ユニバース"
                 with top_b1:
                     st.markdown(f"""
                     <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 10px; padding: 12px 16px; margin-bottom: 12px;">
                         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-                            <span style="font-size: 13px; font-weight: 800; color: #38bdf8;">📌 今週の投資テーマ: 『{briefing.get('weekly_theme')}』</span>
+                            <span style="font-size: 13px; font-weight: 800; color: #38bdf8;">{theme_lbl} 『{briefing.get('weekly_theme')}』</span>
                             <span style="font-size: 11px; background: rgba(56, 189, 248, 0.2); color: #7dd3fc; padding: 2px 8px; border-radius: 4px;">{briefing.get('market_regime', '')}</span>
                         </div>
                         <div style="font-size: 12px; color: #cbd5e1; line-height: 1.5;">
-                            <strong>👑 CIO戦略声明:</strong> {briefing.get('cio_outlook')}
+                            <strong>{cio_lbl}</strong> {briefing.get('cio_outlook')}
                         </div>
                         <div style="font-size: 10px; color: #94a3b8; margin-top: 6px;">
-                            最終更新: {briefing.get('generated_at')} | 走査対象: 日米欧 {briefing.get('total_universe_scanned', 100)}銘柄ユニバース
+                            {updated_lbl} {briefing.get('generated_at')} | {scan_lbl}
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
                 with top_b2:
                     st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
-                    if st.button("🔄 アルファ再探索", key="btn_rerun_alpha", use_container_width=True):
-                        with st.spinner("100銘柄ユニバースを再スキャン中..."):
+                    rescan_txt = "🔄 Rescan Alpha" if lang == "en" else "🔄 アルファ再探索"
+                    if st.button(rescan_txt, key="btn_rerun_alpha", use_container_width=True):
+                        with st.spinner("Rescanning 100-ticker universe..." if lang == "en" else "100銘柄ユニバースを再スキャン中..."):
                             AlphaResearcher.run_research_scan()
                             st.rerun()
 
                 # Render Top 5 Picks
                 picks = briefing.get("top_picks", [])
                 for p in picks:
+                    p_loc = _loc_screener_item(p, lang)
                     with st.container(border=True):
                         c1, c2, c3 = st.columns([2.5, 2.5, 1.2])
                         with c1:
-                            st.markdown(f"**#{p.get('rank', 1)} {p.get('name')}** (`{p.get('symbol')}`)")
-                            st.caption(f"{p.get('category')} | 確信度: **{p.get('conviction_score')}点** ({p.get('sponsor_analysts')})")
-                            st.markdown(f"<div style='font-size: 12px; color: #e2e8f0; line-height: 1.4;'>💡 {p.get('catalyst')}</div>", unsafe_allow_html=True)
+                            conv_txt = f"Conviction: **{p.get('conviction_score')} pts**" if lang == "en" else f"確信度: **{p.get('conviction_score')}点**"
+                            st.markdown(f"**#{p.get('rank', 1)} {p_loc.get('name')}** (`{p.get('symbol')}`)")
+                            st.caption(f"{p_loc.get('category')} | {conv_txt} ({p.get('sponsor_analysts')})")
+                            st.markdown(f"<div style='font-size: 12px; color: #e2e8f0; line-height: 1.4;'>💡 {p_loc.get('catalyst', p.get('catalyst'))}</div>", unsafe_allow_html=True)
                         with c2:
                             curr_sym = p.get('currency', 'JPY')
                             c_p = p.get('current_price', 0)
-                            pbr_txt = f"{p.get('pb_ratio'):.2f}倍" if p.get('pb_ratio') else "N/A"
-                            per_txt = f"{p.get('pe_trailing'):.1f}倍" if p.get('pe_trailing') else "N/A"
-                            ret_txt = f"{p.get('return_20d_pct'):+}%" if p.get('return_20d_pct') else "N/A"
-                            st.markdown(f"<div style='font-size: 13px; font-weight: bold; color: #38bdf8;'>現在値: {c_p:,.2f} {curr_sym}</div>", unsafe_allow_html=True)
-                            st.caption(f"PBR: {pbr_txt} | PER: {per_txt} | 20日騰落: {ret_txt}")
-                            st.markdown(f"<span style='font-size: 11px; color: #34d399;'>想定上値: +{p.get('target_upside_pct')}%</span> | <span style='font-size: 11px; color: #f87171;'>推奨下値節目: {p.get('stop_loss_pct')}%</span> <span style='font-size: 10px; color: #94a3b8;'>(執行防壁: -13%)</span>", unsafe_allow_html=True)
+                            if lang == "en":
+                                pbr_txt = f"{p.get('pb_ratio'):.2f}x" if p.get('pb_ratio') else "N/A"
+                                per_txt = f"{p.get('pe_trailing'):.1f}x" if p.get('pe_trailing') else "N/A"
+                                ret_txt = f"{p.get('return_20d_pct'):+}%" if p.get('return_20d_pct') else "N/A"
+                                price_hdr = f"Price: {c_p:,.2f} {curr_sym}"
+                                metrics_cap = f"PBR: {pbr_txt} | PER: {per_txt} | 20D Chg: {ret_txt}"
+                                upside_lbl = "Target Upside:"
+                                stop_lbl = "Stop-loss:"
+                                gate_lbl = "(Risk Gate: -13%)"
+                            else:
+                                pbr_txt = f"{p.get('pb_ratio'):.2f}倍" if p.get('pb_ratio') else "N/A"
+                                per_txt = f"{p.get('pe_trailing'):.1f}倍" if p.get('pe_trailing') else "N/A"
+                                ret_txt = f"{p.get('return_20d_pct'):+}%" if p.get('return_20d_pct') else "N/A"
+                                price_hdr = f"現在値: {c_p:,.2f} {curr_sym}"
+                                metrics_cap = f"PBR: {pbr_txt} | PER: {per_txt} | 20日騰落: {ret_txt}"
+                                upside_lbl = "想定上値:"
+                                stop_lbl = "推奨下値節目:"
+                                gate_lbl = "(執行防壁: -13%)"
+                            st.markdown(f"<div style='font-size: 13px; font-weight: bold; color: #38bdf8;'>{price_hdr}</div>", unsafe_allow_html=True)
+                            st.caption(metrics_cap)
+                            st.markdown(f"<span style='font-size: 11px; color: #34d399;'>{upside_lbl} +{p.get('target_upside_pct')}%</span> | <span style='font-size: 11px; color: #f87171;'>{stop_lbl} {p.get('stop_loss_pct')}%</span> <span style='font-size: 10px; color: #94a3b8;'>{gate_lbl}</span>", unsafe_allow_html=True)
                         with c3:
                             st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
-                            if st.button(f"👉 審査招集", key=f"alpha_pick_{p.get('symbol')}", use_container_width=True):
+                            convene_btn_txt = "👉 Convene Council" if lang == "en" else "👉 審査招集"
+                            if st.button(convene_btn_txt, key=f"alpha_pick_{p.get('symbol')}", use_container_width=True):
                                 select_and_run_council(p.get('symbol'))
 
     # =========================================================================
