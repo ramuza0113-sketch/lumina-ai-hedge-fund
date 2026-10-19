@@ -1885,21 +1885,16 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
             if not recent_councils:
                 st.info("No council archives recorded yet. Convene a council from Tab 1 to automatically archive deliberations here." if lang == "en" else "まだ記録された合議録はありません。銘柄を指定して作戦会議を開催すると、ここに全議事録が自動アーカイブされます。")
             else:
-                for cr in recent_councils:
+                from core.ai_hedge_fund.translation_engine import TranslationEngine
+                for raw_cr in recent_councils:
+                    cr = TranslationEngine.localize_council_record(raw_cr, lang, api_key)
                     c_id = cr.get("council_id")
                     c_sym = cr.get("symbol")
                     c_name = cr.get("company_name")
                     c_act = cr.get("action")
                     c_act_label = cr.get("action_label")
-                    if lang == "en":
-                        act_map = {
-                            "BUY": "STRONG BUY",
-                            "ACCUMULATE": "ACCUMULATE / DIP BUY",
-                            "HOLD": "HOLD / NEUTRAL",
-                            "REDUCE": "REDUCE",
-                            "SELL": "STRONG SELL"
-                        }
-                        c_act_label = act_map.get(c_act, c_act_label)
+                    if lang == "en" and (not c_act_label or any('\u3000' <= ch <= '\u9fff' for ch in c_act_label)):
+                        c_act_label = TranslationEngine.localize_action_label(c_act_label, c_act, lang)
                     c_score = cr.get("confidence_score")
                     c_time = cr.get("created_at")
                     c_t_price = cr.get("target_price")
@@ -1950,7 +1945,9 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
             if not recent_trade_memories:
                 st.info("No trade journeys recorded yet. Entry reasons and exit lessons will be archived automatically when trading." if lang == "en" else "まだ記録された取引ジャーニーはありません。自動売買または手動発注が実行されると、エントリー理由やエグジット経緯が自動記録されます。")
             else:
-                for tm in recent_trade_memories:
+                from core.ai_hedge_fund.translation_engine import TranslationEngine
+                for raw_tm in recent_trade_memories:
+                    tm = TranslationEngine.localize_trade_memory(raw_tm, lang)
                     tm_sym = tm.get("symbol")
                     tm_name = tm.get("company_name")
                     tm_type = tm.get("trade_type")
@@ -3032,7 +3029,9 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
             m_list_title = "📜 Active Master Fund Mandates" if lang == "en" else "📜 現在施行中のマスター運用憲章一覧"
             st.markdown(f"<div style='font-size: 13px; font-weight: 600; color: #cbd5e1; margin-bottom: 8px;'>{m_list_title}</div>", unsafe_allow_html=True)
 
-            for m in active_mandates:
+            from core.ai_hedge_fund.translation_engine import TranslationEngine
+            for raw_m in active_mandates:
+                m = TranslationEngine.localize_mandate(raw_m, lang)
                 prio = m.get("priority", "HIGH")
                 prio_bg = "#dc2626" if prio == "ABSOLUTE" else ("#f59e0b" if prio == "CRITICAL" else "#3b82f6")
                 cat = m.get("category", "POLICY")
