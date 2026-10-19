@@ -174,8 +174,14 @@ class HedgeFundCouncil:
             "broker_engine": memory_engine,
             "temporal_graph_lessons": graph_lessons,
             "deterministic_metrics": det_metrics,
-            "master_mandates_prompt": master_prompt
+            "master_mandates_prompt": master_prompt,
+            "lang": "en"
         }
+        try:
+            import streamlit as st
+            context_data["lang"] = st.session_state.get("app_lang", "en")
+        except Exception:
+            context_data["lang"] = "en"
 
         # Initialize Langfuse trace if configured
         langfuse_trace = None
@@ -419,8 +425,29 @@ class HedgeFundCouncil:
             dist_high = det.get("dist_from_52w_high_pct", "N/A")
             trend_ma = det.get("trend_ma20_ma50", "N/A")
 
+            is_en = (context_data.get("lang") == "en")
+
             # [Turn 1] Bear Leader Accusation
-            prompt_turn1 = f"""あなたはヘッジファンドの伝説的投資家AI【{bear_agent['name']} ({bear_agent.get('title', '')})】です。
+            if is_en:
+                prompt_turn1 = f"""You are legendary hedge fund investor AI [{bear_agent['name']} ({bear_agent.get('title', '')})].
+Target Asset: {name} ({symbol})
+Primary Market Metrics:
+- Current Price: {price:,.2f} {currency}
+- Valuation: Trailing P/E {pe}, P/B {pb}, ROE {roe}%
+- Quant Risk Factors: 20D Ann. Volatility {vol_20d}%, 1Y Max Drawdown {max_dd}%, Sharpe {sharpe}
+- Technical Indicators: RSI(14) {rsi}, Distance from 52W High {dist_high}%, Trend {trend_ma}
+- Options GEX: {gex_summary}
+- Macro Liquidity: {macro_summary}
+
+Your Stance: Score {bear_score}/100 ({bear_agent.get('stance', 'BEARISH')})
+Your Thesis: {bear_agent.get('dialogue', '')[:120]}
+
+Opponent: [{bull_agent['name']}] is aggressively bullish with Score [{bull_score}/100 ({bull_agent.get('stance', 'BULLISH')})].
+
+[Task]
+Quote at least one objective metric from above (P/E, Drawdown, Volatility, RSI, etc.) and fiercely challenge {bull_agent['name']}'s excessive optimism. Expose the downside vulnerability in 2-3 crisp, powerful English sentences (50-80 words). Do not invent numbers."""
+            else:
+                prompt_turn1 = f"""あなたはヘッジファンドの伝説的投資家AI【{bear_agent['name']} ({bear_agent.get('title', '')})】です。
 投資対象: {name} ({symbol})
 市場客観指標・確定数理データ:
 - 現在株価: {price:,.2f} {currency}
@@ -446,10 +473,31 @@ class HedgeFundCouncil:
                 contents=prompt_turn1,
                 config=types.GenerateContentConfig(temperature=0.2)
             )
-            turn1_attack = res1.text.strip() if res1 and res1.text else f"株価{price} {currency}（PER {pe}倍、PBR {pb}倍、最大DD {max_dd}%）の評価は過大であり安全域を欠いている。"
+            default_t1 = f"At {price:,.2f} {currency} (P/E {pe}, Max Drawdown {max_dd}%), the asset is fundamentally overvalued with insufficient margin of safety." if is_en else f"株価{price} {currency}（PER {pe}倍、PBR {pb}倍、最大DD {max_dd}%）の評価は過大であり安全域を欠いている。"
+            turn1_attack = res1.text.strip() if res1 and res1.text else default_t1
 
             # [Turn 2] Bull Leader Defense & Re-scoring
-            prompt_turn2 = f"""あなたはヘッジファンドの伝説的投資家AI【{bull_agent['name']} ({bull_agent.get('title', '')})】です。
+            if is_en:
+                prompt_turn2 = f"""You are legendary hedge fund investor AI [{bull_agent['name']} ({bull_agent.get('title', '')})].
+Target Asset: {name} ({symbol})
+Metrics: Price {price:,.2f} {currency}, P/E {pe}, P/B {pb}, 20D Vol {vol_20d}%, Max DD {max_dd}%, RSI {rsi}
+
+Your Initial Score: {bull_score}/100
+Direct Challenge from Bear Leader [{bear_agent['name']} ({bear_score}/100)]:
+"{turn1_attack}"
+
+[Task]
+Respond directly to {bear_agent['name']}'s challenge grounded in your investment philosophy. Decide whether to acknowledge the downside risk and realistically adjust your score down by 3-10 points, or firmly defend and maintain your initial score.
+
+[Output Format]
+Output strictly JSON only (no markdown):
+{{
+  "defense": "Your direct rebuttal to {bear_agent['name']} in 2 crisp English sentences (50-80 words)",
+  "adjusted_score": integer (between 0 and 100, either maintained at {bull_score} or discounted by 3-10 points),
+  "adjustment_rationale": "One concise sentence explaining your score decision in English"
+}}"""
+            else:
+                prompt_turn2 = f"""あなたはヘッジファンドの伝説的投資家AI【{bull_agent['name']} ({bull_agent.get('title', '')})】です。
 投資対象: {name} ({symbol})
 市場客観指標・確定数理データ:
 - 現在株価: {price:,.2f} {currency}
@@ -483,17 +531,27 @@ class HedgeFundCouncil:
                 import re
                 raw_text = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw_text, flags=re.MULTILINE).strip()
             
-            t2_data = json.loads(raw_text)
-            turn2_defense = t2_data.get("defense", "イノベーションの将来価値は現在の指標では測れないが、短期のボラティリティは注視する。")
+            default_def = "Future innovation value cannot be captured by static ratios, though near-term volatility warrants monitoring." if is_en else "イノベーションの将来価値は現在の指標では測れないが、短期のボラティリティは注視する。"
+            default_rat = "Score adjusted after factoring in downside risk." if is_en else "相手の指摘を踏まえスコアを再検討。"
+
+            try:
+                t2_data = json.loads(raw_text)
+            except Exception:
+                t2_data = {}
+
+            turn2_defense = t2_data.get("defense", default_def)
             adjusted_score = int(t2_data.get("adjusted_score", bull_score))
             adjusted_score = max(0, min(100, adjusted_score))
-            rationale = t2_data.get("adjustment_rationale", "相手の指摘を踏まえスコアを再検討。")
+            rationale = t2_data.get("adjustment_rationale", default_rat)
 
             # Update the bull agent's score and dialogue in analyst_results
             for a in analyst_results:
                 if a.get("agent_id") == bull_agent.get("agent_id"):
                     a["score"] = adjusted_score
-                    a["dialogue"] += f"\n\n⚔️【直接討論による再評価】{bear_agent['name']}の糾弾を受け、当初{bull_score}点から【{adjusted_score}点】に調整（{rationale}）"
+                    if is_en:
+                        a["dialogue"] += f"\n\n⚔️ [Cross-Debate Re-evaluation] Rebutted {bear_agent['name']}'s challenge; adjusted score from {bull_score} to {adjusted_score} ({rationale})"
+                    else:
+                        a["dialogue"] += f"\n\n⚔️【直接討論による再評価】{bear_agent['name']}の糾弾を受け、当初{bull_score}点から【{adjusted_score}点】に調整（{rationale}）"
                     break
 
             return {

@@ -60,6 +60,7 @@ class RiskManagerAgent(BaseInvestmentAgent):
             alloc = 5.0
         
         # --- 🚨 CRO絶対的拒否権 (Absolute Veto Power) 判定 ---
+        is_en = (context_data and context_data.get("lang") == "en")
         veto_triggered = False
         veto_reason = ""
         
@@ -68,37 +69,49 @@ class RiskManagerAgent(BaseInvestmentAgent):
         
         if is_turbulence and vol >= 30.0:
             veto_triggered = True
-            veto_reason = "オプションGamma Flip割れ＋急変ボラティリティ急拡大による暴落警戒"
+            veto_reason = "Options gamma flip plunge combined with severe volatility spike" if is_en else "オプションGamma Flip割れ＋急変ボラティリティ急拡大による暴落警戒"
         elif is_turbulence and is_crunch:
             veto_triggered = True
-            veto_reason = "FRB流動性引き締め局面における市場ガンマ急落（流動性ショック危機）"
+            veto_reason = "Federal Reserve liquidity tightening alongside structural gamma collapse" if is_en else "FRB流動性引き締め局面における市場ガンマ急落（流動性ショック危機）"
         elif vol >= 60.0:
             veto_triggered = True
-            veto_reason = f"対象銘柄の異常ボラティリティ（{vol:.1f}%）による壊滅的急落リスク"
+            veto_reason = f"Extreme catastrophic volatility ({vol:.1f}%) on target asset" if is_en else f"対象銘柄の異常ボラティリティ（{vol:.1f}%）による壊滅的急落リスク"
         elif context_data and context_data.get("news_intelligence", {}).get("is_quarantined", False):
             veto_triggered = True
-            veto_reason = "不審な風説・煽りニュース検知による情報汚染遮断（検疫プロトコル発動）"
+            veto_reason = "Quarantine protocol triggered: suspicious hype or malicious misinformation detected" if is_en else "不審な風説・煽りニュース検知による情報汚染遮断（検疫プロトコル発動）"
 
         if veto_triggered:
             alloc = 0.0
             safety_score = 15
             stance = "VETO"
-            dialogue = f"🚨【CRO絶対的拒否権（VETO）発動】{veto_reason}！アナリスト陣の意見に関わらず、資金防衛サーキットブレーカーを強制執行。新規ポジション建てを全面凍結（配分0.0%）とする。"
+            if is_en:
+                dialogue = f"🚨 [CRO Absolute Veto Triggered] {veto_reason}! Overriding all analyst verdicts to trigger the emergency capital preservation circuit breaker. New position entries are completely frozen (0.0% allocation)."
+            else:
+                dialogue = f"🚨【CRO絶対的拒否権（VETO）発動】{veto_reason}！アナリスト陣の意見に関わらず、資金防衛サーキットブレーカーを強制執行。新規ポジション建てを全面凍結（配分0.0%）とする。"
         elif is_turbulence:
             alloc = round(alloc * 0.5, 1)
-            dialogue = f"⚠️【市場乱気流警報】SPY/QQQのGamma Flip割れを検知。急落ボラティリティを警戒し、現在値 {price} に対する損切りラインを {stop_loss} ({currency}) に強制固定。推奨配分を半減（{alloc}%）に抑制する。"
             stance = "CAUTION"
+            if is_en:
+                dialogue = f"⚠️ [Market Turbulence Warning] SPY/QQQ gamma flip detected. Locking dynamic stop-loss at {stop_loss} ({currency}) against current price {price}. Capping recommended allocation at {alloc}%."
+            else:
+                dialogue = f"⚠️【市場乱気流警報】SPY/QQQのGamma Flip割れを検知。急落ボラティリティを警戒し、現在値 {price} に対する損切りラインを {stop_loss} ({currency}) に強制固定。推奨配分を半減（{alloc}%）に抑制する。"
         elif bearish_count >= 3:
-            dialogue = f"アナリスト陣の間で慎重論が根強い。ボラティリティ {vol}% に対し、下値防壁として損切りライン {stop_loss} ({currency}) を厳格に適用。最大リスク許容枠は {alloc}% を上限とする。"
             stance = "CAUTION"
+            if is_en:
+                dialogue = f"Widespread caution across the analyst council. Against {vol}% annualized volatility, enforcing a strict downside floor at {stop_loss} ({currency}) with maximum allocation constrained to {alloc}%."
+            else:
+                dialogue = f"アナリスト陣の間で慎重論が根強い。ボラティリティ {vol}% に対し、下値防壁として損切りライン {stop_loss} ({currency}) を厳格に適用。最大リスク許容枠は {alloc}% を上限とする。"
         else:
-            dialogue = f"現在値 {price} に対し、フィボナッチ最適値に基づく厳格な損切りラインを {stop_loss} ({currency}) に設定。ポートフォリオ全体の最大配分は {alloc}% を上限とし、資産防衛を担保する。"
             stance = "NEUTRAL" if bullish_count < 4 else "BULLISH"
+            if is_en:
+                dialogue = f"Calibrated a deterministic stop-loss floor at {stop_loss} ({currency}) based on ATR volatility buffers against entry {price}. Maximum portfolio allocation set to {alloc}% to safeguard capital."
+            else:
+                dialogue = f"現在値 {price} に対し、フィボナッチ最適値に基づく厳格な損切りラインを {stop_loss} ({currency}) に設定。ポートフォリオ全体の最大配分は {alloc}% を上限とし、資産防衛を担保する。"
 
         return {
             "agent_id": cls.agent_id,
-            "name": cls.name,
-            "title": cls.title,
+            "name": "Chief Risk Officer (CRO)" if is_en else cls.name,
+            "title": "Capital Preservation & Red Team" if is_en else cls.title,
             "avatar": cls.avatar,
             "stance": stance,
             "score": safety_score,
