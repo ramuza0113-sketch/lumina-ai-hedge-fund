@@ -359,32 +359,54 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
                 )
                 st.markdown(dialogue_html, unsafe_allow_html=True)
         else:
-            st.info("👈 上記の**ワンクリック銘柄プリセット**（トヨタ、NVIDIA等）をクリックするか、ティッカーを入力して『⚔️ 投資作戦会議を招集する』を押すと、AIたちによる合議討議と売買判定がここに展開されます。")
+            hint_msg = (
+                "👈 Click any **one-click ticker preset** above (e.g. NVDA, AAPL) or enter a ticker and click **'⚔️ Convene Investment Council'** to initiate multi-agent debate and trade decisions."
+                if lang == "en" else
+                "👈 上記の**ワンクリック銘柄プリセット**（トヨタ、NVIDIA等）をクリックするか、ティッカーを入力して『⚔️ 投資作戦会議を招集する』を押すと、AIたちによる合議討議と売買判定がここに展開されます。"
+            )
+            st.info(hint_msg)
 
         # 🔍 AI市場スキャナー ＆ 本日のおすすめ有望銘柄自動発掘
         st.markdown("---")
         from core.ai_hedge_fund.market_screener import MarketScreener
         
-        with st.expander("🔍 【AI市場スキャナー】株式市場から今日のおすすめ有望銘柄を自動発掘する", expanded=False):
-            st.caption("AIが日米欧市場を自動巡回し、バフェット・キャシー・グレアムの各哲学に合致する有望銘柄をスコアリングして推薦します。")
+        screener_title = "🔍 [AI Market Screener] Auto-discover Top Promising Equities" if lang == "en" else "🔍 【AI市場スキャナー】株式市場から今日のおすすめ有望銘柄を自動発掘する"
+        with st.expander(screener_title, expanded=False):
+            st.caption(
+                "AI scans global markets and scores candidate equities matching Buffett, Wood, and Graham investment philosophies."
+                if lang == "en" else
+                "AIが日米欧市場を自動巡回し、バフェット・キャシー・グレアムの各哲学に合致する有望銘柄をスコアリングして推薦します。"
+            )
             sc_c1, sc_c2 = st.columns([3, 1])
             with sc_c1:
-                strategy_map = {
-                    "🌟 全市場ハイブリッド厳選 (日米欧AI総合トップピック)": "ALL",
-                    "🇪🇺 欧州グローバル・独占モート厳選 (ASML・SAP・製薬)": "EUROPE_GLOBAL",
-                    "⚔️ 防衛・重工業＆AI電力 (国策・特需モメンタム)": "DEFENSE_ENERGY",
-                    "🚀 破壊的AI・半導体＆次世代テック (キャシー・ウッド型)": "AI_GROWTH",
-                    "🎩 ワイドモート＆高配当・高ROE (ウォーレン・バフェット型)": "VALUE_DIVIDEND",
-                    "📊 PBR1倍割れ＆深層割安ディープバリュー (ベンジャミン・グレアム型)": "DEEP_VALUE"
-                }
+                if lang == "en":
+                    strategy_map = {
+                        "🌟 All-Market Hybrid (Global AI Top Picks)": "ALL",
+                        "🇪🇺 European Moats (ASML, SAP, Pharma)": "EUROPE_GLOBAL",
+                        "⚔️ Defense, Heavy Industry & AI Power": "DEFENSE_ENERGY",
+                        "🚀 Disruptive AI, Semiconductors & Next-Gen Tech": "AI_GROWTH",
+                        "🎩 Wide Moat, High ROE & Quality Dividends": "VALUE_DIVIDEND",
+                        "📊 Deep Value & Sub-PBR Undervalued Stocks": "DEEP_VALUE"
+                    }
+                    strat_label = "Select Screener Strategy (Investment Style)"
+                else:
+                    strategy_map = {
+                        "🌟 全市場ハイブリッド厳選 (日米欧AI総合トップピック)": "ALL",
+                        "🇪🇺 欧州グローバル・独占モート厳選 (ASML・SAP・製薬)": "EUROPE_GLOBAL",
+                        "⚔️ 防衛・重工業＆AI電力 (国策・特需モメンタム)": "DEFENSE_ENERGY",
+                        "🚀 破壊的AI・半導体＆次世代テック (キャシー・ウッド型)": "AI_GROWTH",
+                        "🎩 ワイドモート＆高配当・高ROE (ウォーレン・バフェット型)": "VALUE_DIVIDEND",
+                        "📊 PBR1倍割れ＆深層割安ディープバリュー (ベンジャミン・グレアム型)": "DEEP_VALUE"
+                    }
+                    strat_label = "発掘ストラテジー（投資スタイル）を選択"
                 selected_strat = st.selectbox(
-                    "発掘ストラテジー（投資スタイル）を選択",
+                    strat_label,
                     list(strategy_map.keys()),
                     key="hf_screener_strat"
                 )
             with sc_c2:
                 st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-                do_scan = st.button("⚡ 市場をスキャン発掘", type="primary", use_container_width=True)
+                do_scan = st.button("⚡ Scan Market" if lang == "en" else "⚡ 市場をスキャン発掘", type="primary", use_container_width=True)
 
             cat_code = strategy_map.get(selected_strat, "ALL")
 
@@ -463,14 +485,22 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
 
         # ⭐ Custom Watchlist UI
         st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
-        with st.expander("⭐ 【マイ監視リスト】あなた独自の巡回銘柄を追加・管理する", expanded=False):
-            st.caption("ここで登録した銘柄は、15分おきの全自動売買デーモンおよび市場スキャナーで最優先パトロールされます。")
+        wl_title = "⭐ [My Watchlist] Add & Manage Custom Monitored Tickers" if lang == "en" else "⭐ 【マイ監視リスト】あなた独自の巡回銘柄を追加・管理する"
+        with st.expander(wl_title, expanded=False):
+            st.caption(
+                "Tickers registered here are prioritized by autonomous trading daemons and market scanners."
+                if lang == "en" else
+                "ここで登録した銘柄は、15分おきの全自動売買デーモンおよび市場スキャナーで最優先パトロールされます。"
+            )
             cw_col1, cw_col2 = st.columns([3, 1])
             with cw_col1:
-                new_watch_sym = st.text_input("銘柄コード / ティッカー (例: 7011, 5803, 6758, MSFT, NVDA)", key="hf_new_watch_sym")
+                new_watch_sym = st.text_input(
+                    "Ticker Symbol (e.g. NVDA, AAPL, MSFT, 7203.T)" if lang == "en" else "銘柄コード / ティッカー (例: 7011, 5803, 6758, MSFT, NVDA)",
+                    key="hf_new_watch_sym"
+                )
             with cw_col2:
                 st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-                add_watch_btn = st.button("➕ 監視リストに追加", key="hf_add_watch_btn", use_container_width=True)
+                add_watch_btn = st.button("➕ Add to Watchlist" if lang == "en" else "➕ 監視リストに追加", key="hf_add_watch_btn", use_container_width=True)
             
             if add_watch_btn and new_watch_sym:
                 add_res = MarketScreener.add_custom_ticker(new_watch_sym)
@@ -483,15 +513,15 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
 
             custom_items = MarketScreener.get_custom_watchlist()
             if not custom_items:
-                st.info("現在登録されているカスタム銘柄はありません。気になる銘柄を追加してください。")
+                st.info("No custom tickers registered yet. Add tickers you wish to monitor." if lang == "en" else "現在登録されているカスタム銘柄はありません。気になる銘柄を追加してください。")
             else:
-                st.markdown("<div style='font-size: 12px; font-weight: bold; color: #38bdf8; margin: 8px 0 4px 0;'>現在登録中のカスタム巡回銘柄:</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='font-size: 12px; font-weight: bold; color: #38bdf8; margin: 8px 0 4px 0;'>{'Currently Monitored Custom Tickers:' if lang == 'en' else '現在登録中のカスタム巡回銘柄:'}</div>", unsafe_allow_html=True)
                 for c_it in custom_items:
                     c_col_info, c_col_del = st.columns([4, 1])
                     with c_col_info:
-                        st.markdown(f"⭐ **{c_it['name']}** (`{c_it['symbol']}`) - {c_it.get('category', 'マイ監視')}")
+                        st.markdown(f"⭐ **{c_it['name']}** (`{c_it['symbol']}`) - {c_it.get('category', 'Custom')}")
                     with c_col_del:
-                        if st.button("🗑️ 削除", key=f"del_watch_{c_it['symbol']}", use_container_width=True):
+                        if st.button("🗑️ " + ("Delete" if lang == "en" else "削除"), key=f"del_watch_{c_it['symbol']}", use_container_width=True):
                             MarketScreener.remove_custom_ticker(c_it['symbol'])
                             st.session_state.pop('hf_screener_results', None)
                             st.rerun()
@@ -501,11 +531,12 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
         briefing = AlphaResearcher.get_latest_briefing()
 
         st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
-        with st.expander("🕵️ 【週末自律発掘】Lumina CIO 今週の特選アルファ銘柄 Top 5", expanded=True if briefing else False):
+        alpha_title = "🕵️ [Autonomous Alpha Research] Lumina CIO Weekly Top 5 Alpha Picks" if lang == "en" else "🕵️ 【週末自律発掘】Lumina CIO 今週の特選アルファ銘柄 Top 5"
+        with st.expander(alpha_title, expanded=True if briefing else False):
             if not briefing:
-                st.info("まだ週末自律探索レポートが生成されていません。下のボタンを押して100銘柄ユニバースから即時発掘を実行できます。")
-                if st.button("🚀 100銘柄ユニバースから自律アルファ探索を実行", key="btn_run_alpha_init", type="primary", use_container_width=True):
-                    with st.spinner("AIが日米欧100銘柄の財務指標を走査し、Gemini 3.7 FlashがTop 5を選定中..."):
+                st.info("No weekly research briefing generated yet. Click below to run autonomous discovery across 100-ticker universe." if lang == "en" else "まだ週末自律探索レポートが生成されていません。下のボタンを押して100銘柄ユニバースから即時発掘を実行できます。")
+                if st.button("🚀 Run Autonomous Alpha Discovery (100 Universe)" if lang == "en" else "🚀 100銘柄ユニバースから自律アルファ探索を実行", key="btn_run_alpha_init", type="primary", use_container_width=True):
+                    with st.spinner("AI analyzing fundamentals across 100 global tickers, selecting Top 5 with Gemini 3.8 Flash..." if lang == "en" else "AIが日米欧100銘柄の財務指標を走査し、Gemini 3.7 FlashがTop 5を選定中..."):
                         AlphaResearcher.run_research_scan()
                         st.rerun()
             else:
@@ -823,25 +854,50 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
                 </div>
                 """, unsafe_allow_html=True)
 
-        # 📢 X (Twitter) 運用推移レポート自律ポスト (1日1〜2回)
+        # 📢 X (Twitter) Autonomous Report Post
         from core.state_manager import get_stock_report_scheduler_settings, save_stock_report_scheduler_settings
-        from x_scheduler import get_stock_report_task_status, register_stock_report_tasks, unregister_stock_report_tasks
+        try:
+            from x_scheduler import get_stock_report_task_status, register_stock_report_tasks, unregister_stock_report_tasks
+        except ImportError:
+            def get_stock_report_task_status():
+                return {"enabled": False, "is_registered": False, "times": []}
+            def register_stock_report_tasks():
+                return {"success": False, "errors": ["Local task scheduler integration is optional."]}
+            def unregister_stock_report_tasks():
+                return {"success": True}
 
-        stock_cfg = get_stock_report_scheduler_settings()
+        stock_cfg = get_stock_report_scheduler_settings() or {}
         task_st = get_stock_report_task_status()
 
-        with st.expander("📢 【X (Twitter) 運用推移レポート自律ポスト】1日1〜2回 自動発信", expanded=True):
-            st.caption("AI株式自動売買の資産推移、損益状況、保有銘柄、AI合議方針を公式X（Twitter）へ自動ポストします（1日1回〜2回）。")
+        x_title = "📢 [X (Twitter) Autonomous Report Post] Daily 1-2x Broadcast" if lang == "en" else "📢 【X (Twitter) 運用推移レポート自律ポスト】1日1〜2回 自動発信"
+        with st.expander(x_title, expanded=True):
+            st.caption(
+                "Autonomously broadcasts hedge fund portfolio returns, PnL, holdings, and AI council theses to official X (Twitter)."
+                if lang == "en" else
+                "AI株式自動売買の資産推移、損益状況、保有銘柄、AI合議方針を公式X（Twitter）へ自動ポストします（1日1回〜2回）。"
+            )
             
             x_col1, x_col2 = st.columns([1.6, 2.4])
             with x_col1:
-                stock_enabled = st.toggle("自律ポストを有効化", value=stock_cfg.get("enabled", True), key="hf_x_post_toggle")
-                freq_options = {
-                    "once_daily_2000": "1日1回 (20:00 夜間速報・日次まとめ)",
-                    "twice_daily": "1日2回 (15:45 東証引け後 / 21:30 夜間速報)",
-                    "once_daily_close": "1日1回 (15:45 東証引け後のみ)",
-                    "once_daily_night": "1日1回 (21:30 夜間速報のみ)"
-                }
+                stock_enabled = st.toggle("Enable Autonomous Posting" if lang == "en" else "自律ポストを有効化", value=stock_cfg.get("enabled", True), key="hf_x_post_toggle")
+                if lang == "en":
+                    freq_options = {
+                        "once_daily_2000": "1x Daily (20:00 Daily Brief & Close)",
+                        "twice_daily": "2x Daily (15:45 Close / 21:30 Evening)",
+                        "once_daily_close": "1x Daily (15:45 Market Close only)",
+                        "once_daily_night": "1x Daily (21:30 Evening Flash only)"
+                    }
+                    freq_label = "Posting Schedule"
+                    attach_label = "Auto-attach Infographic Performance Card Image"
+                else:
+                    freq_options = {
+                        "once_daily_2000": "1日1回 (20:00 夜間速報・日次まとめ)",
+                        "twice_daily": "1日2回 (15:45 東証引け後 / 21:30 夜間速報)",
+                        "once_daily_close": "1日1回 (15:45 東証引け後のみ)",
+                        "once_daily_night": "1日1回 (21:30 夜間速報のみ)"
+                    }
+                    freq_label = "投稿スケジュール"
+                    attach_label = "インフォグラフィック実績カード画像を自動添付"
                 curr_freq = stock_cfg.get("frequency", "once_daily_2000")
                 if curr_freq == "once_daily_2000" or curr_freq == "once_daily":
                     idx = 0
@@ -852,13 +908,13 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
                 else:
                     idx = 3
                 selected_freq_label = st.selectbox(
-                    "投稿スケジュール",
+                    freq_label,
                     list(freq_options.values()),
                     index=idx,
                     key="hf_x_freq_select"
                 )
                 selected_freq_key = [k for k, v in freq_options.items() if v == selected_freq_label][0]
-                attach_card = st.checkbox("インフォグラフィック実績カード画像を自動添付", value=stock_cfg.get("attach_card_image", True), key="hf_x_card_chk")
+                attach_card = st.checkbox(attach_label, value=stock_cfg.get("attach_card_image", True), key="hf_x_card_chk")
 
                 # Save settings if changed
                 if selected_freq_key == "once_daily_2000":
@@ -878,18 +934,20 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
                     stock_cfg["times"] = new_times
                     stock_cfg["attach_card_image"] = attach_card
                     save_stock_report_scheduler_settings(stock_cfg)
-                    st.toast("推移報告スケジュール設定を保存しました", icon="💾")
+                    st.toast("Settings saved" if lang == "en" else "推移報告スケジュール設定を保存しました", icon="💾")
 
                 # Windows Task Scheduler status
                 is_reg = task_st.get("is_registered", False)
-                st.markdown(f"<div style='font-size: 11.5px; color: #94a3b8; margin-top: 6px;'>Windowsタスク連携: <strong style='color: {'#34d399' if is_reg else '#f87171'};'>{'🟢 登録済み (PC起動時も定時射出)' if is_reg else '⚪ 未登録'}</strong></div>", unsafe_allow_html=True)
-                if st.button("⏰ タスクスケジューラに登録・更新", key="hf_reg_task_btn", use_container_width=True):
+                status_txt = ("🟢 Registered (Runs on schedule)" if is_reg else "⚪ Unregistered") if lang == "en" else ("🟢 登録済み (PC起動時も定時射出)" if is_reg else "⚪ 未登録")
+                sched_status_lbl = "Task Scheduler:" if lang == "en" else "Windowsタスク連携:"
+                st.markdown(f"<div style='font-size: 11.5px; color: #94a3b8; margin-top: 6px;'>{sched_status_lbl} <strong style='color: {'#34d399' if is_reg else '#f87171'};'>{status_txt}</strong></div>", unsafe_allow_html=True)
+                if st.button("⏰ " + ("Register / Update Task Scheduler" if lang == "en" else "タスクスケジューラに登録・更新"), key="hf_reg_task_btn", use_container_width=True):
                     r_res = register_stock_report_tasks()
                     if r_res.get("success"):
-                        st.success(f"タスクスケジューラに登録しました！({', '.join(r_res.get('registered_times', []))})")
+                        st.success(f"Registered to task scheduler! ({', '.join(r_res.get('registered_times', []))})" if lang == "en" else f"タスクスケジューラに登録しました！({', '.join(r_res.get('registered_times', []))})")
                         st.rerun()
                     else:
-                        st.error(f"登録エラー: {r_res.get('errors')}")
+                        st.error(f"Scheduler note: {r_res.get('errors')}" if lang == "en" else f"登録エラー: {r_res.get('errors')}")
 
             with x_col2:
                 # Cached daily report generation (TTL 60s to eliminate redundant rerun overhead)
@@ -901,31 +959,36 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
                     st.session_state['_hf_cached_sample_rep'] = _cached_rep
                     st.session_state['_hf_cached_sample_rep_time'] = now_ts
                 sample_rep = _cached_rep
-                st.text_area("ポスト本文 (140文字 厳格制御)", value=sample_rep.get("main_tweet", ""), height=155, key="hf_live_preview_text")
+                st.text_area("Post Content (140-char limit)" if lang == "en" else "ポスト本文 (140文字 厳格制御)", value=sample_rep.get("main_tweet", ""), height=155, key="hf_live_preview_text")
 
                 btn_c1, btn_c2 = st.columns(2)
                 with btn_c1:
-                    if st.button("🚀 今すぐテスト射出 (Xへ投稿)", type="primary", use_container_width=True, key="hf_test_post_x_btn"):
-                        with st.spinner("Xへ最新運用推移レポートを射出中..."):
+                    if st.button("🚀 " + ("Test Post to X" if lang == "en" else "今すぐテスト射出 (Xへ投稿)"), type="primary", use_container_width=True, key="hf_test_post_x_btn"):
+                        with st.spinner("Posting to X..." if lang == "en" else "Xへ最新運用推移レポートを射出中..."):
                             post_res = FundContentGenerator.post_daily_stock_report_to_x(force=True, attach_card=attach_card)
                             if post_res.get("success"):
                                 tw_url = post_res.get("url", "")
-                                st.success(f"🎉 Xへの投稿が完了しました！ [ポストを開く]({tw_url})")
+                                st.success(f"🎉 Post published! [Open Post]({tw_url})" if lang == "en" else f"🎉 Xへの投稿が完了しました！ [ポストを開く]({tw_url})")
                             else:
-                                st.error(f"X投稿エラー: {post_res.get('error')}")
+                                st.error(f"Error: {post_res.get('error')}" if lang == "en" else f"X投稿エラー: {post_res.get('error')}")
                 with btn_c2:
-                    if st.button("🖼️ 実績カード画像を生成して確認", use_container_width=True, key="hf_preview_card_btn"):
+                    if st.button("🖼️ " + ("Preview Infographic Card" if lang == "en" else "実績カード画像を生成して確認"), use_container_width=True, key="hf_preview_card_btn"):
                         c_img = FundContentGenerator.generate_portfolio_card_image(sample_rep)
                         if c_img and os.path.exists(c_img):
                             st.session_state['hf_preview_card_img'] = c_img
 
                 prev_card = st.session_state.get('hf_preview_card_img')
                 if prev_card and os.path.exists(prev_card):
-                    st.image(prev_card, caption="X添付用 運用実績カード画像 (1200x675)", use_container_width=True)
+                    st.image(prev_card, caption="Infographic Performance Card (1200x675)" if lang == "en" else "X添付用 運用実績カード画像 (1200x675)", use_container_width=True)
 
-        # 📝 note.com 損益日報自律投稿 (市場営業日の20:00頃)
-        with st.expander("📝 【note.com 損益日報自律投稿】市場営業日 20:00頃 自動報告", expanded=True):
-            st.caption("東証（日本株市場）が開いていた営業日の20:00頃に、AI自動売買の運用損益・資産推移・約定アクション・5人AI合議レビューをまとめた高品質な損益日報記事を、アイキャッチ画像付きでnoteへ自動投稿します。")
+        # 📝 note.com Autonomous Daily Report Article
+        note_title = "📝 [note.com Portfolio Daily Article] Autonomous Market Close Publishing" if lang == "en" else "📝 【note.com 損益日報自律投稿】市場営業日 20:00頃 自動報告"
+        with st.expander(note_title, expanded=True):
+            st.caption(
+                "Autonomously publishes comprehensive portfolio PnL, asset curve, and 5-agent AI council reviews as rich articles to note.com."
+                if lang == "en" else
+                "東証（日本株市場）が開いていた営業日の20:00頃に、AI自動売買の運用損益・資産推移・約定アクション・5人AI合議レビューをまとめた高品質な損益日報記事を、アイキャッチ画像付きでnoteへ自動投稿します。"
+            )
             
             note_c1, note_c2 = st.columns([1.6, 2.4])
             with note_c1:
