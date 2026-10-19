@@ -28,3 +28,31 @@ def get_stock_report_scheduler_settings():
 
 def save_stock_report_scheduler_settings(settings):
     pass
+
+def get_discord_settings():
+    settings = load_app_settings()
+    return settings.get("discord_settings", {
+        "enabled": False,
+        "bot_token": os.getenv("DISCORD_BOT_TOKEN", ""),
+        "channel_id": os.getenv("DISCORD_CHANNEL_ID", ""),
+        "webhook_url": os.getenv("DISCORD_WEBHOOK_URL", "")
+    })
+
+def save_discord_settings(discord_settings):
+    settings = load_app_settings()
+    settings["discord_settings"] = discord_settings
+    save_app_settings(settings)
+
+def get_note_settings():
+    settings = load_app_settings()
+    return settings.get("note_settings", {
+        "email": os.getenv("NOTE_EMAIL", ""),
+        "password": os.getenv("NOTE_PASSWORD", ""),
+        "creator_url": os.getenv("NOTE_CREATOR_URL", "")
+    })
+
+def save_note_settings(note_settings):
+    settings = load_app_settings()
+    settings["note_settings"] = note_settings
+    save_app_settings(settings)
+
