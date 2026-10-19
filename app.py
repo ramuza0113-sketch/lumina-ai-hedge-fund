@@ -76,6 +76,22 @@ def main():
         )
 
         st.markdown("---")
+        st.caption("🌐 **Interface Language / 言語**")
+        if "app_lang" not in st.session_state:
+            st.session_state["app_lang"] = "en"
+        
+        selected_lang_label = st.selectbox(
+            "Language",
+            options=["English", "日本語"],
+            index=0 if st.session_state["app_lang"] == "en" else 1,
+            label_visibility="collapsed"
+        )
+        new_lang = "en" if selected_lang_label == "English" else "ja"
+        if st.session_state["app_lang"] != new_lang:
+            st.session_state["app_lang"] = new_lang
+            st.rerun()
+
+        st.markdown("---")
         st.caption("⚙️ **Execution Architecture**")
         st.info("🛡️ **Mode**: High-Fidelity Paper Trading (SQLite, Real Commissions & Slippage)")
         
@@ -97,7 +113,7 @@ def main():
         """, unsafe_allow_html=True)
 
     # Pass API key into main studio
-    render_mode_ai_hedge_fund(api_key=gemini_key)
+    render_mode_ai_hedge_fund(api_key=gemini_key, lang=st.session_state.get("app_lang", "en"))
 
 if __name__ == "__main__":
     main()

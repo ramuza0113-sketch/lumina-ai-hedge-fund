@@ -10,20 +10,29 @@ from core.ai_hedge_fund.market_data_feed import MarketDataFeed
 from core.ai_hedge_fund.hedge_fund_council import HedgeFundCouncil
 from core.ai_hedge_fund.broker_client import PaperTradingEngine, KabuStationClient, IBKRClient
 from core.ai_hedge_fund.fund_content_generator import FundContentGenerator
+from ui.i18n import t, get_current_lang
 
-def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model: str = ""):
+def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model: str = "", lang: str = "en"):
     """
     Lumina AI Hedge Fund: Autonomous Multi-Agent Investment Studio UI
     """
+    is_en = (get_current_lang() == "en")
+    default_init_sym = "NVDA" if is_en else "7203.T"
+
     if 'pending_hf_symbol' in st.session_state:
         target_sym = st.session_state.pop('pending_hf_symbol')
         st.session_state['hf_input_symbol'] = target_sym
         st.session_state['hf_input_symbol_field'] = target_sym
     elif 'hf_input_symbol_field' not in st.session_state:
-        st.session_state['hf_input_symbol_field'] = st.session_state.get('hf_input_symbol', "7203.T")
+        st.session_state['hf_input_symbol_field'] = st.session_state.get('hf_input_symbol', default_init_sym)
     
     # 💎 Premium SaaS Header Banner
-    st.markdown("""
+    header_badge = t("header_badge")
+    header_sub = t("header_sub")
+    header_data = t("header_data")
+    header_mode = t("header_mode")
+
+    st.markdown(f"""
     <div style="background: linear-gradient(135deg, #06101e 0%, #0d1e38 50%, #15294e 100%); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 16px; padding: 20px 24px; color: #FFFFFF; margin-bottom: 20px; box-shadow: 0 4px 25px rgba(0,0,0,0.5), 0 0 20px rgba(56, 189, 248, 0.15);">
         <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
             <div style="display: flex; align-items: center; gap: 16px;">
@@ -33,19 +42,19 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
                 <div>
                     <div style="font-size: 1.4rem; font-weight: 800; letter-spacing: -0.02em; display: flex; align-items: center; gap: 10px;">
                         <span>Lumina AI Hedge Fund</span>
-                        <span style="font-size: 11px; padding: 3px 10px; border-radius: 9999px; background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); font-family: monospace;">● 自律型マルチエージェント投資合議</span>
+                        <span style="font-size: 11px; padding: 3px 10px; border-radius: 9999px; background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); font-family: monospace;">{header_badge}</span>
                     </div>
                     <div style="font-size: 0.88rem; color: #94a3b8; margin-top: 3px;">
-                        伝説の投資家AI（バフェット・グレアム・キャシー・リスク管理）が徹底討議 ＆ ペーパートレード・証券連携・1万字コンテンツ自動射出
+                        {header_sub}
                     </div>
                 </div>
             </div>
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                 <div style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; padding: 6px 14px; font-size: 11px; color: #38bdf8;">
-                    📈 データ: <strong style="color: #ffffff;">yfinance (東証/米国株/欧州ADR)</strong>
+                    {header_data}
                 </div>
                 <div style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 10px; padding: 6px 14px; font-size: 11px; color: #34d399;">
-                    💼 運用モード: <strong style="color: #ffffff;">ペーパートレード (初期¥100万/$1万)</strong>
+                    {header_mode}
                 </div>
             </div>
         </div>
@@ -53,10 +62,10 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
     """, unsafe_allow_html=True)
 
     tab_council, tab_portfolio, tab_memory, tab_content = st.tabs([
-        "🏛️ AI投資作戦会議 (Investment Council)",
-        "💼 ポートフォリオ＆損益ダッシュボード",
-        "📜 ファンド記憶・合議録アーカイブ (Memory)",
-        "🚀 コンテンツ自動生成＆射出 (Content Studio)"
+        t("tab_council"),
+        t("tab_portfolio"),
+        t("tab_memory"),
+        t("tab_content")
     ])
 
     paper_engine = PaperTradingEngine()
@@ -65,7 +74,7 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
     # TAB 1: 🏛️ AI投資作戦会議 (Investment Council)
     # =========================================================================
     with tab_council:
-        st.info("💡 **合議・分析結果の閲覧場所**: 銘柄プリセットまたはティッカーを入力して『⚔️ 投資作戦会議を招集する』を押すと、この画面下部に**CIO最終判定・4名AI投資家の白熱討議・TradingViewチャート・即時発注**が表示されます。また、タブ3『📜 ファンド記憶・合議録アーカイブ』では過去の全合議履歴が閲覧可能です。")
+        st.info(t("council_hint"))
 
         def select_and_run_council(target_sym: str, force: bool = False):
             norm = MarketDataFeed.normalize_symbol(target_sym)
@@ -82,19 +91,31 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
                 st.session_state['auto_run_council'] = True
             st.rerun()
 
-        st.markdown("<div style='font-size: 13px; font-weight: 700; color: #38bdf8; margin-bottom: 8px;'>⚡ ワンクリック銘柄プリセット（日本株 ＆ 米国株 ＆ 欧州グローバルADR）</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size: 13px; font-weight: 700; color: #38bdf8; margin-bottom: 8px;'>{t('quick_presets')}</div>", unsafe_allow_html=True)
         
-        # Preset buttons
-        presets = [
-            ("🇯🇵 トヨタ", "7203.T"),
-            ("🇯🇵 三菱商事", "8058.T"),
-            ("🇯🇵 ソニー", "6758.T"),
-            ("🇺🇸 NVIDIA", "NVDA"),
-            ("🇺🇸 Apple", "AAPL"),
-            ("🇺🇸 Tesla", "TSLA"),
-            ("🇪🇺 ASML", "ASML"),
-            ("🇪🇺 SAP", "SAP"),
-        ]
+        # Preset buttons (Adapted to active language)
+        if is_en:
+            presets = [
+                ("🇺🇸 NVIDIA", "NVDA"),
+                ("🇺🇸 Apple", "AAPL"),
+                ("🇺🇸 Tesla", "TSLA"),
+                ("🇺🇸 Microsoft", "MSFT"),
+                ("🇺🇸 Palantir", "PLTR"),
+                ("🇪🇺 ASML", "ASML"),
+                ("🇯🇵 Toyota", "7203.T"),
+                ("🇪🇺 SAP", "SAP"),
+            ]
+        else:
+            presets = [
+                ("🇯🇵 トヨタ", "7203.T"),
+                ("🇯🇵 三菱商事", "8058.T"),
+                ("🇯🇵 ソニー", "6758.T"),
+                ("🇺🇸 NVIDIA", "NVDA"),
+                ("🇺🇸 Apple", "AAPL"),
+                ("🇺🇸 Tesla", "TSLA"),
+                ("🇪🇺 ASML", "ASML"),
+                ("🇪🇺 SAP", "SAP"),
+            ]
         p_cols = st.columns(len(presets))
         for idx, (label, sym) in enumerate(presets):
             with p_cols[idx]:
@@ -103,18 +124,18 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
                     select_and_run_council(sym)
 
         st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
-        st.markdown("<div style='font-size: 13px; font-weight: 700; color: #38bdf8; margin-bottom: 6px;'>🎯 手動指定で招集する</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size: 13px; font-weight: 700; color: #38bdf8; margin-bottom: 6px;'>{t('manual_symbol_heading')}</div>", unsafe_allow_html=True)
         col_input, col_btn = st.columns([3, 1])
         with col_input:
             if 'hf_input_symbol_field' not in st.session_state and 'hf_input_symbol' in st.session_state:
                 st.session_state['hf_input_symbol_field'] = st.session_state['hf_input_symbol']
             input_symbol = st.text_input(
-                "銘柄コード / ティッカーシンボル (例: 7203.T, 8058.T, 6758.T, NVDA, AAPL, MSFT, PLTR)",
+                t("symbol_input_label"),
                 key="hf_input_symbol_field"
             )
         with col_btn:
             st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-            run_btn = st.button("⚔️ 投資作戦会議を招集する", type="primary", use_container_width=True)
+            run_btn = st.button(t("convene_btn"), type="primary", use_container_width=True)
 
         should_run = (run_btn or st.session_state.get('auto_run_council', False)) and input_symbol
         if should_run:
@@ -122,13 +143,13 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
             norm_symbol = MarketDataFeed.normalize_symbol(input_symbol.strip())
             st.session_state['hf_input_symbol'] = norm_symbol
             is_manual_force = bool(run_btn)
-            with st.spinner(f"🏛️ 銘柄「{norm_symbol}」の財務データ・SEC開示・オプションGEXを取得し、伝説の投資家AIたちによる合議討議を開始しています..."):
+            with st.spinner(t("spinner_running")):
                 try:
                     council_result = HedgeFundCouncil.run_council(norm_symbol, force_refresh=is_manual_force)
                     st.session_state['last_council_result'] = council_result
-                    st.success(f"🎉 「{norm_symbol}」の合議討議が完了しました！下に分析結果と合議録を表示しています。")
+                    st.success(t("council_done", symbol=norm_symbol))
                 except Exception as e:
-                    st.error(f"合議実行中にエラーが発生しました: {e}")
+                    st.error(t("council_error", error=str(e)))
 
         # Auto-load cached result on initial load if none in state
         if 'last_council_result' not in st.session_state:
@@ -151,23 +172,29 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
 
             # Summary Metrics Row
             m1, m2, m3, m4, m5, m6 = st.columns(6)
-            m1.metric("現在値", f"{price:,.2f} {curr}")
-            m2.metric("20日リターン", f"{stock_data.get('history_metrics', {}).get('return_20d_pct', 0)}%")
-            m3.metric("実績PER", f"{stock_data.get('pe_trailing') or 'N/A'}倍")
-            m4.metric("PBR", f"{stock_data.get('pb_ratio') or 'N/A'}倍")
-            m5.metric("配当利回り", f"{stock_data.get('dividend_yield', 0)}%")
-            m6.metric("ROE", f"{stock_data.get('roe') or 'N/A'}%")
+            m1.metric(t("current_price"), f"{price:,.2f} {curr}")
+            m2.metric(t("return_20d"), f"{stock_data.get('history_metrics', {}).get('return_20d_pct', 0)}%")
+            m3.metric(t("pe_trailing"), f"{stock_data.get('pe_trailing') or 'N/A'}")
+            m4.metric(t("pb_ratio"), f"{stock_data.get('pb_ratio') or 'N/A'}")
+            m5.metric(t("dividend_yield"), f"{stock_data.get('dividend_yield', 0)}%")
+            m6.metric(t("roe"), f"{stock_data.get('roe') or 'N/A'}%")
 
             # 🏆 CIO Final Verdict Card
             action = verdict.get("action", "HOLD")
             action_color = "#10b981" if action in ["BUY", "ACCUMULATE"] else ("#ef4444" if action in ["SELL", "REDUCE"] else "#f59e0b")
+            cio_title = t("cio_title")
+            target_label = t("target_price")
+            stop_loss_label = t("stop_loss")
+            alloc_label = t("allocation")
+            conf_label = t("confidence")
+            thesis_label = t("thesis_title")
             
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9)); border: 2px solid {action_color}; border-radius: 14px; padding: 20px; margin: 18px 0; box-shadow: 0 4px 20px rgba(0,0,0,0.4);">
                 <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
                     <div>
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #94a3b8; font-weight: bold;">Lumina Capital CIO 最終決定</span>
+                            <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #94a3b8; font-weight: bold;">{cio_title}</span>
                             {f'<span style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 600;">{verdict.get("market_regime")}</span>' if verdict.get("market_regime") else ''}
                         </div>
                         <div style="font-size: 1.6rem; font-weight: 800; color: #FFFFFF; display: flex; align-items: center; gap: 12px; margin-top: 4px;">
@@ -179,32 +206,33 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
                     </div>
                     <div style="display: flex; gap: 20px; flex-wrap: wrap;">
                         <div>
-                            <div style="font-size: 10px; color: #94a3b8;">目標株価 (Target)</div>
+                            <div style="font-size: 10px; color: #94a3b8;">{target_label}</div>
                             <div style="font-size: 1.25rem; font-weight: 700; color: #38bdf8;">{verdict.get('target_price', 'N/A')} {curr}</div>
                         </div>
                         <div>
-                            <div style="font-size: 10px; color: #94a3b8;">損切りライン (Stop Loss)</div>
+                            <div style="font-size: 10px; color: #94a3b8;">{stop_loss_label}</div>
                             <div style="font-size: 1.25rem; font-weight: 700; color: #f87171;">{verdict.get('stop_loss_price', 'N/A')} {curr}</div>
                         </div>
                         <div>
-                            <div style="font-size: 10px; color: #94a3b8;">推奨配分比率</div>
+                            <div style="font-size: 10px; color: #94a3b8;">{alloc_label}</div>
                             <div style="font-size: 1.25rem; font-weight: 700; color: #34d399;">{verdict.get('allocation_pct', 10)}%</div>
                         </div>
                         <div>
-                            <div style="font-size: 10px; color: #94a3b8;">確信度スコア</div>
+                            <div style="font-size: 10px; color: #94a3b8;">{conf_label}</div>
                             <div style="font-size: 1.25rem; font-weight: 700; color: #fbbf24;">{verdict.get('confidence_score', 80)} / 100</div>
                         </div>
                     </div>
                 </div>
                 <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
-                    <strong>💡 CIO投資テーゼ（総括理由）:</strong><br/>
+                    <strong>{thesis_label}</strong><br/>
                     {verdict.get('thesis_summary', '')}
                 </div>
             </div>
             """, unsafe_allow_html=True)
 
             # 📊 TradingView Interactive Candlestick Chart
-            with st.expander(f"📊 【TradingView公式チャート】{name} ({sym}) インタラクティブ・ローソク足", expanded=True):
+            chart_expander_title = t("chart_title", name=name, sym=sym)
+            with st.expander(chart_expander_title, expanded=True):
                 from core.ai_hedge_fund.chart_engine import ChartEngine
                 try:
                     tgt_p = float(verdict.get("target_price")) if verdict.get("target_price") not in [None, "N/A"] else None
@@ -223,19 +251,20 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
 
             # 📋 Fast Execution Box
             with st.container(border=True):
-                st.markdown("<div style='font-size: 13px; font-weight: 700; color: #38bdf8; margin-bottom: 6px;'>⚡ ペーパートレード即時発注</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='font-size: 13px; font-weight: 700; color: #38bdf8; margin-bottom: 6px;'>{t('fast_order_title')}</div>", unsafe_allow_html=True)
                 ex_c1, ex_c2, ex_c3, ex_c4 = st.columns([1.5, 1.5, 1.5, 2.5])
                 with ex_c1:
-                    order_side = st.selectbox("売買サイド", ["BUY (買い)", "SELL (売り)"], index=0 if action in ["BUY", "ACCUMULATE"] else 1)
+                    side_options = ["BUY (Long)", "SELL (Short)"] if is_en else ["BUY (買い)", "SELL (売り)"]
+                    order_side = st.selectbox(t("order_side"), side_options, index=0 if action in ["BUY", "ACCUMULATE"] else 1)
                 with ex_c2:
-                    default_qty = 100 if curr == "JPY" else 10
-                    order_qty = st.number_input("株数 (Quantity)", min_value=1, value=default_qty, step=10 if curr == "JPY" else 1)
+                    default_qty = 10 if curr in ["USD", "EUR"] else 100
+                    order_qty = st.number_input(t("order_qty"), min_value=1, value=default_qty, step=10 if curr == "JPY" else 1)
                 with ex_c3:
-                    st.metric("概算約定代金", f"{(order_qty * price):,.2f} {curr}")
+                    st.metric(t("order_est_val"), f"{(order_qty * price):,.2f} {curr}")
                 with ex_c4:
                     st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
                     side_code = "BUY" if "BUY" in order_side else "SELL"
-                    if st.button(f"🚀 {side_code} 注文をシミュレーション執行", type="primary", use_container_width=True):
+                    if st.button(f"{t('order_exec_btn')} ({side_code})", type="primary", use_container_width=True):
                         exec_res = paper_engine.place_order(
                             symbol=sym,
                             side=side_code,
@@ -243,59 +272,61 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
                             price=price,
                             target_price=verdict.get("target_price"),
                             stop_loss_price=verdict.get("stop_loss_price"),
-                            notes=f"CIO合議判定: {action}"
+                            notes=f"CIO Verdict: {action}"
                         )
                         if exec_res.get("success"):
-                            sl_info = f" (ブラケット逆指値: {exec_res.get('stop_loss_price')} {curr})" if exec_res.get('stop_loss_price') else ""
-                            st.success(f"約定成功！注文ID #{exec_res['order_id']} | {side_code} {order_qty}株 @ {price} {curr}{sl_info}")
+                            sl_info = f" (Stop Loss: {exec_res.get('stop_loss_price')} {curr})" if exec_res.get('stop_loss_price') else ""
+                            st.success(t("order_success", order_id=exec_res['order_id'], side=side_code, qty=order_qty, price=price, curr=curr, sl_info=sl_info))
                         else:
-                            st.error(f"発注エラー: {exec_res.get('error')}")
+                            st.error(f"Execution Error: {exec_res.get('error')}")
 
             # ⚔️ Phase 2: Fact-Grounded Cross-Debate Box
             cd = c_res.get("cross_debate", {})
             if cd.get("occurred"):
-                bear_n = cd.get("bear_name", "弱気派")
-                bull_n = cd.get("bull_name", "強気派")
+                bear_n = cd.get("bear_name", "Bear")
+                bull_n = cd.get("bull_name", "Bull")
                 b_init = cd.get("bear_initial_score", 0)
                 u_init = cd.get("bull_initial_score", 0)
                 u_adj = cd.get("adjusted_score", u_init)
                 delta = cd.get("score_delta", 0)
-                delta_str = f"({delta:+d}点修正)" if delta != 0 else "(スコア維持)"
+                delta_str = f"({delta:+d} pts)" if is_en else (f"({delta:+d}点修正)" if delta != 0 else "(スコア維持)")
                 delta_color = "#f87171" if delta < 0 else "#34d399"
+                spread_text = t("spread_label", spread=cd.get("spread_initial", 0))
+                score_comparison = t("initial_score", init=u_init, adj=u_adj, delta=delta_str)
 
                 cd_html = (
                     f'<div style="background: linear-gradient(135deg, rgba(30, 27, 75, 0.7), rgba(15, 23, 42, 0.85)); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 12px; padding: 18px; margin: 18px 0;">'
                     f'<div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 12px;">'
                     f'<div style="display: flex; align-items: center; gap: 8px;">'
                     f'<span style="font-size: 20px;">⚔️</span>'
-                    f'<span style="font-weight: 800; font-size: 1.05rem; color: #c084fc;">哲学衝突 ガチンコ・クロスディベート（事実拘束対決）</span>'
+                    f'<span style="font-weight: 800; font-size: 1.05rem; color: #c084fc;">{t("cross_debate_title")}</span>'
                     f'</div>'
                     f'<span style="font-size: 12px; background: rgba(139, 92, 246, 0.2); color: #e9d5ff; border: 1px solid rgba(139, 92, 246, 0.4); padding: 3px 10px; border-radius: 6px; font-weight: bold;">'
-                    f'最大見解乖離: {cd.get("spread_initial", 0)}点差'
+                    f'{spread_text}'
                     f'</span>'
                     f'</div>'
                     f'<div style="background: rgba(239, 68, 68, 0.08); border-left: 4px solid #ef4444; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px;">'
                     f'<div style="font-size: 12px; font-weight: bold; color: #f87171; margin-bottom: 4px;">'
-                    f'{cd.get("bear_avatar", "🐻")} [弱気派筆頭の痛烈糾弾] {bear_n} ({b_init}点):'
+                    f'{cd.get("bear_avatar", "🐻")} {t("bear_attack_title")} {bear_n} ({b_init} pts):'
                     f'</div>'
                     f'<div style="font-size: 0.92rem; color: #fecaca; line-height: 1.5;">'
-                    f'「{cd.get("turn1_attack")}」'
+                    f'"{cd.get("turn1_attack")}"'
                     f'</div>'
                     f'</div>'
                     f'<div style="background: rgba(56, 189, 248, 0.08); border-left: 4px solid #38bdf8; border-radius: 8px; padding: 12px 14px;">'
                     f'<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">'
                     f'<span style="font-size: 12px; font-weight: bold; color: #38bdf8;">'
-                    f'{cd.get("bull_avatar", "🐂")} [強気派筆頭の回答 ＆ スコア再判定] {bull_n}:'
+                    f'{cd.get("bull_avatar", "🐂")} {t("bull_defense_title")} {bull_n}:'
                     f'</span>'
                     f'<span style="font-size: 12px; font-weight: 800; color: {delta_color};">'
-                    f'当初 {u_init}点 ➔ 判定: {u_adj}点 {delta_str}'
+                    f'{score_comparison}'
                     f'</span>'
                     f'</div>'
                     f'<div style="font-size: 0.92rem; color: #e0f2fe; line-height: 1.5;">'
-                    f'「{cd.get("turn2_defense")}」'
+                    f'"{cd.get("turn2_defense")}"'
                     f'</div>'
                     f'<div style="font-size: 11px; color: #94a3b8; margin-top: 6px; font-style: italic;">'
-                    f'📌 再考理由: {cd.get("adjustment_rationale", "")}'
+                    f'{t("reconsider_label")} {cd.get("adjustment_rationale", "")}'
                     f'</div>'
                     f'</div>'
                     f'</div>'
@@ -525,24 +556,24 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
                                 select_and_run_council(p.get('symbol'))
 
     # =========================================================================
-    # TAB 2: 💼 ポートフォリオ＆損益ダッシュボード
+    # TAB 2: 💼 Portfolio & PnL Dashboard
     # =========================================================================
     with tab_portfolio:
-        st.markdown("<div style='font-size: 13px; font-weight: 700; color: #38bdf8; margin-bottom: 8px;'>🎛️ ブローカー・接続先モード選択</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size: 13px; font-weight: 700; color: #38bdf8; margin-bottom: 8px;'>{t('broker_select_title')}</div>", unsafe_allow_html=True)
         b_c1, b_c2 = st.columns([2, 1])
         with b_c1:
             broker_mode = st.radio(
                 "接続モード",
                 [
-                    "🟢 ペーパートレード (無料シミュレーション - 初期残高100万円 / $10,000)",
-                    "🔵 auカブコム証券 (kabuステーション REST API - 東証現物自動発注)",
-                    "🟣 Interactive Brokers (IBKR TWS API - 米国株/日米株グローバル)"
+                    t("paper_broker_name"),
+                    t("kabu_broker_name"),
+                    t("ibkr_broker_name")
                 ],
                 index=0,
                 label_visibility="collapsed"
             )
         with b_c2:
-            if st.button("⚠️ ポートフォリオを初期化 (総資産100万円にリセット)", use_container_width=True):
+            if st.button(t("reset_portfolio_btn"), use_container_width=True):
                 paper_engine.reset_portfolio(initial_jpy=1000000.0, initial_usd=0.0)
                 daemon.clear_logs()
                 daemon.total_cycles = 0
@@ -550,7 +581,7 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
                 daemon.total_sells = 0
                 daemon._persist_state()
                 st.session_state.pop('last_auto_cycle_res', None)
-                st.success("総資産100万円（日本円 ¥1,000,000）で新規リセットしました！")
+                st.success("Portfolio reset successfully!")
                 st.rerun()
 
         # 🏢 外部証券会社接続ガイド (auカブコム証券 / IBKR)
@@ -1292,15 +1323,15 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
                     st.rerun()
 
     # =========================================================================
-    # TAB 3: 📜 ファンド記憶・合議録アーカイブ (Memory & Trade Journey)
+    # TAB 3: 📜 Fund Memory & Archive (Memory & Trade Journey)
     # =========================================================================
     with tab_memory:
-        st.markdown("""
+        st.markdown(f"""
         <div style='font-size: 1.2rem; font-weight: 700; color: #FFFFFF; margin-bottom: 6px;'>
-            📜 ファンド永続記憶エンジン (Fund Memory & Archive)
+            {t('memory_heading')}
         </div>
         <div style='font-size: 0.88rem; color: #94a3b8; margin-bottom: 16px;'>
-            当ファンドが過去に開催したすべての合議会議録、銘柄ごとの議論の経緯、取引の勝敗・確定損益、およびAIが得た知見・反省メモをSQLiteに永続記録しています。
+            Persistent SQLite fund memory storing all historic council debates, trade reflections, 3D causal knowledge graphs, and performance journeys.
         </div>
         """, unsafe_allow_html=True)
 

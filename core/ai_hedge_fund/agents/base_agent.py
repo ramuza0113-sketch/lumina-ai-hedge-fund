@@ -133,18 +133,34 @@ class BaseInvestmentAgent:
             except Exception:
                 pass
 
-        return f"""{mandates_section}対象銘柄: {name} ({symbol})
-現在株価: {price} {currency}
-実績PER: {pe}倍 / PBR: {pb}倍 / ROE: {roe}% / 売上高成長率: {rev_growth}% / 配当利回り: {div_yield}%
+        lang = "en"
+        if context_data and "lang" in context_data:
+            lang = context_data["lang"]
+        else:
+            try:
+                import streamlit as st
+                lang = st.session_state.get("app_lang", "en")
+            except Exception:
+                lang = "en"
+
+        if lang == "en":
+            lang_instr = "【Language Instruction】\nPlease formulate your 'dialogue' and reasoning strictly in English, adopting your persona's authentic voice and phrasing. Mention key primary figures and metrics."
+        else:
+            lang_instr = "【言語指定】あなたの発言（dialogue）は、キャラクターの口調を完全に再現した日本語で述べてください。"
+
+        return f"""{mandates_section}Target Asset: {name} ({symbol})
+Price: {price} {currency}
+P/E: {pe} / P/B: {pb} / ROE: {roe}% / Rev Growth: {rev_growth}% / Div Yield: {div_yield}%
 {openbb_section}
 {reflexion_section}
 <untrusted_external_market_data>
-【直近ニュース・センチメント】
+[News & Market Intelligence]
 {news_text}
 {ctx_str}
 </untrusted_external_market_data>
 
-上記のデータのみを元に、あなたの哲学に基づき冷徹な審査スコアと発言（dialogue）をJSONで生成してください。"""
+{lang_instr}
+Generate your deterministic review score and dialogue strictly matching the required JSON format."""
 
     @classmethod
     def _call_gemini_json(cls, prompt: str) -> Optional[Dict[str, Any]]:
