@@ -12,6 +12,8 @@ from core.ai_hedge_fund.broker_client import PaperTradingEngine, KabuStationClie
 from core.ai_hedge_fund.fund_content_generator import FundContentGenerator
 from ui.i18n import t, get_current_lang
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model: str = "", lang: str = "en"):
     """
     Lumina AI Hedge Fund: Autonomous Multi-Agent Investment Studio UI
@@ -833,6 +835,9 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
     # TAB 2: 💼 Portfolio & PnL Dashboard
     # =========================================================================
     with tab_portfolio:
+        from core.ai_hedge_fund.hedge_fund_daemon import HedgeFundDaemon
+        daemon = HedgeFundDaemon()
+
         st.markdown(f"<div style='font-size: 13px; font-weight: 700; color: #38bdf8; margin-bottom: 8px;'>{t('broker_select_title')}</div>", unsafe_allow_html=True)
         b_c1, b_c2 = st.columns([2, 1])
         with b_c1:

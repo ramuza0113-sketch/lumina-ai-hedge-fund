@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-and-validate:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install Validation Tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8
+
+      - name: Compile and Validate Python Syntax
+        run: |
+          python -m compileall app.py core ui
+
+      - name: Flake8 Code Integrity Check
+        run: |
+          flake8 app.py core ui --count --select=E9,F63,F7,F82 --show-source --statistics

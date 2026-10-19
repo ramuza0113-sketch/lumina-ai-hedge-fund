@@ -7,6 +7,7 @@ agent reflections, and causal relationships over time.
 
 import os
 import sys
+import json
 import time
 import uuid
 import datetime

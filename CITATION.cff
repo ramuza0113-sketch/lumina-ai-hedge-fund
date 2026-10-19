@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use this software in your academic research, quantitative simulations, or benchmarks, please cite it as below."
+title: "Lumina Capital: An Autonomous Multi-Agent Quantitative Hedge Fund Studio"
+abstract: "An autonomous multi-agent quantitative hedge fund engine integrating LangGraph anti-sycophancy deliberation, Microsoft Qlib Alpha158 deterministic factors, Google TimesFM foundation forecasting, and 3D Causal Knowledge Graph memory."
+authors:
+  - family-names: "Lumina Capital Research Team"
+    name: "Lumina Capital"
+    website: "https://prompter-note.com"
+version: 6.0.0
+date-released: 2026-10-14
+url: "https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund"
+repository-code: "https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund"
+keywords:
+  - "ai-hedge-fund"
+  - "multi-agent-systems"
+  - "langgraph"
+  - "quantitative-finance"
+  - "alpha158"
+  - "qlib"
+  - "timesfm"
+  - "graphrag"
+  - "knowledge-graph"
+  - "algorithmic-trading"
+license: "CC-BY-NC-4.0"
