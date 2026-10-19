@@ -15,6 +15,7 @@
 [![GitHub forks](https://img.shields.io/github/forks/ramuza0113-sketch/lumina-ai-hedge-fund?style=social)](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/network/members)
 <br>
 [![X Follow](https://img.shields.io/badge/X-@prompter__note-000000.svg?logo=x&logoColor=white)](https://x.com/prompter_note)
+[![Qiita](https://img.shields.io/badge/Qiita-ramuza0113-55C500.svg?logo=qiita&logoColor=white)](https://qiita.com/ramuza0113/items/434af1b23fa220590f017)
 [![Blog](https://img.shields.io/badge/Blog-prompter--note.com-2563eb.svg)](https://prompter-note.com)
 [![note](https://img.shields.io/badge/note-prompter__note-41C9B4.svg)](https://note.com/prompter_note)
 [![LINE](https://img.shields.io/badge/LINE-@396geimu-06C755.svg?logo=line&logoColor=white)](https://lin.ee/U4TKsUN)
@@ -225,6 +226,8 @@ Join our growing community of quantitative researchers, AI developers, and algor
   *In-depth engineering write-ups, quant research articles, and machine learning tutorials.*
 - 📰 **note Publication**: [note.com/prompter_note](https://note.com/prompter_note)  
   *Weekly quantitative tear sheets, factor rankings, and full investment council reports.*
+- 📖 **Qiita Technical Article**: [@ramuza0113](https://qiita.com/ramuza0113/items/434af1b23fa220590f017)  
+  *Deep-dive breakdown on anti-sycophancy multi-agent design, TimesFM forecasting, and Qlib Alpha158 factor vectorization.*
 - 💬 **Official LINE**: [@396geimu](https://lin.ee/U4TKsUN)  
   *Free AI Prompt Catalog (20 curated frameworks) & immediate fund event notifications.*
 
@@ -233,6 +236,8 @@ Join our growing community of quantitative researchers, AI developers, and algor
 ## 🇯🇵 日本語概要 (Japanese Summary)
 
 **Lumina Capital** は、LangGraphによるマルチエージェント合議、Microsoft QlibのAlpha158数理クオンツ、Google TimesFMによる時系列予測、そしてNeo4j 3Dナレッジグラフを単一のパイプラインに統合した機関投資家グレードの自律型AIヘッジファンドエンジンです。
+
+- 📖 **Qiita技術解説記事（400+ Views）**: [LangGraphとQlib Alpha158、Google TimesFMで作る「自律型AIヘッジファンド」をOSS公開した話](https://qiita.com/ramuza0113/items/434af1b23fa220590f017)
 
 単なるシミュレーション（PoC）にとどまらず、手数料やスリッページを強制控除した高精度ペーパートレード、急落時に10秒単位で物理執行する独立番犬センチネル、Interactive Brokers（IBKR）のブラケット注文アダプターを備えています。
 もし本プロジェクトが研究や学習の参考になりましたら、ぜひ右上の **⭐️ Star** で応援していただけると励みになります！
