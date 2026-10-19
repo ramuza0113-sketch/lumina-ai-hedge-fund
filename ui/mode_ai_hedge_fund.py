@@ -3036,7 +3036,28 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
 
                 st.info("💡 **Neo4j Official Browser Connection**: Direct port 7474 access is protected by network policy. The interactive viewer above provides complete in-app visualization and control." if lang == "en" else "💡 **Neo4j公式ブラウザへの接続について**: さくらVPSのセキュリティ設定（パケットフィルタ）により、外部からの7474ポート直通は標準で保護遮断されています。上記のグラフビューアーにより本画面内で完全に視覚化・操作が可能です。")
             else:
-                st.warning("Neo4j container (port 7687) is not reachable. Please check your connection settings." if lang == "en" else "Neo4jコンテナ（ポート7687）が起動していないか、接続設定を確認してください。")
+                if lang == "en":
+                    st.info(
+                        "ℹ️ **Neo4j is an optional advanced feature.**\n\n"
+                        "All council deliberations, screener rankings, paper trading, and master fund mandates run 100% locally with built-in SQLite without Neo4j.\n\n"
+                        "**To unlock the 3D Causal Knowledge Graph & Supply Chain GraphRAG visualizer:**\n"
+                        "Run this 1-line Docker command in your terminal:\n"
+                        "```bash\n"
+                        "docker run -d -p 7474:7474 -p 7687:7687 -e NEO4J_AUTH=neo4j/LuminaAI_2026_Secure neo4j:latest\n"
+                        "```\n"
+                        "Then refresh this page (F5) to automatically connect."
+                    )
+                else:
+                    st.info(
+                        "ℹ️ **Neo4jは任意（オプショナル）の拡張機能です。**\n\n"
+                        "AI投資作戦会議、市場スクリーナー、自動売買、運用憲章（mem0）など、ファンドの全主要機能は内蔵SQLiteによりNeo4j無しで100%完全動作します。\n\n"
+                        "**3D因果ナレッジグラフ＆サプライチェーンGraphRAGを体験したい場合:**\n"
+                        "ターミナルで以下のDockerコマンドを1行実行してください：\n"
+                        "```bash\n"
+                        "docker run -d -p 7474:7474 -p 7687:7687 -e NEO4J_AUTH=neo4j/LuminaAI_2026_Secure neo4j:latest\n"
+                        "```\n"
+                        "起動後にブラウザをリロード（F5）すると自動接続されます。"
+                    )
 
         # ---------------------------------------------------------------------
         # SUB-TAB 4: 📜 マスター運用憲章・至上命題 (mem0 Master Charter)

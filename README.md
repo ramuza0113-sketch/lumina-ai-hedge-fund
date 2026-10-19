@@ -156,6 +156,13 @@ streamlit run app.py
 ```
 Open your browser at `http://localhost:8501`.
 
+### 5. (Optional) Run 3D Causal Knowledge Graph with Neo4j
+All core hedge fund features (AI Investment Council, Screener, Autonomous Trading, mem0 Mandates) run 100% locally with built-in SQLite without Neo4j.
+If you wish to unlock the **3D Causal Knowledge Graph & Supply Chain GraphRAG** visualizer, run this single Docker command:
+```bash
+docker run -d -p 7474:7474 -p 7687:7687 -e NEO4J_AUTH=neo4j/LuminaAI_2026_Secure neo4j:latest
+```
+
 ---
 
 ## 📜 License
