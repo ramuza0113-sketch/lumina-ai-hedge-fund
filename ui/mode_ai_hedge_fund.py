@@ -1147,19 +1147,39 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
                         ("銘柄 (日米クロスマケット共有枠拡張 (相手国セッション買付スロット確保)) | 現在保有: ", "stocks (US-Japan Cross-Market shared slot expanded) | Currently held: "),
                         ("巡回間隔: 15分毎", "Interval: Every 15m"),
                         ("戦略: ALL", "Strategy: ALL"),
+                        ("[常時自動売買スタート]", "[24/7 Autonomous Trading Started]"),
+                        ("保有枠: AI動的おまかせ(5〜6銘柄)", "Holding Slots: AI Dynamic (5-6 Tickers)"),
                         ("保有枠: AI動的おまかせ (5〜6銘柄)", "Holding Slots: AI Dynamic (5-6 Tickers)"),
-                        ("発注準拠: 実発注API準拠 (開場中のみ発注)", "Order Compliance: Live API Compliant (Market Hours Only)"),
-                        ("高感度リアルタイム番犬センチネル (10秒巡回) 起動", "High-Sensitivity Real-Time Sentinel Watchdog (10s patrol) Activated"),
-                        ("【買い執行】", "[BUY EXECUTED]"),
-                        ("【利確執行】", "[PROFIT-TAKEN]"),
-                        ("【損切り執行】", "[STOP-LOSS EXECUTED]"),
-                        ("【スキップ】", "[SKIPPED]"),
-                        ("株を", " shares of "),
-                        ("で買い付けました", " purchased"),
+                        ("発注承認: 実発注API準備 (待機中のみ発注)", "Execution Approval: Live API Ready (Session Guard Active)"),
+                        ("⚡ 高頻度リアルタイム番犬センチネル (10秒巡回): 起動", "⚡ High-Frequency Sentinel Watchdog (10s patrol): Active"),
+                        ("⚡ 高頻度リアルタイム番犬センチネル (10秒巡回)", "⚡ High-Frequency Sentinel Watchdog (10s patrol)"),
+                        ("主要市場開場中: ニュース材料スキャン＆評価損益監視モード", "Major markets open: Scanning news catalysts & monitoring valuation"),
+                        ("主要市場開場中: ニュース材料スキャン&評価損益監視モード", "Major markets open: Scanning news catalysts & monitoring valuation"),
+                        ("米国セッション: 22:30〜05:00 JST (夏時間 EDT)", "US session: 22:30-05:00 JST (EDT)"),
+                        ("米国セッション: 22:30〜05:00 JST (冬時間 EST)", "US session: 22:30-05:00 JST (EST)"),
+                        ("市場閉場中 (省エネ見守り): 次回巡回は毎時00分 (1時間間隔モード)", "Markets closed (Eco Mode): Next patrol at :00 (1h interval mode)"),
+                        ("⚡ 自律型AIヘッジファンド自動売買サイクルを開始しました", "⚡ Autonomous AI Hedge Fund trading cycle initiated"),
+                        ("[市場巡回状況]", "[Market Patrol Status]"),
+                        ("欧州市場取引時間中 (16:00〜00:30 JST): 欧州覇権モート株重点パトロール", "European session active (16:00-00:30 JST): Prioritizing European Moat Leaders"),
+                        ("流動性拡大期 (マクロ追い風・リスク選好)", "Liquidity Expansion (Macro Tailwind / Risk-On)"),
+                        ("流動性縮小期 (マクロ逆風・リスク回避)", "Liquidity Contraction (Macro Headwind / Risk-Off)"),
+                        ("[オプション気流レーダー]", "[Options Flow Radar]"),
+                        ("ともにポジティブ・ガンマ維持。MMのクッション効果による安定レジーム。", "Both maintaining positive gamma. Stable regime with MM cushioning effect."),
+                        ("[実発注API市場開閉ガード]", "[Live API Session Guard]"),
+                        ("現在、東京市場 (09:00〜15:30 JST) および米国市場 (22:30〜05:00 JST (夏時間 EDT)) ともに取引時間外です。実発注API規則 (kabuステーション/IBKR) に準拠し、時間外成行発注を停止して開場 (NY 22:30〜 / 東京 翌09:00〜) を待機します。", "Both Tokyo (09:00-15:30 JST) and US (22:30-05:00 JST) markets are outside trading hours. In compliance with real execution APIs (kabu Station / IBKR), after-hours market orders are paused until market open (NY 22:30 / Tokyo 09:00)."),
+                        ("🏁 自律売買サイクルが正常に完了しました [新規買い: 0件 | exits: 0件 - 市場待機中]", "🏁 Autonomous trading cycle completed successfully [New Buys: 0 | Exits: 0 - Standing by for market open]"),
+                        ("[AI動的保有枠状況]", "[AI Dynamic Slot Status]"),
+                        ("銘柄 (日米クロスマーケット共存枠拡張 (相手国セッション寄付スロット確保)) | 現在保有: ", "tickers (US-Japan Cross-Market shared slot expanded) | Currently held: "),
+                        ("銘柄", " tickers"),
+                        ("株", " shs"),
+                        ("買い付けました", " purchased"),
                         ("保有中", "held")
                     ]
                     for jp, en in repls:
                         s = s.replace(jp, en)
+                    if any('\u3000' <= ch <= '\u9fff' for ch in s):
+                        from core.ai_hedge_fund.translation_engine import TranslationEngine
+                        s = TranslationEngine.translate_text(s, l)
                     return s
 
                 log_html_lines = []
@@ -1297,13 +1317,15 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
 
             with x_col2:
                 # Cached daily report generation (TTL 60s to eliminate redundant rerun overhead)
-                _cached_rep = st.session_state.get('_hf_cached_sample_rep')
-                _cached_rep_t = st.session_state.get('_hf_cached_sample_rep_time', 0)
+                cache_key = f'_hf_cached_sample_rep_{lang}'
+                cache_time_key = f'_hf_cached_sample_rep_time_{lang}'
+                _cached_rep = st.session_state.get(cache_key)
+                _cached_rep_t = st.session_state.get(cache_time_key, 0)
                 now_ts = time.time()
                 if not _cached_rep or (now_ts - _cached_rep_t > 60):
-                    _cached_rep = FundContentGenerator.generate_portfolio_daily_report()
-                    st.session_state['_hf_cached_sample_rep'] = _cached_rep
-                    st.session_state['_hf_cached_sample_rep_time'] = now_ts
+                    _cached_rep = FundContentGenerator.generate_portfolio_daily_report(lang=lang)
+                    st.session_state[cache_key] = _cached_rep
+                    st.session_state[cache_time_key] = now_ts
                 sample_rep = _cached_rep
                 st.text_area("Post Content (140-char limit)" if lang == "en" else "ポスト本文 (140文字 厳格制御)", value=sample_rep.get("main_tweet", ""), height=155, key="hf_live_preview_text")
 
@@ -1924,8 +1946,15 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
                         if c_news:
                             news_hdr = f"**📰 Referenced News Headlines ({len(c_news)}):**" if lang == "en" else f"**📰 当時参照されたニュースヘッドライン ({len(c_news)}件):**"
                             st.markdown(news_hdr)
-                            for ni, nw in enumerate(c_news[:3], 1):
-                                st.caption(f"{ni}. {nw.get('title')} ({nw.get('publisher', '')})")
+                            for ni, nw in enumerate(c_news[:5], 1):
+                                nw_title = nw.get('title', '')
+                                nw_pub = nw.get('publisher', '')
+                                if lang == "en":
+                                    from core.ai_hedge_fund.translation_engine import TranslationEngine
+                                    nw_title = TranslationEngine.translate_text(nw_title, lang)
+                                    if nw_pub:
+                                        nw_pub = TranslationEngine.translate_text(nw_pub, lang)
+                                st.caption(f"{ni}. {nw_title} ({nw_pub})" if nw_pub else f"{ni}. {nw_title}")
 
                         c_cd = cr.get("cross_debate", {})
                         if c_cd and c_cd.get("occurred"):

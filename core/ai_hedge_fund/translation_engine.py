@@ -413,6 +413,19 @@ class TranslationEngine:
             if cd_loc.get("turn2_defense"):
                 cd_loc["turn2_defense"] = cls.translate_text(cd_loc["turn2_defense"], lang, api_key)
             loc["cross_debate"] = cd_loc
+
+        news = loc.get("news_headlines", [])
+        if news:
+            loc_news = []
+            for nw in news:
+                nw_loc = dict(nw)
+                if nw_loc.get("title"):
+                    nw_loc["title"] = cls.translate_text(nw_loc["title"], lang, api_key)
+                if nw_loc.get("publisher"):
+                    nw_loc["publisher"] = cls.translate_text(nw_loc["publisher"], lang, api_key)
+                loc_news.append(nw_loc)
+            loc["news_headlines"] = loc_news
+
         return loc
 
     @classmethod

@@ -307,7 +307,7 @@ class FundContentGenerator:
     # =========================================================================
 
     @classmethod
-    def generate_portfolio_daily_report(cls, paper_engine=None, session_type: str = "auto") -> Dict[str, Any]:
+    def generate_portfolio_daily_report(cls, paper_engine=None, session_type: str = "auto", lang: str = "ja") -> Dict[str, Any]:
         """
         株式自動売買の資産推移・損益・保有銘柄・AI合議状況をまとめたX用日次レポートを生成。
         X API v2の280重み付け文字数制限を厳格にクリアするメインポストと、詳細サブポスト（ミニスレッド用）を出力。
@@ -338,63 +338,100 @@ class FundContentGenerator:
         if session_type == "auto":
             if 14 <= hour < 18:
                 sess_key = "closing"
-                sess_title = "🇯🇵【東証大引け・運用速報】"
+                sess_title = "🇯🇵 [TSE Market Close / Performance Flash] 📈" if lang == "en" else "🇯🇵【東証大引け・運用速報】"
             elif 18 <= hour < 24:
                 sess_key = "night"
-                sess_title = "🇺🇸【夜間・運用速報＆米国株前】"
+                sess_title = "🇺🇸 [Evening / Pre-US Market Flash] 📈" if lang == "en" else "🇺🇸【夜間・運用速報＆米国株前】"
             else:
                 sess_key = "morning"
-                sess_title = "🌅【朝の運用実績速報】"
+                sess_title = "🌅 [Morning Performance Flash] 📈" if lang == "en" else "🌅【朝の運用実績速報】"
         elif session_type == "closing":
             sess_key = "closing"
-            sess_title = "🇯🇵【東証大引け・運用速報】"
+            sess_title = "🇯🇵 [TSE Market Close / Performance Flash] 📈" if lang == "en" else "🇯🇵【東証大引け・運用速報】"
         elif session_type == "night":
             sess_key = "night"
-            sess_title = "🇺🇸【夜間・運用速報＆米国株前】"
+            sess_title = "🇺🇸 [Evening / Pre-US Market Flash] 📈" if lang == "en" else "🇺🇸【夜間・運用速報＆米国株前】"
         else:
             sess_key = "daily"
-            sess_title = "🏛️【Lumina Capital・日次推移】"
+            sess_title = "🏛️ [Lumina Capital Daily Performance] 📈" if lang == "en" else "🏛️【Lumina Capital・日次推移】"
 
         sign_ret = "+" if tot_ret_pct >= 0 else ""
         sign_unreal = "+" if unreal_jpy >= 0 else ""
 
-        if positions:
-            pos_parts = [f"{p.get('company_name', p.get('symbol'))[:6]}({p.get('unrealized_pnl_pct', 0.0):+.1f}%)" for p in positions[:2]]
-            pos_text = f"💼 保有: {', '.join(pos_parts)}"
-            if len(positions) > 2:
-                pos_text += f" 他計{len(positions)}銘柄"
-        else:
-            pos_text = "💼 保有: 0銘柄 (現金比率100%)"
+        if lang == "en":
+            if positions:
+                pos_parts = [f"{p.get('symbol')}({p.get('unrealized_pnl_pct', 0.0):+.1f}%)" for p in positions[:2]]
+                pos_text = f"💼 Holdings: {', '.join(pos_parts)}"
+                if len(positions) > 2:
+                    pos_text += f" +{len(positions) - 2} more"
+            else:
+                pos_text = "💼 Holdings: 0 positions (Cash 100%)"
 
-        # Action / Strategy note (Only consider orders executed TODAY)
-        today_iso = now.strftime("%Y-%m-%d")
-        today_orders = [o for o in orders if str(o.get("order_time", "")).startswith(today_iso)]
-        if today_orders:
-            last_o = today_orders[0]
-            action_type = "新規買い" if last_o.get("side") == "BUY" else "利益確定"
-            strat_note = f"本日{last_o.get('company_name', '')[:6]}を{action_type}約定。"
-        else:
-            strat_note = "無理な高値追いを避け、安全域での押し目を監視中。"
+            today_iso = now.strftime("%Y-%m-%d")
+            today_orders = [o for o in orders if str(o.get("order_time", "")).startswith(today_iso)]
+            if today_orders:
+                last_o = today_orders[0]
+                action_type = "BUY" if last_o.get("side") == "BUY" else "PROFIT-TAKE"
+                strat_note = f"Executed {action_type} on {last_o.get('symbol', '')} today. "
+            else:
+                strat_note = "Avoiding overvalued chases, monitoring dip entries with margin of safety. "
 
-        main_tweet = (
-            f"🏛️【Lumina Capital】本日のAI運用推移 📈\n\n"
-            f"💰 総資産: ¥{tot_eq:,.0f} ({sign_ret}{tot_ret_pct:.2f}%)\n"
-            f"📊 評価損益: {sign_unreal}¥{abs(unreal_jpy):,.0f} ({sign_unreal}{unreal_pct:.2f}%)\n"
-            f"{pos_text}\n"
-            f"🛡️ 現金比率: {cash_ratio:.0f}%\n\n"
-            f"{strat_note}感情を排したクオンツ運用を継続します。\n\n"
-            f"#株式投資 #AI自動売買 #LuminaCapital"
-        )
+            main_tweet = (
+                f"{sess_title}\n\n"
+                f"💰 Total Equity: ¥{tot_eq:,.0f} ({sign_ret}{tot_ret_pct:.2f}%)\n"
+                f"📊 Unrealized PnL: {sign_unreal}¥{abs(unreal_jpy):,.0f} ({sign_unreal}{unreal_pct:.2f}%)\n"
+                f"{pos_text}\n"
+                f"🛡️ Cash Ratio: {cash_ratio:.0f}%\n\n"
+                f"{strat_note}Maintaining systematic quantitative execution.\n\n"
+                f"#Investing #AIHedgeFund #LuminaCapital"
+            )
 
-        # Sub tweet (mini-thread)
-        sub_lines = ["📊【ポートフォリオ内訳・合議状況】"]
-        if positions:
-            for p in positions[:3]:
-                sub_lines.append(f"・{p.get('company_name', p.get('symbol'))}: {p.get('quantity', 0):,}株 (評価損益: {p.get('unrealized_pnl_pct', 0.0):+.2f}%)")
+            sub_lines = ["📊 [Portfolio Breakdown & Council Status]"]
+            if positions:
+                for p in positions[:3]:
+                    sub_lines.append(f"• {p.get('symbol')}: {p.get('quantity', 0):,} shs (PnL: {p.get('unrealized_pnl_pct', 0.0):+.2f}%)")
+            else:
+                sub_lines.append("• Zero open positions. 100% cash defense awaiting Buffett moat & Graham deep value criteria.")
+            sub_lines.append("\n5 AI Legends (Buffett, Graham, Wood, Risk Officer, CIO) 24/7 autonomous patrol active.")
+            sub_tweet = "\n".join(sub_lines)
         else:
-            sub_lines.append("・現在ポジションなし。バフェットの堀＆グレアムのディープバリュー条件に合致する押し目までキャッシュ100%防衛。")
-        sub_lines.append("\n5人のAI投資家（バフェット・グレアム・キャシー・リスク管理・CIO）による24時間自律パトロール稼働中。")
-        sub_tweet = "\n".join(sub_lines)
+            if positions:
+                pos_parts = [f"{p.get('company_name', p.get('symbol'))[:6]}({p.get('unrealized_pnl_pct', 0.0):+.1f}%)" for p in positions[:2]]
+                pos_text = f"💼 保有: {', '.join(pos_parts)}"
+                if len(positions) > 2:
+                    pos_text += f" 他計{len(positions)}銘柄"
+            else:
+                pos_text = "💼 保有: 0銘柄 (現金比率100%)"
+
+            # Action / Strategy note (Only consider orders executed TODAY)
+            today_iso = now.strftime("%Y-%m-%d")
+            today_orders = [o for o in orders if str(o.get("order_time", "")).startswith(today_iso)]
+            if today_orders:
+                last_o = today_orders[0]
+                action_type = "新規買い" if last_o.get("side") == "BUY" else "利益確定"
+                strat_note = f"本日{last_o.get('company_name', '')[:6]}を{action_type}約定。"
+            else:
+                strat_note = "無理な高値追いを避け、安全域での押し目を監視中。"
+
+            main_tweet = (
+                f"🏛️【Lumina Capital】本日のAI運用推移 📈\n\n"
+                f"💰 総資産: ¥{tot_eq:,.0f} ({sign_ret}{tot_ret_pct:.2f}%)\n"
+                f"📊 評価損益: {sign_unreal}¥{abs(unreal_jpy):,.0f} ({sign_unreal}{unreal_pct:.2f}%)\n"
+                f"{pos_text}\n"
+                f"🛡️ 現金比率: {cash_ratio:.0f}%\n\n"
+                f"{strat_note}感情を排したクオンツ運用を継続します。\n\n"
+                f"#株式投資 #AI自動売買 #LuminaCapital"
+            )
+
+            # Sub tweet (mini-thread)
+            sub_lines = ["📊【ポートフォリオ内訳・合議状況】"]
+            if positions:
+                for p in positions[:3]:
+                    sub_lines.append(f"・{p.get('company_name', p.get('symbol'))}: {p.get('quantity', 0):,}株 (評価損益: {p.get('unrealized_pnl_pct', 0.0):+.2f}%)")
+            else:
+                sub_lines.append("・現在ポジションなし。バフェットの堀＆グレアムのディープバリュー条件に合致する押し目までキャッシュ100%防衛。")
+            sub_lines.append("\n5人のAI投資家（バフェット・グレアム・キャシー・リスク管理・CIO）による24時間自律パトロール稼働中。")
+            sub_tweet = "\n".join(sub_lines)
 
         try:
             try:
