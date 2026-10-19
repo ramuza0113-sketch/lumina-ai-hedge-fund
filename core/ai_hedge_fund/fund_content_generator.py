@@ -396,12 +396,21 @@ class FundContentGenerator:
         sub_lines.append("\n5人のAI投資家（バフェット・グレアム・キャシー・リスク管理・CIO）による24時間自律パトロール稼働中。")
         sub_tweet = "\n".join(sub_lines)
 
-        from x_publisher import XPublisher
-        pub = XPublisher()
-        if pub.get_twitter_weighted_length(main_tweet) > 280:
-            main_tweet = pub._smart_trim_tweet(main_tweet, max_weight=280)
-        if pub.get_twitter_weighted_length(sub_tweet) > 280:
-            sub_tweet = pub._smart_trim_tweet(sub_tweet, max_weight=280)
+        try:
+            try:
+                from core.x_publisher import XPublisher
+            except ImportError:
+                from x_publisher import XPublisher
+            pub = XPublisher()
+            if pub.get_twitter_weighted_length(main_tweet) > 280:
+                main_tweet = pub._smart_trim_tweet(main_tweet, max_weight=280)
+            if pub.get_twitter_weighted_length(sub_tweet) > 280:
+                sub_tweet = pub._smart_trim_tweet(sub_tweet, max_weight=280)
+        except Exception:
+            if len(main_tweet) > 140:
+                main_tweet = main_tweet[:137] + "..."
+            if len(sub_tweet) > 140:
+                sub_tweet = sub_tweet[:137] + "..."
 
         report_data = {
             "session_key": sess_key,
@@ -650,7 +659,13 @@ class FundContentGenerator:
         import os
         import datetime
         from core.state_manager import get_stock_report_scheduler_settings, save_stock_report_scheduler_settings
-        from x_publisher import XPublisher
+        try:
+            from core.x_publisher import XPublisher
+        except ImportError:
+            try:
+                from x_publisher import XPublisher
+            except ImportError:
+                return {"success": False, "error": "x_publisher module not found. Please install requirements or configure API keys."}
 
         cfg = get_stock_report_scheduler_settings()
         if not cfg.get("enabled", True) and not force:
@@ -1026,7 +1041,10 @@ class FundContentGenerator:
         import datetime
         from core.state_manager import get_stock_report_scheduler_settings, save_stock_report_scheduler_settings, load_app_settings
         from core.ai_hedge_fund.market_session import MarketSession
-        from note_client import NoteClient
+        try:
+            from note_client import NoteClient
+        except ImportError:
+            return {"success": False, "error": "Optional note_client module is not installed or configured."}
 
         now = datetime.datetime.now()
         today_date = now.date()

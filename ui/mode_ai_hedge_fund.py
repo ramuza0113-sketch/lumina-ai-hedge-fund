@@ -472,15 +472,17 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
                                     m_ret = f"20日: {item['return_20d_pct']:+}%" if item.get('return_20d_pct') else ""
                                     tag_text = " | ".join(filter(None, [m_pbr, m_div, m_ret]))
                                     if tag_text:
-                                        st.caption(f"指標: {tag_text}")
+                                        st.caption(f"{'Metrics:' if lang == 'en' else '指標:'} {tag_text}")
                                     
                                     # 簡易的な株価グラフ (30日トレンド: キャッシュまたは事前計算から0ms描画)
                                     rec_closes = item.get('recent_closes') or MarketDataFeed.get_historical_closes(item['symbol'], period="1mo")
-                                    spark_html = MarketDataFeed.render_sparkline_svg(rec_closes, width=280, height=46, label="30日株価トレンド")
+                                    spark_lbl = "30-Day Price Trend" if lang == "en" else "30日株価トレンド"
+                                    spark_html = MarketDataFeed.render_sparkline_svg(rec_closes, width=280, height=46, label=spark_lbl)
                                     st.markdown(spark_html, unsafe_allow_html=True)
                                     st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
                                     
-                                    if st.button(f"👉 「{item['name']}」で作戦会議を開く", key=f"pick_btn_{item['symbol']}", use_container_width=True):
+                                    card_btn_txt = f"👉 Convene Council on {item['name']}" if lang == "en" else f"👉 「{item['name']}」で作戦会議を開く"
+                                    if st.button(card_btn_txt, key=f"pick_btn_{item['symbol']}", use_container_width=True):
                                         select_and_run_council(item['symbol'])
 
         # ⭐ Custom Watchlist UI

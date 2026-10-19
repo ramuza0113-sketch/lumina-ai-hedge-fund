@@ -56,3 +56,17 @@ def save_note_settings(note_settings):
     settings["note_settings"] = note_settings
     save_app_settings(settings)
 
+def get_x_credentials():
+    settings = load_app_settings()
+    return settings.get("x_credentials", {
+        "api_key": os.getenv("X_API_KEY", ""),
+        "api_secret": os.getenv("X_API_SECRET", ""),
+        "access_token": os.getenv("X_ACCESS_TOKEN", ""),
+        "access_token_secret": os.getenv("X_ACCESS_TOKEN_SECRET", "")
+    })
+
+def save_x_credentials(creds):
+    settings = load_app_settings()
+    settings["x_credentials"] = creds
+    save_app_settings(settings)
+
