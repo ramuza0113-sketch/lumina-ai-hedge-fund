@@ -3,9 +3,12 @@
 # 🏛️ Lumina Capital (AI Hedge Fund Engine v6.0)
 
 **An Autonomous Multi-Agent Quantitative Hedge Fund Studio**  
-*Powered by LangGraph, Microsoft Qlib Alpha158, Google TimesFM & 3D Causal Knowledge Graph*
+*Powered by LangGraph, Microsoft Qlib Alpha158, Google TimesFM & 3D Causal Knowledge Graph*  
+<br>
+🏆 **Officially Featured in [awesome-quant](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting)** (Trading & Backtesting)
 
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-blue.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
+[![Featured in awesome-quant](https://awesome.re/mentioned-badge.svg)](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting)
 [![CI](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/actions/workflows/ci.yml/badge.svg)](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-brightgreen.svg)](https://www.python.org/)
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://streamlit.io)
@@ -237,6 +240,7 @@ Join our growing community of quantitative researchers, AI developers, and algor
 
 **Lumina Capital** は、LangGraphによるマルチエージェント合議、Microsoft QlibのAlpha158数理クオンツ、Google TimesFMによる時系列予測、そしてNeo4j 3Dナレッジグラフを単一のパイプラインに統合した機関投資家グレードの自律型AIヘッジファンドエンジンです。
 
+- 🏆 **世界最大のクアント投資リソース集公式採択**: [awesome-quant (⭐️ 15,000+)](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting) の「Trading & Backtesting」部門に正式採択・マージされました。
 - 📖 **Qiita技術解説記事（400+ Views）**: [LangGraphとQlib Alpha158、Google TimesFMで作る「自律型AIヘッジファンド」をOSS公開した話](https://qiita.com/ramuza0113/items/434af1b23fa220590f017)
 
 単なるシミュレーション（PoC）にとどまらず、手数料やスリッページを強制控除した高精度ペーパートレード、急落時に10秒単位で物理執行する独立番犬センチネル、Interactive Brokers（IBKR）のブラケット注文アダプターを備えています。
