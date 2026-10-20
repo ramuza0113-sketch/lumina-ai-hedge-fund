@@ -1,14 +1,10 @@
-# 個人開発の自律型AIヘッジファンドが、世界最大の『awesome-quant（⭐️15,000+）』に公式採択されるまでの全記録
-
-![Lumina Capital Header](https://raw.githubusercontent.com/ramuza0113-sketch/lumina-ai-hedge-fund/main/docs/assets/lumina_cover_image.png)
+![Lumina Capital Header](https://raw.githubusercontent.com/ramuza0113-sketch/lumina-ai-hedge-fund/main/docs/assets/lumina_social_preview.png)
 
 ## はじめに：世界最大のクアント投資リソース集にマージされた日
 
 2026年10月、個人で開発・オープンソース公開（CC BY-NC 4.0）している自律型AIヘッジファンドエンジン**『Lumina Capital (v6.0)』**が、GitHub上で世界最大の金融工学・アルゴリズム取引リソース集である**[wilsonfreitas/awesome-quant](https://github.com/wilsonfreitas/awesome-quant)（GitHub Star 15,000+）の公式「Trading & Backtesting」部門に正式採択・マージ**されました。
 
-[![Featured in awesome-quant](https://awesome.re/mentioned-badge.svg)](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting)
-[![CI](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/actions/workflows/ci.yml/badge.svg)](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/actions/workflows/ci.yml)
-[![Docker](https://img.shields.io/badge/Container-Docker%20Compose-2496ED.svg?logo=docker&logoColor=white)](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/blob/main/docker-compose.yml)
+[![Featured in awesome-quant](https://awesome.re/mentioned-badge.svg)](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting) [![CI](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/actions/workflows/ci.yml/badge.svg)](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/actions/workflows/ci.yml) [![Docker](https://img.shields.io/badge/Container-Docker%20Compose-2496ED.svg?logo=docker&logoColor=white)](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/blob/main/docker-compose.yml)
 
 Backtrader、Zipline、Microsoft Qlib といった世界の名だたるクアント投資フレームワークが並ぶリストの中に、日本の個人開発リポジトリが公式に名を連ねることになりました。
 
