@@ -10,6 +10,7 @@
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-blue.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
 [![Featured in awesome-quant](https://awesome.re/mentioned-badge.svg)](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting)
 [![CI](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/actions/workflows/ci.yml/badge.svg)](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/actions/workflows/ci.yml)
+[![Docker](https://img.shields.io/badge/Container-Docker%20Compose-2496ED.svg?logo=docker&logoColor=white)](docker-compose.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-brightgreen.svg)](https://www.python.org/)
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://streamlit.io)
 [![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph-orange.svg)](https://github.com/langchain-ai/langgraph)
@@ -137,38 +138,45 @@ Persists trade reflections (Reflexion) and SEC 10-K supply-chain relationships i
 > [!TIP]
 > ⭐️ **Please consider starring this repository** if you're cloning or testing it locally! Your star supports active research, continuous maintenance of quantitative factor models, and future agent enhancements.
 
-### 1. Clone the Repository
+### 🐳 Option A: 1-Click Launch with Docker Compose (Recommended)
+Zero environment setup required. Launches both the Autonomous Studio and the 3D Causal Knowledge Graph (Neo4j) in a single command:
 ```bash
 git clone https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund.git
 cd lumina-ai-hedge-fund
+cp .env.example .env
+docker compose up
 ```
+Open your browser at `http://localhost:8501`. *(To run in the background, use `docker compose up -d`)*.
 
-### 2. Install Dependencies
+---
+
+### 🐍 Option B: Native Python Setup
+If you prefer running directly on your host machine:
+
+#### 1. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Setup Environment Variables
-Copy `.env.example` to `.env` and insert your API keys:
+#### 2. Configure Environment
 ```bash
 cp .env.example .env
 ```
-*(At minimum, insert `GEMINI_API_KEY` or `OPENAI_API_KEY` for the AI Council).*
+*(Insert your free `GEMINI_API_KEY` from [Google AI Studio](https://aistudio.google.com/) or `OPENAI_API_KEY`).*
 
 > [!NOTE]
 > - **Free Tier Friendly**: You can run the entire 7-agent council using a 100% free API key from [Google AI Studio](https://aistudio.google.com/) (`GEMINI_API_KEY`). No expensive paid subscriptions or OpenAI credits are required.
 > - **No GPU Required**: Runs smoothly on standard laptops, Mac (Apple Silicon M1/M2/M3/M4), Windows, and Linux on pure CPU.
 > - **100% Safe Local Simulation**: Social publishing (X/Twitter, note) and broker order execution operate in **local draft / simulation mode** by default. Zero external network posts or real orders are ever executed without your explicit credentials.
 
-### 4. Launch the Autonomous Studio
+#### 3. Launch Dashboard
 ```bash
 streamlit run app.py
 ```
 Open your browser at `http://localhost:8501`.
 
-### 5. (Optional) Run 3D Causal Knowledge Graph with Neo4j
-All core hedge fund features (AI Investment Council, Screener, Autonomous Trading, mem0 Mandates) run 100% locally with built-in SQLite without Neo4j.
-If you wish to unlock the **3D Causal Knowledge Graph & Supply Chain GraphRAG** visualizer, run this single Docker command:
+#### 4. (Optional) Run 3D Causal Knowledge Graph with Neo4j
+If running via Option B, you can spin up Neo4j on-demand with:
 ```bash
 docker run -d -p 7474:7474 -p 7687:7687 -e NEO4J_AUTH=neo4j/LuminaAI_2026_Secure neo4j:latest
 ```
@@ -246,20 +254,22 @@ Join our growing community of quantitative researchers, AI developers, and algor
 単なるシミュレーション（PoC）にとどまらず、手数料やスリッページを強制控除した高精度ペーパートレード、急落時に10秒単位で物理執行する独立番犬センチネル、Interactive Brokers（IBKR）のブラケット注文アダプターを備えています。
 もし本プロジェクトが研究や学習の参考になりましたら、ぜひ右上の **⭐️ Star** で応援していただけると励みになります！
 
-### 🚀 3ステップで即座に動かす方法
-1. **リポジトリのクローン & パッケージ導入**:
-   ```bash
-   git clone https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund.git
-   cd lumina-ai-hedge-fund
-   pip install -r requirements.txt
-   ```
-2. **APIキー設定（無料のGemini APIでOK）**:
-   `cp .env.example .env` を実行し、[Google AI Studio](https://aistudio.google.com/) で無料取得できる `GEMINI_API_KEY` を貼り付けます（GPUサーバーや高額な有料キーは不要です）。
-3. **ダッシュボード起動**:
-   ```bash
-   streamlit run app.py
-   ```
-   ブラウザで `http://localhost:8501` を開くだけで、7人の投資家AI合議・クオンツ分析・ペーパートレードがすぐに体験できます。
+### 🚀 即座に動かす方法
+
+#### 🐳 方法A: Docker Composeで一発起動（推奨・環境構築不要）
+Python環境の構築トラブルゼロ。以下のコマンドだけで、アプリ本体と3Dナレッジグラフ（Neo4j）が丸ごと自動起動します：
+```bash
+git clone https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund.git
+cd lumina-ai-hedge-fund
+cp .env.example .env
+docker compose up
+```
+ブラウザで `http://localhost:8501` を開くだけです！*(バックグラウンド実行は `docker compose up -d`)*
+
+#### 🐍 方法B: 通常のPython環境で直接動かす場合
+1. **依存パッケージ導入**: `pip install -r requirements.txt`
+2. **APIキー設定**: `cp .env.example .env` を実行し、[Google AI Studio](https://aistudio.google.com/) で無料取得できる `GEMINI_API_KEY` を貼り付けます。
+3. **ダッシュボード起動**: `streamlit run app.py`（ブラウザで `http://localhost:8501` を開く）
 
 > [!NOTE]
 > - **高価なGPUは不要**: 通常のノートPC、Mac（M1/M2/M3/M4 Apple Silicon）、Windows、Linux環境のCPUのみで軽快に動作します。

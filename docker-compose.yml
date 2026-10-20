@@ -1,0 +1,60 @@
+# ==========================================
+# Lumina Capital: AI Hedge Fund Engine v6.0
+# Autonomous Multi-Agent Quantitative Studio
+# ==========================================
+
+services:
+  # 🏛️ Lumina Autonomous Hedge Fund Studio UI
+  lumina-studio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lumina-hedge-fund-studio
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - PYTHONUNBUFFERED=1
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=LuminaAI_2026_Secure
+    volumes:
+      - ./outputs:/app/outputs
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    networks:
+      - lumina-net
+
+  # 🕸️ 3D Causal Knowledge Graph & Supply Chain Memory (Neo4j)
+  neo4j:
+    image: neo4j:latest
+    container_name: lumina-neo4j
+    restart: unless-stopped
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_AUTH=neo4j/LuminaAI_2026_Secure
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - lumina-net
+
+networks:
+  lumina-net:
+    driver: bridge
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
