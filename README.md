@@ -227,6 +227,25 @@ This project is built upon and inspired by the incredible open-source research a
 
 ---
 
+## 💬 Community Feedback & Feature Requests
+
+Have you tested Lumina AI, or do you have ideas for new features, indicators, or broker integrations?  
+We'd love to hear your thoughts and experiences! Drop a comment in our pinned community thread:
+
+<p align="center">
+  <a href="https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/discussions/3">
+    <img src="https://img.shields.io/badge/💬_Join_Discussions-Share_Feedback_%26_Ideas-blue?style=for-the-badge&logo=github" alt="Join GitHub Discussions" />
+  </a>
+</p>
+
+- 🚀 **What caught your eye first?** (Qlib Alpha158 factors, LangGraph consensus debate, 10s Fast Sentinel, or 3D Causal Graph?)
+- 🐳 **How was the setup experience?** (Docker Compose vs local Python environment)
+- 💡 **What would you love to see next?** (Additional broker connectors, custom alpha factors, alternative LLM backends?)
+
+👉 **[Join GitHub Discussion #3: What brought you to Lumina AI?](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/discussions/3)**
+
+---
+
 ## 🌐 Connect with the Author & Community
 
 Join our growing community of quantitative researchers, AI developers, and algorithmic traders:
@@ -252,7 +271,8 @@ Join our growing community of quantitative researchers, AI developers, and algor
 - 📖 **Qiita技術解説記事（400+ Views）**: [LangGraphとQlib Alpha158、Google TimesFMで作る「自律型AIヘッジファンド」をOSS公開した話](https://qiita.com/ramuza0113/items/434af1b23fa220590f017)
 
 単なるシミュレーション（PoC）にとどまらず、手数料やスリッページを強制控除した高精度ペーパートレード、急落時に10秒単位で物理執行する独立番犬センチネル、Interactive Brokers（IBKR）のブラケット注文アダプターを備えています。
-もし本プロジェクトが研究や学習の参考になりましたら、ぜひ右上の **⭐️ Star** で応援していただけると励みになります！
+もし本プロジェクトが研究や学習の参考になりましたら、ぜひ右上の **⭐️ Star** で応援していただけると励みになります！  
+また、実際に動かしてみたご感想やご要望は [**GitHub Discussions #3 (フィードバック＆アイデア募集)**](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/discussions/3) でいつでも気軽にお待ちしております！
 
 ### 🚀 即座に動かす方法
 
