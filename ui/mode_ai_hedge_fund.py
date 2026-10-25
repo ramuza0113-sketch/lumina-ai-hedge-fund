@@ -2455,7 +2455,9 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
                     }}
 
                     function formatShortLabel(n) {{
-                      let lbl = (n.label || n.id || '').split(String.fromCharCode(10))[0].trim();
+                      const parts = (n.label || n.id || '').split(String.fromCharCode(10));
+                      let lbl = (parts[0] || '').trim();
+                      const line2 = (parts[1] || '').trim();
                       lbl = lbl.replace('⚡ ', '').replace('🏢 ', '').replace('👑 ', '').replace('💡 ', '');
                       lbl = lbl.replace('⚔️ ', '').replace('🛡️ ', '').replace('💎 ', '').replace('🔮 ', '');
                       lbl = lbl.replace('🔴 ', '').replace('🟢 ', '');
@@ -2469,7 +2471,11 @@ def render_mode_ai_hedge_fund(api_key: str = "", generator = None, target_model:
                       lbl = lbl.replace('VALUATION_DISCIPLINE', 'Valuation');
                       lbl = lbl.replace('FALSE_NEGATIVE_CAUTION', 'Caution');
                       lbl = lbl.replace('ACCURATE_THESIS', 'Accurate');
-                      if (lbl.length > 12) lbl = lbl.slice(0, 11) + '…';
+                      if (line2 && ['veto', 'decision_buy', 'alpha', 'forecast', 'debate', 'episode', 'win', 'loss'].includes(n.group)) {{
+                        const shortLine2 = line2.replace('点', '').replace('勝率', '');
+                        lbl = lbl.replace('積極買', '買').replace('実証α', 'α').replace('TimesFM予測', '予測') + ':' + shortLine2;
+                      }}
+                      if (lbl.length > 16) lbl = lbl.slice(0, 15) + '…';
                       
                       let icon = '';
                       if (n.group === 'stock') icon = '⚡';

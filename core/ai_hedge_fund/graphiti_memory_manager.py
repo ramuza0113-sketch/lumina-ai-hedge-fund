@@ -703,11 +703,12 @@ class GraphitiMemoryManager:
                 """)
                 for r in r_cd:
                     cd_nid = f"cd_{r['id']}"
-                    is_veto = bool(r.get("is_veto"))
+                    act_str = str(r.get("action") or "").upper()
+                    thesis = (r.get("thesis") or "").strip()
+                    is_veto = bool(r.get("is_veto")) or (act_str in ("HOLD", "SELL")) or ("CRO" in thesis and "拒否" in thesis)
                     sym = r["symbol"]
                     act_label = r.get("action_label") or r.get("action")
                     conf = r.get("confidence") or 50
-                    thesis = (r.get("thesis") or "").strip()
 
                     if is_veto:
                         group_name = "veto"
