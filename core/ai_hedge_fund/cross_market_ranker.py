@@ -18,14 +18,9 @@ import yfinance as yf
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-try:
-    from ai_blog_pro.core.ai_hedge_fund.alpha158_engine import Alpha158Engine
-    from ai_blog_pro.core.ai_hedge_fund.lightgbm_gatekeeper import LightGBMGatekeeper
-    from ai_blog_pro.core.ai_hedge_fund.lead_lag_analyzer import LeadLagAnalyzer
-except ImportError:
-    from core.ai_hedge_fund.alpha158_engine import Alpha158Engine
-    from core.ai_hedge_fund.lightgbm_gatekeeper import LightGBMGatekeeper
-    from core.ai_hedge_fund.lead_lag_analyzer import LeadLagAnalyzer
+from core.ai_hedge_fund.alpha158_engine import Alpha158Engine
+from core.ai_hedge_fund.lightgbm_gatekeeper import LightGBMGatekeeper
+from core.ai_hedge_fund.lead_lag_analyzer import LeadLagAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -266,10 +261,7 @@ class CrossMarketRanker:
 
         # Neo4j自己進化ナレッジグラフへ永続化
         try:
-            try:
-                from ai_blog_pro.core.ai_hedge_fund.graphiti_memory_manager import GraphitiMemoryManager
-            except ImportError:
-                from core.ai_hedge_fund.graphiti_memory_manager import GraphitiMemoryManager
+            from core.ai_hedge_fund.graphiti_memory_manager import GraphitiMemoryManager
             GraphitiMemoryManager.record_alpha158_scan(response)
         except Exception as e:
             logger.warning(f"Neo4j record_alpha158_scan skipped: {e}")

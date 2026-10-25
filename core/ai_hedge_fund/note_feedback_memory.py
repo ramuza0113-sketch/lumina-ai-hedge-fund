@@ -129,7 +129,10 @@ class NoteFeedbackMemory:
         cls.init_db()
         if note_client is None:
             from core.state_manager import get_note_settings
-            from note_client import NoteClient
+            try:
+                from note_client import NoteClient
+            except ImportError:
+                return {"success": False, "error": "Optional note_client module is not installed in OSS environment."}
             s = get_note_settings()
             cookie = s.get("session_cookie")
             if not cookie:
@@ -145,8 +148,11 @@ class NoteFeedbackMemory:
         now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         # 2. 週刊有料note履歴（weekly_paid_notes.json）のマップ作成
-        from core.ai_hedge_fund.weekly_paid_note_pipeline import WeeklyPaidNotePipeline
-        history = WeeklyPaidNotePipeline.get_history()
+        try:
+            from core.ai_hedge_fund.weekly_paid_note_pipeline import WeeklyPaidNotePipeline
+            history = WeeklyPaidNotePipeline.get_history()
+        except ImportError:
+            history = []
         history_map = {}
         for h in history:
             nid = h.get("note_id")

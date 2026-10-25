@@ -6,12 +6,8 @@ dual_quantum_forecaster.py - Google TimesFM × Amazon Chronos 二刀流アンサ
 """
 
 from typing import Dict, Any, List, Optional
-try:
-    from ai_blog_pro.core.ai_hedge_fund.timesfm_forecaster import TimesFMForecaster
-    from ai_blog_pro.core.ai_hedge_fund.chronos_forecaster import ChronosForecaster
-except ImportError:
-    from core.ai_hedge_fund.timesfm_forecaster import TimesFMForecaster
-    from core.ai_hedge_fund.chronos_forecaster import ChronosForecaster
+from core.ai_hedge_fund.timesfm_forecaster import TimesFMForecaster
+from core.ai_hedge_fund.chronos_forecaster import ChronosForecaster
 
 
 class DualQuantumForecaster:
