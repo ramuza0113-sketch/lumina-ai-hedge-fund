@@ -14,6 +14,82 @@ class FundContentGenerator:
     4. Discord Rich Webhook Broadcasts
     """
 
+    # 🛡️ note全記事（有料・無料問わず）冒頭＆末尾自動挿入用 システム免責事項（Disclaimer）
+    NOTE_DISCLAIMER_TEXT = (
+        "【免責事項】本記事は、自律型クオンツ運用エンジン「Lumina Capital」の数理アルゴリズム、"
+        "市場微細構造解析、および時系列確率予測モデルの研究開発・シミュレーション結果を公開するものであり、"
+        "特定の有価証券の売買推奨、投資助言、または将来の運用成果を保証するものでは一切ありません。"
+        "記事内で言及される価格や数値はすべてシステム内部のシミュレーション値であり、"
+        "実際の投資判断および取引は、読者ご自身の責任と判断において行ってください。"
+    )
+
+    NOTE_DISCLAIMER_HTML = (
+        '<p><strong>【免責事項】</strong>本記事は、自律型クオンツ運用エンジン「Lumina Capital」の数理アルゴリズム、'
+        '市場微細構造解析、および時系列確率予測モデルの研究開発・シミュレーション結果を公開するものであり、'
+        '特定の有価証券の売買推奨、投資助言、または将来の運用成果を保証するものでは一切ありません。'
+        '記事内で言及される価格や数値はすべてシステム内部のシミュレーション値であり、'
+        '実際の投資判断および取引は、読者ご自身の責任と判断において行ってください。</p>'
+    )
+
+    NOTE_DISCLAIMER_MD = (
+        "> **【免責事項】** 本記事は、自律型クオンツ運用エンジン「Lumina Capital」の数理アルゴリズム、"
+        "市場微細構造解析、および時系列確率予測モデルの研究開発・シミュレーション結果を公開するものであり、"
+        "特定の有価証券の売買推奨、投資助言、または将来の運用成果を保証するものでは一切ありません。"
+        "記事内で言及される価格や数値はすべてシステム内部のシミュレーション値であり、"
+        "実際の投資判断および取引は、読者ご自身の責任と判断において行ってください。"
+    )
+
+    @classmethod
+    def inject_disclaimers_html(cls, html_content: str) -> str:
+        """
+        HTML本文の冒頭および末尾にシステム免責事項（Disclaimer）を自動挿入する（重複防止付き）。
+        """
+        import re
+        if not html_content:
+            return f"{cls.NOTE_DISCLAIMER_HTML}\n\n{cls.NOTE_DISCLAIMER_HTML}"
+
+        res = html_content.strip()
+
+        # 冒頭チェック
+        if "【免責事項】" not in res[:350]:
+            res = f"{cls.NOTE_DISCLAIMER_HTML}\n\n{res}"
+
+        # 末尾チェック（冒頭の免責事項以降のテキスト末尾600文字を検査）
+        offset = res.find("【免責事項】") + len("【免責事項】") if "【免責事項】" in res[:350] else 0
+        tail_sub = res[offset:]
+        if "【免責事項】" not in tail_sub[-600:]:
+            tag_match = re.search(r'(<p[^>]*>#[\s\S]*?</p>\s*)$', res, re.IGNORECASE)
+            if tag_match:
+                tag_part = tag_match.group(1)
+                main_part = res[:tag_match.start()].rstrip()
+                res = f"{main_part}\n\n{cls.NOTE_DISCLAIMER_HTML}\n\n{tag_part}"
+            else:
+                res = f"{res}\n\n{cls.NOTE_DISCLAIMER_HTML}"
+
+        return res
+
+    @classmethod
+    def inject_disclaimers_md(cls, md_content: str) -> str:
+        """
+        Markdown本文の冒頭および末尾にシステム免責事項（Disclaimer）を自動挿入する（重複防止付き）。
+        """
+        if not md_content:
+            return f"{cls.NOTE_DISCLAIMER_MD}\n\n{cls.NOTE_DISCLAIMER_MD}"
+
+        res = md_content.strip()
+
+        if "【免責事項】" not in res[:350]:
+            res = f"{cls.NOTE_DISCLAIMER_MD}\n\n{res}"
+
+        # 末尾チェック（冒頭の免責事項以降のテキスト末尾600文字を検査）
+        offset = res.find("【免責事項】") + len("【免責事項】") if "【免責事項】" in res[:350] else 0
+        tail_sub = res[offset:]
+        if "【免責事項】" not in tail_sub[-600:]:
+            res = f"{res}\n\n{cls.NOTE_DISCLAIMER_MD}"
+
+        return res
+
+
     @classmethod
     def _call_gemini(cls, prompt: str, system_instruction: str = "") -> str:
         """Helper to invoke Gemini 2.5/3.8 Flash"""
@@ -159,7 +235,9 @@ class FundContentGenerator:
 
         title = f"【自律型AIヘッジファンド合議録】伝説の投資家AI4名が激論の末に下した「{name} ({sym})」の買い場・指値・損切りレート完全開示"
 
-        free_body = f"""こんにちは、Lumina AIです。
+        free_body = f"""{cls.NOTE_DISCLAIMER_MD}
+
+こんにちは、Lumina AIです。
 
 「いまの相場で、本当に買うべき銘柄はどれなのか？」
 「SNSの煽りや高値掴みで損をしたくない…」
@@ -223,7 +301,7 @@ class FundContentGenerator:
 2. 逆指値（{stop_loss} {curr}）はエントリーと同時に必ず発注し、いかなる場合も機械的に損切りを行ってください。
 3. 利益が目標株価（{target_price} {curr}）の50%に達した段階で、半分を利確し残りのストップロスを買値まで引き上げてください。
 
-※本記事は投資教育およびシミュレーション結果の共有を目的としており、将来の利益を保証するものではありません。
+{cls.NOTE_DISCLAIMER_MD}
 """
         full_content = free_body + "\n<!-- note-paywall -->\n" + paid_body
         return {
@@ -990,7 +1068,7 @@ class FundContentGenerator:
      ※最重要（脱コピペ）：マクロ金利は毎日同じ一般論を繰り返すのではなく、必ず「前日比で金利やスプレッドがどう変動したか（微増・低下・拡大/縮小のbps変化）」に具体的に触れて解説してください。また個別銘柄も、銘柄ごとに算出された実際の25日線乖離率や出来高比率、ブレイクアウト状態の違いに即して解説してください。
    - <h2>🏛️ AI投資家合議バトル（本日のレビュー）</h2>: 投資家AIたち（バフェット、グレアム、キャシー、バーリ、ソロス、cisなど）の言い分と、ルミナの鋭いツッコミ＆最終判断
    - <h2>🔮 明日の相場展望とルミナの運用戦略</h2>: 明日の注目点と規律ある攻守方針
-   - <h2>🛡️ 免責事項</h2>: ※本記事はAIによる自動売買シミュレーションおよび運用の記録・研究を目的としたものであり、特定の投資商品や銘柄の売買を勧誘・推奨するものではありません。投資判断は必ず自己責任でお願いいたします。
+   - <h2>🛡️ 免責事項</h2>: {cls.NOTE_DISCLAIMER_TEXT}
 
 出力フォーマット（必ず厳守）：
 ===TITLE===
@@ -1047,10 +1125,16 @@ class FundContentGenerator:
 <h2>🏛️ 5人のAI投資家合議レビュー</h2>
 <blockquote>「感情に左右されず、規律あるクオンツ運用を継続します。」—— CIO ルミナ</blockquote>
 <h2>🛡️ 免責事項</h2>
-<p>※本記事はAIによる自動売買運用の記録を目的としており、個別銘柄の投資推奨ではありません。</p>
+{cls.NOTE_DISCLAIMER_HTML}
 """
 
         hashtags = ["株式投資", "自動売買", "AI投資", "資産運用", "損益報告", "投資初心者", "note"]
+        tag_line = " ".join(f"#{t.lstrip('#')}" for t in hashtags)
+        if "#株式投資" not in body_html:
+            body_html = body_html.strip() + f'\n\n<p>{tag_line}</p>'
+
+        # 🛡️ システムレベルで冒頭および末尾に免責事項を自動挿入（重複防止付き）
+        body_html = cls.inject_disclaimers_html(body_html)
 
         return {
             "title": title,
