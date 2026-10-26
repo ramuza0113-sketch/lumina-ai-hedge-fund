@@ -240,25 +240,48 @@ class ReflexionEngine:
         return ""
 
     @classmethod
-    def get_agent_reflection_prompt(cls, agent_id: str, symbol: str, broker_engine: Any) -> str:
+    def get_agent_reflection_prompt(
+        cls,
+        agent_id: str,
+        symbol: str,
+        broker_engine: Any,
+        query_keywords: Optional[List[str]] = None
+    ) -> str:
         """
-        Retrieves historical reflection memories for this agent and formats
-        a prompt section to inject into the agent's evaluation prompt.
+        Retrieves historical reflection memories for this agent using sub-millisecond
+        SQLite FTS5 BM25 ranking (plus direct ticker match) and formats a prompt section
+        to inject into the agent's evaluation prompt.
         """
         if not broker_engine:
             return ""
 
         from core.ai_hedge_fund.market_data_feed import MarketDataFeed
         norm = MarketDataFeed.normalize_symbol(symbol)
-        
-        # 1. First check if this agent has past reflections on this specific ticker
+
+        # 1. Direct ticker reflections
         ticker_refs = broker_engine.get_agent_reflexions(agent_id=agent_id, symbol=norm, limit=2)
-        # 2. Also check general recent reflections for this agent
+
+        # 2. Sub-millisecond FTS5 BM25 contextual search across all past reflections
+        bm25_terms = [norm, "損切り", "利確", "ストップ", "需給", "過信"]
+        if query_keywords:
+            bm25_terms = list(query_keywords) + bm25_terms
+        bm25_refs = []
+        if hasattr(broker_engine, "search_agent_reflexions_bm25"):
+            try:
+                bm25_refs = broker_engine.search_agent_reflexions_bm25(
+                    query_terms=bm25_terms,
+                    agent_id=agent_id if agent_id not in ("risk_manager", "cio") else None,
+                    limit=3
+                )
+            except Exception:
+                bm25_refs = []
+
+        # 3. Fallback general recent reflections
         general_refs = broker_engine.get_agent_reflexions(agent_id=agent_id, limit=2)
 
         all_refs = []
         seen_ids = set()
-        for r in (ticker_refs + general_refs):
+        for r in (ticker_refs + bm25_refs + general_refs):
             rid = r.get("reflexion_id")
             if rid not in seen_ids:
                 seen_ids.add(rid)
@@ -268,14 +291,15 @@ class ReflexionEngine:
             return ""
 
         lines = [
-            "\n【🧠 あなた自身の過去の反省・自己省察メモ (Reflexion Memory)】",
-            "過去のあなたの投資判断と事後検証の結果です。今回の審査では、過去の失敗パターンを避け、教訓を活かして厳格に評価してください:"
+            "\n【🧠 SQLite FTS5 (BM25) 高速記憶検索による過去の自己省察メモ (Reflexion Memory)】",
+            "過去の類似局面・銘柄におけるあなたの投資判断と事後検証の結果（BM25関連度上位）です。同じ失敗パターンを絶対に繰り返さず、教訓を活かして厳格に評価してください:"
         ]
         for r in all_refs[:3]:
             sym = r.get("symbol", "")
             pnl_pct = r.get("realized_pnl_pct", 0.0)
             txt = r.get("reflection_text", "")
-            lines.append(f"- 【過去トレード: {sym} (損益: {pnl_pct:+.1f}%)】{txt}")
+            cat = r.get("lesson_category", "")
+            lines.append(f"- 【過去トレード記憶: {sym} (損益: {pnl_pct:+.1f}% | 分類: {cat})】{txt}")
 
         # Check Graphiti Temporal Knowledge Graph for Sector and Macro lessons
         try:
@@ -293,5 +317,6 @@ class ReflexionEngine:
         except Exception:
             pass
 
-        lines.append("※上記の自己反省・時間軸ナレッジグラフ教訓を踏まえた上で、今回の銘柄に同じ盲点がないかを特に重点検証してください。\n")
+        lines.append("※上記のBM25検索教訓・時間軸ナレッジグラフ教訓を踏まえた上で、今回の銘柄に同じ盲点がないかを特に重点検証してください。\n")
         return "\n".join(lines)
+

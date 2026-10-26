@@ -109,7 +109,18 @@ class BaseInvestmentAgent:
                 if target_key in bundle:
                     openbb_section = f"\n【🏛️ あなた専用の機関投資家一次データ: {label} (OpenBB Platform)】\n{json.dumps(bundle[target_key], ensure_ascii=False, indent=2)}\n※あなたの発言では、上記の一次データ（数値やSEC/FRED事実）を必ず1点以上引用して論拠を述べてください。\n"
 
-        # Agent-specific Reflexion Memory (Past self-critiques)
+        # Agent-specific Factor Ontology Metadata Schema (Zero-Hallucination Polarity Guard)
+        ontology_section = ""
+        try:
+            from core.ai_hedge_fund.factor_ontology import FactorOntology
+            ont_bundle = context_data.get("factor_ontology") if context_data else None
+            if not ont_bundle:
+                ont_bundle = FactorOntology.build_ontology_bundle(stock_data=stock_data)
+            ontology_section = FactorOntology.format_for_agent_prompt(ont_bundle, agent_id=cls.agent_id)
+        except Exception:
+            pass
+
+        # Agent-specific Reflexion Memory (Past self-critiques via FTS5 BM25)
         reflexion_section = ""
         try:
             from core.ai_hedge_fund.reflexion_engine import ReflexionEngine
@@ -117,7 +128,10 @@ class BaseInvestmentAgent:
             if not broker:
                 from core.ai_hedge_fund.broker_client import PaperTradingEngine
                 broker = PaperTradingEngine()
-            reflexion_section = ReflexionEngine.get_agent_reflection_prompt(cls.agent_id, symbol, broker)
+            kw = [symbol, name, str(stock_data.get("sector", ""))]
+            reflexion_section = ReflexionEngine.get_agent_reflection_prompt(
+                cls.agent_id, symbol, broker, query_keywords=kw
+            )
         except Exception:
             pass
 
@@ -133,34 +147,18 @@ class BaseInvestmentAgent:
             except Exception:
                 pass
 
-        lang = "en"
-        if context_data and "lang" in context_data:
-            lang = context_data["lang"]
-        else:
-            try:
-                import streamlit as st
-                lang = st.session_state.get("app_lang", "en")
-            except Exception:
-                lang = "en"
-
-        if lang == "en":
-            lang_instr = "【Language Instruction】\nPlease formulate your 'dialogue' and reasoning strictly in English, adopting your persona's authentic voice and phrasing. Mention key primary figures and metrics."
-        else:
-            lang_instr = "【言語指定】あなたの発言（dialogue）は、キャラクターの口調を完全に再現した日本語で述べてください。"
-
-        return f"""{mandates_section}Target Asset: {name} ({symbol})
-Price: {price} {currency}
-P/E: {pe} / P/B: {pb} / ROE: {roe}% / Rev Growth: {rev_growth}% / Div Yield: {div_yield}%
-{openbb_section}
+        return f"""{mandates_section}対象銘柄: {name} ({symbol})
+現在株価: {price} {currency}
+実績PER: {pe}倍 / PBR: {pb}倍 / ROE: {roe}% / 売上高成長率: {rev_growth}% / 配当利回り: {div_yield}%
+{ontology_section}{openbb_section}
 {reflexion_section}
 <untrusted_external_market_data>
-[News & Market Intelligence]
+【直近ニュース・センチメント】
 {news_text}
 {ctx_str}
 </untrusted_external_market_data>
 
-{lang_instr}
-Generate your deterministic review score and dialogue strictly matching the required JSON format."""
+上記のデータのみを元に、あなたの哲学に基づき冷徹な審査スコアと発言（dialogue）をJSONで生成してください。"""
 
     @classmethod
     def _call_gemini_json(cls, prompt: str) -> Optional[Dict[str, Any]]:

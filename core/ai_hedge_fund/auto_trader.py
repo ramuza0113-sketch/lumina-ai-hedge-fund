@@ -358,7 +358,18 @@ class AutoTrader:
             if candidate_symbol not in corr_matrix.columns:
                 return 1.0, 0.0, "銘柄相関データ取得不可（フェイルセーフ: 通常配分 1.00倍）"
 
-            cand_corrs = [corr_matrix.loc[candidate_symbol, s] for s in clean_held if s in corr_matrix.columns]
+            cand_corrs = []
+            for s in clean_held:
+                if s in corr_matrix.columns:
+                    pearson_c = float(corr_matrix.loc[candidate_symbol, s])
+                    hy_c = 0.0
+                    try:
+                        from core.ai_hedge_fund.lead_lag_analyzer import LeadLagAnalyzer
+                        if candidate_symbol in series_dict and s in series_dict:
+                            hy_c = LeadLagAnalyzer.compute_hayashi_yoshida_corr(series_dict[candidate_symbol], series_dict[s])
+                    except Exception:
+                        hy_c = 0.0
+                    cand_corrs.append(max(pearson_c, hy_c))
             avg_cand_corr = float(np.mean(cand_corrs)) if cand_corrs else 0.0
 
             # Correlation Spike Trigger

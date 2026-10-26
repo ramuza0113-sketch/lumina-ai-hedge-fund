@@ -109,6 +109,12 @@ class LeadLagAnalyzer:
             ret_bm = np.diff(np.log(df_pair[bm_sym].values))
             ret_tgt = np.diff(np.log(df_pair[target_sym].values))
 
+            # Hayashi-Yoshida (2005) 非同期・重複区間共分散推定量（Epps効果・市場時間帯ズレ補正）
+            hy_corr = cls.compute_hayashi_yoshida_corr(
+                closes[bm_sym].dropna(),
+                closes[target_sym].dropna()
+            )
+
             # ラグごとのクロス相関 (-max_lag 〜 +max_lag)
             best_lag = 1
             max_corr = 0.0
@@ -124,6 +130,11 @@ class LeadLagAnalyzer:
                     if abs(c) > abs(max_corr):
                         max_corr = c
                         best_lag = lag
+
+            # 非同期Hayashi-Yoshida相関が通常の同期ラグ相関より強い隠れ連動を示す場合は統合補正
+            effective_corr = max_corr
+            if abs(hy_corr) > abs(max_corr):
+                effective_corr = 0.6 * hy_corr + 0.4 * max_corr
 
             # 直近3日間の先行指標トレンド（余波の方向性）
             recent_bm_change = float(df_pair[bm_sym].iloc[-1] / df_pair[bm_sym].iloc[-3] - 1.0) * 100
@@ -141,23 +152,23 @@ class LeadLagAnalyzer:
             is_sig = (p_val < 0.10)
             
             # 先行余波シグナルの判定
-            if max_corr > 0.3:
+            if abs(effective_corr) > 0.3:
                 if recent_bm_change > 1.0:
-                    sig = "BULLISH_LAG"
-                    badge = f"🚀 先行上昇余熱: {bm_info['name']} (+{recent_bm_change:.1f}%) ➔ {best_lag}日後波及期待"
+                    sig = "BULLISH_LAG" if effective_corr > 0 else "BEARISH_LAG"
+                    badge = f"🚀 先行上昇余熱: {bm_info['name']} (+{recent_bm_change:.1f}%) ➔ {best_lag}日後波及期待 (HY相関 {effective_corr:+.2f})"
                 elif recent_bm_change < -1.0:
-                    sig = "BEARISH_LAG"
-                    badge = f"⚠️ 先行急落余波: {bm_info['name']} ({recent_bm_change:.1f}%) ➔ {best_lag}日後遅延下落警戒"
+                    sig = "BEARISH_LAG" if effective_corr > 0 else "BULLISH_LAG"
+                    badge = f"⚠️ 先行急落余波: {bm_info['name']} ({recent_bm_change:.1f}%) ➔ {best_lag}日後遅延下落警戒 (HY相関 {effective_corr:+.2f})"
                 else:
                     sig = "NEUTRAL"
-                    badge = f"⚖️ 先行指標中立: {bm_info['name']} 追随レンジ"
+                    badge = f"⚖️ 先行指標中立: {bm_info['name']} 追随レンジ (HY相関 {effective_corr:+.2f})"
             else:
                 sig = "UNCORRELATED"
                 badge = f"🔹 独自モメンタム推移 ({bm_info['name']} との相関微弱)"
 
             summary = (
-                f"【先行リードラグ因果】{clean_sym} は {bm_info['name']} と最適遅延 {best_lag}営業日 "
-                f"(相関係数 {max_corr:+.2f}, p値 {p_val:.3f})。直近先行変動 {recent_bm_change:+.2f}% ➔ {badge}"
+                f"【先行リードラグ因果 (Hayashi-Yoshida補正)】{clean_sym} は {bm_info['name']} と最適遅延 {best_lag}営業日 "
+                f"(有効相関 {effective_corr:+.2f} / HY非同期相関 {hy_corr:+.2f}, p値 {p_val:.3f})。直近先行変動 {recent_bm_change:+.2f}% ➔ {badge}"
             )
 
             res = {
@@ -165,7 +176,8 @@ class LeadLagAnalyzer:
                 "benchmark_symbol": bm_sym,
                 "benchmark_name": bm_info["name"],
                 "optimal_lag_days": best_lag,
-                "correlation": round(max_corr, 2),
+                "correlation": round(effective_corr, 2),
+                "hayashi_yoshida_corr": round(hy_corr, 3),
                 "granger_pvalue": p_val,
                 "is_statistically_significant": is_sig,
                 "lead_lag_signal": sig,
@@ -179,3 +191,54 @@ class LeadLagAnalyzer:
 
         except Exception as e:
             return default_res
+
+    @staticmethod
+    def compute_hayashi_yoshida_corr(series_a: pd.Series, series_b: pd.Series) -> float:
+        """
+        Hayashi-Yoshida (2005) Asynchronous Covariance & Correlation Estimator.
+        Eliminates the Epps effect (downward correlation bias caused by non-synchronous
+        trading hours between US and Japanese TSE equities or differing liquidity speeds)
+        by summing products of returns over all overlapping observation intervals (I_i ∩ J_j != ∅).
+        """
+        try:
+            sa = series_a.dropna()
+            sb = series_b.dropna()
+            if len(sa) < 10 or len(sb) < 10:
+                return 0.0
+
+            ta = pd.to_datetime(sa.index).tz_localize(None).asi8.astype(np.float64)
+            tb = pd.to_datetime(sb.index).tz_localize(None).asi8.astype(np.float64)
+            pa = np.log(np.maximum(1e-8, sa.to_numpy(dtype=np.float64)))
+            pb = np.log(np.maximum(1e-8, sb.to_numpy(dtype=np.float64)))
+
+            ra = np.diff(pa)
+            rb = np.diff(pb)
+            if len(ra) < 5 or len(rb) < 5:
+                return 0.0
+
+            ra = ra - np.mean(ra)
+            rb = rb - np.mean(rb)
+
+            # Expand observation intervals by 1.25 days (in nanoseconds) to capture US close -> TSE next day open overlap
+            pad_ns = 1.25 * 86400.0 * 1e9
+            a_start = ta[:-1]
+            a_end = ta[1:] + pad_ns
+            b_start = tb[:-1]
+            b_end = tb[1:] + pad_ns
+
+            # Vectorized interval overlap matrix: max(a_start, b_start) < min(a_end, b_end)
+            overlap_mask = np.maximum(a_start[:, None], b_start[None, :]) < np.minimum(a_end[:, None], b_end[None, :])
+            hy_cov = float(np.sum((ra[:, None] * rb[None, :]) * overlap_mask))
+
+            var_a = float(np.sum(ra * ra))
+            var_b = float(np.sum(rb * rb))
+            denom = np.sqrt(var_a * var_b)
+            if denom <= 1e-12:
+                return 0.0
+
+            avg_overlap = max(1.0, float(np.mean(np.sum(overlap_mask, axis=1))))
+            corr = (hy_cov / avg_overlap) / (denom / np.sqrt(len(ra) * len(rb)) * max(len(ra), len(rb)))
+            return float(np.clip(corr, -1.0, 1.0))
+        except Exception:
+            return 0.0
+

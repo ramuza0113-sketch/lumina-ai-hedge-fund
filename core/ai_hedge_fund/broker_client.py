@@ -174,6 +174,33 @@ class PaperTradingEngine(BaseBrokerClient):
                     cursor.execute("ALTER TABLE council_records ADD COLUMN regime_info_json TEXT DEFAULT ''")
                 except Exception: pass
 
+            # SQLite FTS5 Virtual Table for sub-millisecond BM25 Reflexion Memory retrieval
+            try:
+                cursor.execute("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS agent_reflexions_fts USING fts5(
+                    symbol,
+                    company_name,
+                    agent_id,
+                    exit_rule,
+                    lesson_category,
+                    reflection_text,
+                    tokenize='unicode61'
+                )
+                """)
+                cursor.execute("SELECT COUNT(*) FROM agent_reflexions_fts")
+                fts_cnt = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) FROM agent_reflexions")
+                base_cnt = cursor.fetchone()[0]
+                if fts_cnt < base_cnt:
+                    cursor.execute("DELETE FROM agent_reflexions_fts")
+                    cursor.execute("""
+                    INSERT INTO agent_reflexions_fts(rowid, symbol, company_name, agent_id, exit_rule, lesson_category, reflection_text)
+                    SELECT reflexion_id, symbol, company_name, agent_id, exit_rule, lesson_category, reflection_text
+                    FROM agent_reflexions
+                    """)
+            except Exception:
+                pass
+
             conn.commit()
 
     def get_account_balance(self) -> Dict[str, float]:
@@ -887,8 +914,65 @@ class PaperTradingEngine(BaseBrokerClient):
                     norm, company_name, agent_id, stance_at_entry, score_at_entry,
                     exit_rule, realized_pnl, realized_pnl_pct, reflection_text, lesson_category, now_str
                 ))
+                rowid = cursor.lastrowid or 0
+                if rowid:
+                    try:
+                        cursor.execute("""
+                        INSERT INTO agent_reflexions_fts(rowid, symbol, company_name, agent_id, exit_rule, lesson_category, reflection_text)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (rowid, norm, company_name, agent_id, exit_rule, lesson_category, reflection_text))
+                    except Exception:
+                        pass
                 conn.commit()
-                return cursor.lastrowid or 0
+                return rowid
+
+    def search_agent_reflexions_bm25(
+        self,
+        query_terms: List[str],
+        agent_id: Optional[str] = None,
+        limit: int = 4
+    ) -> List[Dict[str, Any]]:
+        """
+        Sub-millisecond SQLite FTS5 BM25 ranking search over historical agent reflexions.
+        """
+        import re as _re
+        clean_tokens = []
+        for t in (query_terms or []):
+            tok = _re.sub(r'[^0-9A-Za-z_\u3040-\u30FF\u4E00-\u9FFF]', ' ', str(t)).strip()
+            for part in tok.split():
+                if len(part) >= 2 and part.upper() not in ("OR", "AND", "NOT", "NEAR"):
+                    clean_tokens.append(f'"{part}"')
+        if not clean_tokens:
+            return self.get_agent_reflexions(agent_id=agent_id, limit=limit)
+
+        fts_query = " OR ".join(clean_tokens[:10])
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            try:
+                if agent_id:
+                    cursor.execute("""
+                        SELECT r.*, bm25(agent_reflexions_fts) AS bm25_score
+                        FROM agent_reflexions_fts f
+                        JOIN agent_reflexions r ON r.reflexion_id = f.rowid
+                        WHERE agent_reflexions_fts MATCH ? AND r.agent_id = ?
+                        ORDER BY bm25(agent_reflexions_fts) ASC, r.reflexion_id DESC
+                        LIMIT ?
+                    """, (fts_query, agent_id, limit))
+                else:
+                    cursor.execute("""
+                        SELECT r.*, bm25(agent_reflexions_fts) AS bm25_score
+                        FROM agent_reflexions_fts f
+                        JOIN agent_reflexions r ON r.reflexion_id = f.rowid
+                        WHERE agent_reflexions_fts MATCH ?
+                        ORDER BY bm25(agent_reflexions_fts) ASC, r.reflexion_id DESC
+                        LIMIT ?
+                    """, (fts_query, limit))
+                rows = [dict(r) for r in cursor.fetchall()]
+                if rows:
+                    return rows
+            except Exception:
+                pass
+        return self.get_agent_reflexions(agent_id=agent_id, limit=limit)
 
     def get_agent_reflexions(
         self,
