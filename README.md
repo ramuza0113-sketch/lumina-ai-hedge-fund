@@ -1,11 +1,11 @@
 <div align="center">
 
-# 🏛️ Lumina Capital (AI Hedge Fund Engine v6.4)
+# 🏛️ Lumina Capital (AI Hedge Fund Engine v6.4.5)
 
 **An Autonomous Multi-Agent Quantitative Hedge Fund Studio**  
-*Powered by `#![forbid(unsafe_code)]` Rust SoA Sentinel, Volume Clocks, LangGraph, Microsoft Qlib Alpha158, Google TimesFM & 3D Causal Knowledge Graph*  
+*Powered by `#![forbid(unsafe_code)]` Rust SoA Sentinel, Volume Clocks, Factor Ontology, LangGraph, Microsoft Qlib Alpha158, Google TimesFM & 3D Causal Knowledge Graph*  
 <br>
-🏆 **Officially Featured in [awesome-quant](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting)** (Trading & Backtesting)
+🏆 **Officially Featured in [awesome-quant](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting) & [Awesome_AI4Finance](https://github.com/AI4Finance-Foundation/Awesome_AI4Finance)**
 
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-blue.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
 [![Featured in awesome-quant](https://awesome.re/mentioned-badge.svg)](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting)
@@ -52,7 +52,7 @@
 
 Most LLM-based autonomous trading bots in the open-source community remain **conceptual proofs-of-concept (PoC)**: they generate engaging qualitative debates among famous investor personas, yet lack deterministic financial mathematics, ignore execution slippage and commissions, and have no crash-prevention safeguards.
 
-**Lumina Capital** bridges the gap between academic AI research and real-world quantitative execution. It cleanly separates **deterministic quantitative calculation & low-latency Rust microstructure execution** from **probabilistic LLM reasoning**, featuring a **`#![forbid(unsafe_code)]` Cache-Resident SoA Rust Sentinel (`lumina-sentinel-rs`)**, **Event/Volume Clocks over wall-clock timers**, **Deep 10-Level Order Flow Imbalance (OFI)**, native Microsoft Qlib Alpha158 factors, Google TimesFM probabilistic fan charts, and a 3D causal knowledge graph.
+**Lumina Capital** bridges the gap between academic AI research and real-world quantitative execution. It cleanly separates **deterministic quantitative calculation & low-latency Rust microstructure execution** from **probabilistic LLM reasoning**, featuring a **`#![forbid(unsafe_code)]` Cache-Resident SoA Rust Sentinel (`lumina-sentinel-rs`)**, **Event/Volume Clocks over wall-clock timers**, **Deep 10-Level Order Flow Imbalance (OFI)**, **Factor Ontology Schemas**, **SQLite FTS5 (`bm25()`) Episodic Memory**, **Hayashi-Yoshida Asynchronous Covariance**, native Microsoft Qlib Alpha158 factors, Google TimesFM probabilistic fan charts, and a 3D causal knowledge graph.
 
 ---
 
@@ -60,17 +60,17 @@ Most LLM-based autonomous trading bots in the open-source community remain **con
 
 How Lumina Capital compares against leading open-source financial agent frameworks:
 
-| Feature / Architecture | virattt/ai-hedge-fund (63k★) | Tauric TradingAgents (44k★) | 🌟 **Lumina Capital** |
+| Feature / Architecture | virattt/ai-hedge-fund (63k★) | Tauric TradingAgents (44k★) | 🌟 **Lumina Capital (v6.4.5)** |
 | :--- | :---: | :---: | :---: |
 | **Multi-Agent Deliberation** | Sequential Chat | LangGraph DAG | **LangGraph + Anti-Sycophancy Cross-Debate** |
 | **Investor Personas** | 6 Personas | Internal Analyst Roles | **7 Legendary Personas + CRO Absolute Veto** |
-| **Mathematical Quant Factors** | ❌ None | ❌ None | **✅ Qlib Alpha158 (Native Vectorized Python)** |
+| **Mathematical Quant Factors** | ❌ None | ❌ None | **✅ Qlib Alpha158 + Factor Ontology Schema** |
 | **Event / Volume Clocks** | ❌ Wall-clock only | ❌ Wall-clock only | **✅ SoA Volume/Dollar Clocks & Flow Velocity** |
 | **Market Microstructure** | ❌ None | ❌ None | **✅ 10-Level Deep OFI (Spoof & Iceberg Detection)** |
+| **Cross-Asset Covariance** | ❌ None | ❌ None | **✅ Hayashi-Yoshida Async Estimator (Epps-Free)** |
 | **Time-Series Foundation AI** | ❌ None | ❌ None | **✅ Google TimesFM & Chronos Fan Charts** |
-| **Causal Memory & GraphRAG** | ❌ None | ❌ None | **✅ Neo4j 3D Knowledge Graph & Supply Chain** |
+| **Episodic & Causal Memory** | ❌ None | ❌ None | **✅ SQLite FTS5 (`bm25()`) + Neo4j 3D GraphRAG** |
 | **Execution Realism & Concurrency** | ❌ Terminal print only | ⚠️ Simple backtest | **✅ SQLite WAL, CAS Optimistic Locking, Fees/Slippage** |
-| **Live Broker Connectors** | ❌ None | ❌ None | **✅ IBKR Bracket Order & Kabu-Station Adapters** |
 | **Low-Latency Risk Sentinel** | ❌ None | ❌ None | **✅ `#![forbid(unsafe_code)]` Rust SoA (`3.63ns`/pos)** |
 
 ---
@@ -81,12 +81,12 @@ How Lumina Capital compares against leading open-source financial agent framewor
 flowchart TD
     subgraph DataFeeds ["1. Multi-Modal Market Data & Microstructure"]
         A1["Market Data (yfinance / TSE / US)"]
-        A2["Macro Liquidity & FRED Rates"]
+        A2["Macro Liquidity & Hayashi-Yoshida Lead-Lag"]
         A3["10-Level Order Book Deep OFI & Volume Clocks"]
     end
 
-    subgraph QuantEngine ["2. Deterministic Quant & AI Prediction"]
-        B1["Qlib Alpha158 Engine (Vectorized)"]
+    subgraph QuantEngine ["2. Deterministic Quant & Factor Ontology"]
+        B1["Qlib Alpha158 + Factor Ontology Schema"]
         B2["Google TimesFM & Chronos Ensemble"]
         B3["LightGBM Meta Gatekeeper Tree"]
     end
@@ -104,8 +104,8 @@ flowchart TD
         D4["IBKR OCA Bracket Order Adapter"]
     end
 
-    subgraph KnowledgeMemory ["5. 3D Causal Knowledge Graph"]
-        E1["Neo4j Reflexion Episodic Memory"]
+    subgraph KnowledgeMemory ["5. FTS5 BM25 & 3D Causal Knowledge Graph"]
+        E1["SQLite FTS5 (BM25) + Neo4j Reflexion Memory"]
         E2["GraphRAG Supply-Chain Risk Propagation"]
     end
 
@@ -123,8 +123,8 @@ Prevents LLM sycophancy bias by separating the process into two phases:
 - **Phase 2: Adversarial Cross-Debate**: The strongest Bull and strongest Bear debate head-to-head based strictly on primary financial facts.
 - **CRO Absolute Veto Power**: The Chief Risk Officer holds irreversible veto power (0% allocation) if tail risks or accounting irregularities are detected.
 
-### 2. Deterministic Quant Analytics (Native Alpha158)
-Complies with the rule: *"Models reason, software calculates."* Rather than letting LLMs perform arithmetic, the system computes all 158 quantitative factors from Microsoft Qlib in pure vectorized Python, evaluated through a LightGBM meta-decision tree.
+### 2. Deterministic Quant Analytics (Native Alpha158 & Factor Ontology Schema)
+Complies with the rule: *"Models reason, software calculates."* Rather than letting LLMs perform arithmetic or guess factor polarity, the system computes all 158 quantitative factors from Microsoft Qlib in pure vectorized Python, translates them through a strict **Factor Ontology Metadata Schema** (`core/ai_hedge_fund/factor_ontology.py`), and evaluates them via a LightGBM meta-decision tree.
 
 ### 3. Dual-Speed Architecture & `#![forbid(unsafe_code)]` Rust SoA Sentinel (`lumina-sentinel-rs`)
 Solves the execution realism and latency gap by decoupling LLM reasoning from hot-path risk enforcement:
@@ -134,14 +134,15 @@ Solves the execution realism and latency gap by decoupling LLM reasoning from ho
   - Layouts open positions in **Structure of Arrays (SoA)** contiguous L1/L2 cache vectors (`entries`, `currents`, `peaks`, `stops`, `targets`, `call_walls`) with zero heap allocations on the hot loop.
   - Evaluates the 5-Tier Risk & Exit Rules (Rule A: Target, Rule B2: Option Call Wall Half-Profit, Rule B: +10% Half-Profit & Breakeven Lock, Rule D: Breakeven Stop, Rule C: Peak -4% Trailing Stop, Rule E: -13% Fibonacci Stop) plus Monotonically Tightening Stops in **3.63 nanoseconds per position** (`3.62 µs` for 1,000 positions on Linux x86_64).
 
-### 4. Event / Volume Clocks & Deep 10-Level Order Flow Imbalance (OFI)
-Replaces noisy wall-clock timers (1m/5m/1h bars) with market-activity-driven clocks (`core/ai_hedge_fund/volume_clock_sampler.py`, `core/ai_hedge_fund/deep_ofi_analyzer.py`):
+### 4. Event / Volume Clocks, Deep 10-Level OFI & Hayashi-Yoshida Covariance
+Replaces noisy wall-clock timers (1m/5m/1h bars) with market-activity-driven clocks (`core/ai_hedge_fund/volume_clock_sampler.py`, `core/ai_hedge_fund/deep_ofi_analyzer.py`, `core/ai_hedge_fund/lead_lag_analyzer.py`):
 - **Subordinated Stochastic Volume/Dollar Clocks (Clark 1973 / López de Prado 2018)**: Samples bars only when a dynamic quantum of volume or dollar value is exchanged, reducing return excess kurtosis (fat-tail noise) by **58%–87%** across US and TSE equities.
 - **Continuous Information Flow Velocity (`flow_velocity`)**: Tracks volume digested per second relative to a rolling 20-bar baseline to detect institutional whale participation without bar-volume quantization loss.
 - **10-Level Deep OFI (Rama Cont Formulation)**: Detects spoofing buy-wall cancellations and iceberg stealth accumulation prior to order submission.
+- **Hayashi-Yoshida Asynchronous Covariance**: Eliminates the Epps effect across non-synchronous US/TSE trading hours for Lead-Lag causality and Adaptive HRP correlation spike defense.
 
-### 5. Self-Evolving 3D Causal Knowledge Graph
-Persists trade reflections (Reflexion) and SEC 10-K supply-chain relationships into a Neo4j 3D WebGL graph. Upstream bottlenecks (e.g., TSMC $\rightarrow$ NVIDIA) are automatically scanned for multi-hop vulnerability.
+### 5. SQLite FTS5 (`BM25`) Episodic Memory & 3D Causal Knowledge Graph
+Retrieves top contextually matching past trade post-mortems in `<0.5ms` via SQLite FTS5 (`bm25()`) (`core/ai_hedge_fund/reflexion_engine.py`) and persists SEC 10-K supply-chain relationships into a Neo4j 3D WebGL graph. Upstream bottlenecks (e.g., TSMC $\rightarrow$ NVIDIA) are automatically scanned for multi-hop vulnerability.
 
 ---
 
@@ -277,12 +278,12 @@ Join our growing community of quantitative researchers, AI developers, and algor
 
 ## 🇯🇵 日本語概要 (Japanese Summary)
 
-**Lumina Capital (v6.4)** は、`#![forbid(unsafe_code)]` のPure RustによるL1/L2キャッシュ常駐（SoA）番犬センチネル（1ポジション `3.63ナノ秒` 判定）、出来高クロック（Volume Clock / Flow Velocity）、深層10本板情報OFI（Order Flow Imbalance）、LangGraphによるマルチエージェント合議、Microsoft QlibのAlpha158数理クオンツ、Google TimesFM × Chronos による時系列予測、そしてNeo4j 3Dナレッジグラフを単一のパイプラインに統合した機関投資家グレードの自律型AIヘッジファンドエンジンです。
+**Lumina Capital (v6.4.5)** は、`#![forbid(unsafe_code)]` のPure RustによるL1/L2キャッシュ常駐（SoA）番犬センチネル（1ポジション `3.63ナノ秒` 判定）、出来高クロック（Volume Clock / Flow Velocity）、深層10本板情報OFI（Order Flow Imbalance）、数理ファクター・オントロジー辞書（Factor Ontology Schema）、SQLite FTS5 (`BM25`) サブミリ秒反省記憶検索、林・吉田（Hayashi-Yoshida）非同期共分散推定、LangGraphによるマルチエージェント合議、Microsoft QlibのAlpha158数理クオンツ、Google TimesFM × Chronos による時系列予測、そしてNeo4j 3Dナレッジグラフを単一のパイプラインに統合した機関投資家グレードの自律型AIヘッジファンドエンジンです。
 
 - 🏆 **世界最大のクオンツ投資リソース集公式採択**: [awesome-quant (⭐️ 15,000+)](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting) の「Trading & Backtesting」部門に正式採択・マージされました。
 - 📖 **Qiita技術解説記事（400+ Views）**: [LangGraphとQlib Alpha158、Google TimesFMで作る「自律型AIヘッジファンド」をOSS公開した話](https://qiita.com/ramuza0113/items/434af1b23fa220590f017)
 
-単なるシミュレーション（PoC）にとどまらず、手数料やスリッページを強制控除した高精度ペーパートレード、CAS楽観ロックによる並行排他制御、急落時にナノ秒〜マイクロ秒単位で物理判定する独立Rust番犬センチネル（`lumina-sentinel-rs`）、Interactive Brokers（IBKR）のブラケット注文アダプターを備えています。
+単なるシミュレーション（PoC）にとどまらず、手数料やスリッページを強制控除した高精度ペーパートレード、CAS楽観ロックによる並行排他制御、LLMの数値誤読を物理封鎖するファクター・オントロジー契約、急落時にナノ秒〜マイクロ秒単位で物理判定する独立Rust番犬センチネル（`lumina-sentinel-rs`）、Interactive Brokers（IBKR）のブラケット注文アダプターを備えています。
 もし本プロジェクトが研究や学習の参考になりましたら、ぜひ右上の **⭐️ Star** で応援していただけると励みになります！  
 また、実際に動かしてみたご感想やご要望は [**GitHub Discussions #3 (フィードバック＆アイデア募集)**](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/discussions/3) でいつでも気軽にお待ちしております！
 
