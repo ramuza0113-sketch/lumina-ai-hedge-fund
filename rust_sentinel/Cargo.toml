@@ -1,0 +1,12 @@
+[package]
+name = "lumina-sentinel-rs"
+version = "1.1.0"
+edition = "2021"
+description = "Ultra-low-latency #![forbid(unsafe_code)] Cache-Resident SoA Position Sentinel & Volume Clock Engine for Lumina AI Hedge Fund"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
