@@ -12,7 +12,14 @@ from typing import Dict, Any, Optional, Tuple, List
 import numpy as np
 import pandas as pd
 import yfinance as yf
-from scipy.stats import norm
+try:
+    from scipy.stats import norm
+except ImportError:
+    class _NormFallback:
+        @staticmethod
+        def pdf(x):
+            return np.exp(-0.5 * np.square(x)) / np.sqrt(2.0 * np.pi)
+    norm = _NormFallback()
 
 import json
 import sqlite3
