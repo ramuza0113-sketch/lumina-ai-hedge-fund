@@ -23,6 +23,8 @@ ENV/
 outputs/
 *.log
 *.tmp
+MEDIUM_CLEAN_TEXT.txt
+medium_article.html
 
 # OS specific
 .DS_Store

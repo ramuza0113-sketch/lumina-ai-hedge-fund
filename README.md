@@ -33,7 +33,7 @@
 > ⭐️ **Found this project inspiring? Give it a Star!**  
 > If you find Lumina Capital helpful or educational, please consider hitting the **⭐️ Star** button on the top right. It helps support active open-source research and continuous development of new factor models!
 
-[English](#-overview) | [コミュニティ・公式リンク](#-connect-with-the-author--community) | [日本語ドキュメント](#-日本語概要-japanese-summary)
+[English](#-overview) | [📖 Master Architecture & Math Specification](docs/lumina_fund_master_system_architecture.md) | [コミュニティ・公式リンク](#-connect-with-the-author--community) | [日本語ドキュメント](#-日本語概要-japanese-summary) ([🇯🇵 完全仕様書](docs/lumina_fund_master_system_architecture.ja.md))
 
 <br><br>
 
@@ -282,6 +282,7 @@ Join our growing community of quantitative researchers, AI developers, and algor
 
 - 🏆 **世界最大のクオンツ投資リソース集公式採択**: [awesome-quant (⭐️ 15,000+)](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting) の「Trading & Backtesting」部門に正式採択・マージされました。
 - 📖 **Qiita技術解説記事（400+ Views）**: [LangGraphとQlib Alpha158、Google TimesFMで作る「自律型AIヘッジファンド」をOSS公開した話](https://qiita.com/ramuza0113/items/434af1b23fa220590f017)
+- 🏛️ **日本語・完全技術仕様書**: [Lumina Capital マスターアーキテクチャ＆金融工学数理モデル解説書](docs/lumina_fund_master_system_architecture.ja.md)（全6大ピラー・6大金融工学理論・5年バックテスト完全記録）
 
 単なるシミュレーション（PoC）にとどまらず、手数料やスリッページを強制控除した高精度ペーパートレード、CAS楽観ロックによる並行排他制御、LLMの数値誤読を物理封鎖するファクター・オントロジー契約、急落時にナノ秒〜マイクロ秒単位で物理判定する独立Rust番犬センチネル（`lumina-sentinel-rs`）、Interactive Brokers（IBKR）のブラケット注文アダプターを備えています。
 もし本プロジェクトが研究や学習の参考になりましたら、ぜひ右上の **⭐️ Star** で応援していただけると励みになります！  
