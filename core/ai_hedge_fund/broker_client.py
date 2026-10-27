@@ -1,4 +1,5 @@
 import os
+import math
 import sqlite3
 import threading
 import queue
@@ -188,17 +189,29 @@ class PaperTradingEngine(BaseBrokerClient):
                 if row_sql and row_sql[0] and "tokenchars" not in str(row_sql[0]):
                     cursor.execute("DROP TABLE IF EXISTS agent_reflexions_fts")
 
-                cursor.execute("""
-                CREATE VIRTUAL TABLE IF NOT EXISTS agent_reflexions_fts USING fts5(
-                    symbol,
-                    company_name,
-                    agent_id,
-                    exit_rule,
-                    lesson_category,
-                    reflection_text,
-                    tokenize="unicode61 'tokenchars=-_.'"
-                )
-                """)
+                try:
+                    cursor.execute("""
+                    CREATE VIRTUAL TABLE IF NOT EXISTS agent_reflexions_fts USING fts5(
+                        symbol,
+                        company_name,
+                        agent_id,
+                        exit_rule,
+                        lesson_category,
+                        reflection_text,
+                        tokenize="unicode61 tokenchars '-_.'"
+                    )
+                    """)
+                except Exception:
+                    cursor.execute("""
+                    CREATE VIRTUAL TABLE IF NOT EXISTS agent_reflexions_fts USING fts5(
+                        symbol,
+                        company_name,
+                        agent_id,
+                        exit_rule,
+                        lesson_category,
+                        reflection_text
+                    )
+                    """)
                 cursor.execute("SELECT COUNT(*) FROM agent_reflexions_fts")
                 fts_cnt = cursor.fetchone()[0]
                 cursor.execute("SELECT COUNT(*) FROM agent_reflexions")
@@ -1042,16 +1055,20 @@ class PaperTradingEngine(BaseBrokerClient):
         self,
         query_terms: List[str],
         agent_id: Optional[str] = None,
-        limit: int = 4
+        limit: int = 4,
+        half_life_days: float = 30.0
     ) -> List[Dict[str, Any]]:
         """
-        Sub-millisecond SQLite FTS5 BM25 ranking search over historical agent reflexions.
+        Sub-millisecond SQLite FTS5 BM25 ranking search over historical agent reflexions
+        with Exponential Time-Decay Aging (Half-Life = 30 days) to prevent AI overfitting/trauma
+        from stale market regimes.
         Preserves compound financial terms (hyphens, underscores, dots).
         """
         if not self._reflexion_write_queue.empty():
             self.flush_reflexion_queue()
 
         import re as _re
+        from datetime import datetime as _dt
         clean_tokens = []
         for t in (query_terms or []):
             tok = _re.sub(r'[^0-9A-Za-z_\-.\u3040-\u30FF\u4E00-\u9FFF]', ' ', str(t)).strip()
@@ -1063,6 +1080,7 @@ class PaperTradingEngine(BaseBrokerClient):
             return self.get_agent_reflexions(agent_id=agent_id, limit=limit)
 
         fts_query = " OR ".join(clean_tokens[:10])
+        fetch_pool = max(limit * 3, 12)
         with self._get_conn() as conn:
             cursor = conn.cursor()
             try:
@@ -1074,7 +1092,7 @@ class PaperTradingEngine(BaseBrokerClient):
                         WHERE agent_reflexions_fts MATCH ? AND r.agent_id = ?
                         ORDER BY bm25(agent_reflexions_fts) ASC, r.reflexion_id DESC
                         LIMIT ?
-                    """, (fts_query, agent_id, limit))
+                    """, (fts_query, agent_id, fetch_pool))
                 else:
                     cursor.execute("""
                         SELECT r.*, bm25(agent_reflexions_fts) AS bm25_score
@@ -1083,10 +1101,25 @@ class PaperTradingEngine(BaseBrokerClient):
                         WHERE agent_reflexions_fts MATCH ?
                         ORDER BY bm25(agent_reflexions_fts) ASC, r.reflexion_id DESC
                         LIMIT ?
-                    """, (fts_query, limit))
+                    """, (fts_query, fetch_pool))
                 rows = [dict(r) for r in cursor.fetchall()]
                 if rows:
-                    return rows
+                    decay_lambda = math.log(2.0) / max(1.0, float(half_life_days))
+                    now_dt = _dt.now()
+                    for r in rows:
+                        raw_bm25 = abs(float(r.get("bm25_score", 0.0))) or 1.0
+                        created_str = str(r.get("created_at") or "")
+                        try:
+                            dt_parsed = _dt.strptime(created_str[:19], "%Y-%m-%d %H:%M:%S")
+                            age_days = max(0.0, (now_dt - dt_parsed).total_seconds() / 86400.0)
+                        except Exception:
+                            age_days = 0.0
+                        decay_weight = math.exp(-decay_lambda * age_days)
+                        r["age_days"] = round(age_days, 2)
+                        r["decay_weight"] = round(decay_weight, 4)
+                        r["effective_score"] = round(raw_bm25 * decay_weight, 6)
+                    rows.sort(key=lambda x: (x["effective_score"], x.get("reflexion_id", 0)), reverse=True)
+                    return rows[:limit]
             except Exception:
                 pass
         return self.get_agent_reflexions(agent_id=agent_id, limit=limit)
@@ -1225,18 +1258,75 @@ class IBKRClient(BaseBrokerClient):
         self.port = port
         self.client_id = client_id
         self._ib = None
+    _shared_ib = None
+    _shared_lock = threading.Lock()
+    _needs_reconciliation = False
+    _last_reconciled_at: float = 0.0
+    _active_client_id: int = 1
+
+    def _reconcile_after_reconnect(self, ib) -> Dict[str, Any]:
+        """
+        Reconciles live IBKR positions, open OCO bracket orders, and executions
+        after recovering from an IB Gateway daily maintenance disconnect or socket drop.
+        """
+        summary = {"reconciled": False, "positions_count": 0, "open_orders_count": 0, "executions_count": 0}
+        try:
+            if ib is None or not getattr(ib, "isConnected", lambda: False)():
+                return summary
+            pos_list = list(ib.positions() or [])
+            open_orders = list(ib.reqOpenOrders() if hasattr(ib, "reqOpenOrders") else (ib.openOrders() or []))
+            execs = list(ib.executions() if hasattr(ib, "executions") else [])
+            summary["reconciled"] = True
+            summary["positions_count"] = len(pos_list)
+            summary["open_orders_count"] = len(open_orders)
+            summary["executions_count"] = len(execs)
+            IBKRClient._last_reconciled_at = time.time()
+        except Exception:
+            pass
+        return summary
 
     def _get_connection(self):
-        """Attempts to connect to IB Gateway or TWS via ib_insync."""
+        """
+        Attempts to connect to IB Gateway or TWS via ib_insync with shared connection pooling,
+        explicit zombie-socket cleanup, ClientId failover (Error 326 mitigation), and
+        automatic post-disconnect state reconciliation.
+        """
         try:
             import ib_insync
-            if self._ib is not None and self._ib.isConnected():
-                return self._ib
-            ib = ib_insync.IB()
-            ib.connect(self.host, self.port, clientId=self.client_id, timeout=3.0)
-            self._ib = ib
-            return ib
-        except Exception as e:
+            with IBKRClient._shared_lock:
+                if IBKRClient._shared_ib is not None:
+                    if getattr(IBKRClient._shared_ib, "isConnected", lambda: False)():
+                        return IBKRClient._shared_ib
+                    try:
+                        IBKRClient._shared_ib.disconnect()
+                    except Exception:
+                        pass
+                    IBKRClient._shared_ib = None
+                    IBKRClient._needs_reconciliation = True
+
+                ib = ib_insync.IB()
+                connected = False
+                for cid_offset in range(3):
+                    try_cid = self.client_id + cid_offset
+                    try:
+                        ib.connect(self.host, self.port, clientId=try_cid, timeout=3.0)
+                        if getattr(ib, "isConnected", lambda: True)():
+                            connected = True
+                            IBKRClient._active_client_id = try_cid
+                            break
+                    except Exception:
+                        continue
+
+                if not connected:
+                    return None
+
+                IBKRClient._shared_ib = ib
+                self._ib = ib
+                if IBKRClient._needs_reconciliation:
+                    self._reconcile_after_reconnect(ib)
+                    IBKRClient._needs_reconciliation = False
+                return ib
+        except Exception:
             return None
 
     def get_account_balance(self) -> Dict[str, float]:

@@ -291,15 +291,18 @@ class ReflexionEngine:
             return ""
 
         lines = [
-            "\n【🧠 SQLite FTS5 (BM25) 高速記憶検索による過去の自己省察メモ (Reflexion Memory)】",
-            "過去の類似局面・銘柄におけるあなたの投資判断と事後検証の結果（BM25関連度上位）です。同じ失敗パターンを絶対に繰り返さず、教訓を活かして厳格に評価してください:"
+            "\n【🧠 SQLite FTS5 (BM25 × 指数時間減衰 Half-Life 30d) 高速記憶検索による自己省察メモ】",
+            "過去の類似局面・銘柄におけるあなたの投資判断と事後検証の結果（BM25×時間減衰ウェイト上位）です。同じ失敗パターンを絶対に繰り返さず、教訓を活かして厳格に評価してください:"
         ]
         for r in all_refs[:3]:
             sym = r.get("symbol", "")
             pnl_pct = r.get("realized_pnl_pct", 0.0)
             txt = r.get("reflection_text", "")
             cat = r.get("lesson_category", "")
-            lines.append(f"- 【過去トレード記憶: {sym} (損益: {pnl_pct:+.1f}% | 分類: {cat})】{txt}")
+            decay_w = r.get("decay_weight", 1.0)
+            age_d = r.get("age_days", 0.0)
+            aging_tag = f" | 減衰Weight: {decay_w:.2f} ({age_d:.0f}日前)" if "decay_weight" in r else ""
+            lines.append(f"- 【過去トレード記憶: {sym} (損益: {pnl_pct:+.1f}% | 分類: {cat}{aging_tag})】{txt}")
 
         # Check Graphiti Temporal Knowledge Graph for Sector and Macro lessons
         try:
@@ -317,6 +320,6 @@ class ReflexionEngine:
         except Exception:
             pass
 
-        lines.append("※上記のBM25検索教訓・時間軸ナレッジグラフ教訓を踏まえた上で、今回の銘柄に同じ盲点がないかを特に重点検証してください。\n")
+        lines.append("※上記の教訓を踏まえつつ、古い記憶（低Weight）や異なる相場レジームの損切りトラウマに過剰適合（Over-fitting）して現在の特A級シグナルを不当に萎縮・棄却しないよう客観的に検証してください。\n")
         return "\n".join(lines)
 

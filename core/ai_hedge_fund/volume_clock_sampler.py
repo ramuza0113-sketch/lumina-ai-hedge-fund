@@ -75,10 +75,13 @@ class VolumeClockSampler:
         threshold: Optional[float] = None,
         bars_per_day: int = 26,
         clock_type: str = "volume",
+        max_timeout_sec: Optional[float] = 1800.0,
     ) -> pd.DataFrame:
         """
         SoA（Structure of Arrays）メモリレイアウトによる高速演算で、
         時系列OHLCVデータを出来高バー（volume）またはドルバー（dollar）へ変換する。
+        閑散相場や取引停止（サーキットブレーカー）時のシグナル遅延を防ぐため、
+        実時間タイムアウト・フォールバック（max_timeout_sec）を完備。
 
         Parameters
         ----------
@@ -91,6 +94,8 @@ class VolumeClockSampler:
             1日あたりの標準バー生成目標本数（デフォルト26本）
         clock_type : str
             'volume'（出来高クロック）または 'dollar'（売買代金クロック）
+        max_timeout_sec : float, optional
+            出来高しきい値未達でも強制的にバーを区切る最大経過秒数（デフォルト1800秒＝30分、または元足周期の4倍）
 
         Returns
         -------
@@ -101,6 +106,7 @@ class VolumeClockSampler:
             - `tick_count`: そのバーを形成するのに要した元時間足の本数（少ないほど大口急増＝高流速）
             - `duration_sec`: バー形成にかかった実時間（秒）
             - `flow_velocity`: 情報流速スコア（標準速度に対する倍率。高いほど機関投資家の大口資金流入）
+            - `is_timeout_bar`: 出来高未達のままタイムアウトで強制確定されたバーかどうか（bool）
         """
         norm_df = cls._normalize_ohlcv(df)
         if norm_df.empty:
@@ -135,13 +141,56 @@ class VolumeClockSampler:
         else:
             flow_array = volumes
 
-        # 累積フローとバー境界インデックスの算出
-        cum_flow = np.cumsum(flow_array)
-        bar_ids = (cum_flow // threshold).astype(np.int64)
+        base_interval = 300.0
+        try:
+            if len(timestamps) > 1:
+                diffs = np.diff(timestamps) / np.timedelta64(1, "s")
+                valid_diffs = diffs[diffs > 0]
+                if len(valid_diffs) > 0:
+                    base_interval = float(np.median(valid_diffs))
+        except Exception:
+            base_interval = 300.0
+
+        # 累積フローとタイムアウト・フォールバック付きバー境界インデックスの算出
+        n_rows = len(flow_array)
+        if max_timeout_sec is not None and max_timeout_sec > 0:
+            eff_timeout = max(float(max_timeout_sec), base_interval * 4.0)
+            try:
+                rel_sec = ((timestamps - timestamps[0]) / np.timedelta64(1, "s")).astype(np.float64)
+            except Exception:
+                rel_sec = np.arange(n_rows, dtype=np.float64) * base_interval
+
+            bar_ids = np.zeros(n_rows, dtype=np.int64)
+            timeout_bar_set = set()
+            cur_bar_id = 0
+            acc_flow = 0.0
+            bar_start_sec = rel_sec[0]
+
+            for idx in range(n_rows):
+                elapsed = rel_sec[idx] - bar_start_sec
+                if acc_flow > 0.0 and elapsed >= eff_timeout:
+                    # 前の足まででタイムアウト確定し、現在足から新しいバーを開始
+                    timeout_bar_set.add(cur_bar_id)
+                    cur_bar_id += 1
+                    acc_flow = 0.0
+                    bar_start_sec = rel_sec[idx]
+
+                bar_ids[idx] = cur_bar_id
+                acc_flow += flow_array[idx]
+
+                if acc_flow >= threshold and idx < n_rows - 1:
+                    cur_bar_id += 1
+                    acc_flow = 0.0
+                    bar_start_sec = rel_sec[idx + 1]
+        else:
+            cum_flow = np.cumsum(flow_array)
+            bar_ids = (cum_flow // threshold).astype(np.int64)
+            timeout_bar_set = set()
 
         # 境界変化点を高速特定（np.unique + reduceat でPythonループを最小化）
-        _, start_indices, counts = np.unique(bar_ids, return_index=True, return_counts=True)
+        unique_ids, start_indices, counts = np.unique(bar_ids, return_index=True, return_counts=True)
         end_indices = start_indices + counts - 1
+        is_timeout_bars = np.array([int(uid) in timeout_bar_set for uid in unique_ids], dtype=bool)
 
         # ベクトル集計（np.ufunc.reduceat によるL1/L2キャッシュ高速集約）
         bar_opens = opens[start_indices]
@@ -158,13 +207,6 @@ class VolumeClockSampler:
         # 所要時間（秒）と連続情報流速（Flow Velocity: 単位時間あたり出来高消化速度の過去20バー比）の算出
         try:
             durations_sec = (bar_timestamps - start_timestamps) / np.timedelta64(1, "s")
-            # 1本の元足内で完結した場合は元足の標準周期（例: 300秒）を基準とし、さらにその足の出来高密度を反映
-            base_interval = 300.0
-            if len(timestamps) > 1:
-                diffs = np.diff(timestamps) / np.timedelta64(1, "s")
-                valid_diffs = diffs[diffs > 0]
-                if len(valid_diffs) > 0:
-                    base_interval = float(np.median(valid_diffs))
             durations_sec = np.where(counts <= 1, base_interval, durations_sec + base_interval)
         except Exception:
             durations_sec = counts.astype(np.float64) * 300.0
@@ -187,6 +229,7 @@ class VolumeClockSampler:
                 "tick_count": counts,
                 "duration_sec": durations_sec,
                 "flow_velocity": flow_velocity,
+                "is_timeout_bar": is_timeout_bars,
             },
             index=pd.DatetimeIndex(bar_timestamps, name="timestamp"),
         )
@@ -197,11 +240,19 @@ class VolumeClockSampler:
 
     @classmethod
     def to_volume_bars(
-        cls, df: pd.DataFrame, volume_threshold: Optional[float] = None, bars_per_day: int = 26
+        cls,
+        df: pd.DataFrame,
+        volume_threshold: Optional[float] = None,
+        bars_per_day: int = 26,
+        max_timeout_sec: Optional[float] = 1800.0,
     ) -> pd.DataFrame:
         """出来高クロック（Volume Bars）を生成するショートカット。"""
         return cls.to_information_bars(
-            df, threshold=volume_threshold, bars_per_day=bars_per_day, clock_type="volume"
+            df,
+            threshold=volume_threshold,
+            bars_per_day=bars_per_day,
+            clock_type="volume",
+            max_timeout_sec=max_timeout_sec,
         )
 
     @classmethod

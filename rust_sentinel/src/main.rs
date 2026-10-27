@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-//! Lumina AI Hedge Fund — Ultra-Low-Latency Sentinel & Volume Clock Engine (`lumina-sentinel-rs`)
+//! Lumina Capital — Ultra-Low-Latency Sentinel & Volume Clock Engine (`lumina-sentinel-rs`)
 //!
 //! Architecture:
 //! 1. **Zero `unsafe` End-to-End**: Enforced at compiler level via `#![forbid(unsafe_code)]`.
@@ -11,8 +11,8 @@
 //!      Flow Velocity (`flow_velocity`) in pure Rust.
 //! 4. **Sub-Microsecond 5-Tier Risk & Exit Sentinel**:
 //!    - Evaluates Rule A (Target), Rule B (+10% Half Profit & Breakeven Lock), Rule B2 (Call Wall Half),
-//!      Rule C (Peak -4% Trailing), Rule D (Breakeven Stop), Rule E (-13% Fibonacci Stop / Intraday Wall Stop),
-//!      and Monotonically Tightening Stop updates in ~7.7 nanoseconds per position.
+//!      Rule C (Peak -4% Trailing), Rule D (Breakeven Stop), Rule E (-13% Fibonacci Stop / DAY_CIS Wall Stop),
+//!      and Monotonically Tightening Stop updates in nanoseconds per position.
 
 use std::env;
 use std::io::{self, BufRead, Write};
@@ -180,6 +180,7 @@ impl SoAPositionBook {
             self.out_drawdowns[i] = drawdown_from_peak;
 
             if is_day {
+                // DAY_CIS Intraday Order-Book Wall Stop & Target Logic
                 let effective_stop = if prev_stop > 0.0 {
                     prev_stop
                 } else {
@@ -197,17 +198,23 @@ impl SoAPositionBook {
                 continue;
             }
 
-            let fib_stop = entry * 0.87;
+            // Swing 5-Tier Quantitative Risk Rules (Rules A, B, B2, C, D, E)
+            // Monotonically Tightening Dynamic Stop calculation:
+            let fib_stop = entry * 0.87; // -13% Fibonacci Stop
             let mut candidate_stop = if prev_stop > 0.0 {
                 prev_stop.max(fib_stop)
             } else {
                 fib_stop
             };
 
-            if is_half && entry > candidate_stop {
-                candidate_stop = entry;
+            if is_half {
+                // Once half profit is taken, stop can never fall below entry (Breakeven Lock)
+                if entry > candidate_stop {
+                    candidate_stop = entry;
+                }
             }
             if max_gain_pct >= 5.0 {
+                // Peak -4% trailing floor
                 let trail_stop = new_peak * 0.96;
                 if trail_stop > candidate_stop {
                     candidate_stop = trail_stop;
@@ -215,19 +222,31 @@ impl SoAPositionBook {
             }
             self.out_new_stops[i] = candidate_stop;
 
+            // Priority Evaluation:
+            // Rule A: Full Target Reached (+25% or explicit target_price)
             if (target > 0.0 && cur >= target) || pnl_pct >= 25.0 {
                 self.out_actions[i] = SentinelAction::RuleAFullProfit;
-            } else if !is_half && call_wall > entry && cur >= call_wall * 0.997 && pnl_pct >= 3.0 {
+            }
+            // Rule B2: Option Call Wall Front-Run Half Profit (within 0.3% of Call Wall & PnL >= +3%)
+            else if !is_half && call_wall > entry && cur >= call_wall * 0.997 && pnl_pct >= 3.0 {
                 self.out_actions[i] = SentinelAction::RuleB2CallWallHalf;
                 self.out_new_stops[i] = candidate_stop.max(entry);
-            } else if !is_half && pnl_pct >= 10.0 {
+            }
+            // Rule B: +10% Half Profit & Breakeven Lock
+            else if !is_half && pnl_pct >= 10.0 {
                 self.out_actions[i] = SentinelAction::RuleBHalfProfit;
                 self.out_new_stops[i] = candidate_stop.max(entry);
-            } else if is_half && cur <= entry {
+            }
+            // Rule D: Breakeven Stop (After Half Profit, price drops back to/below Entry)
+            else if is_half && cur <= entry {
                 self.out_actions[i] = SentinelAction::RuleDBreakevenStop;
-            } else if max_gain_pct >= 5.0 && drawdown_from_peak <= -4.0 {
+            }
+            // Rule C: Trailing Stop from Peak (Max Gain >= +5% and Drawdown <= -4%)
+            else if max_gain_pct >= 5.0 && drawdown_from_peak <= -4.0 {
                 self.out_actions[i] = SentinelAction::RuleCTrailingStop;
-            } else if pnl_pct <= -13.0 || (prev_stop > 0.0 && cur <= prev_stop) {
+            }
+            // Rule E: -13% Fibonacci Hard Stop (or custom tightened stop)
+            else if pnl_pct <= -13.0 || (prev_stop > 0.0 && cur <= prev_stop) {
                 self.out_actions[i] = SentinelAction::RuleEFibStop;
             } else {
                 self.out_actions[i] = SentinelAction::Hold;
@@ -250,6 +269,7 @@ pub struct SoAVolumeClock {
 #[derive(Debug, Clone, Copy)]
 pub struct VolumeClockMetrics {
     pub num_bars: usize,
+    pub timeout_bars: usize,
     pub volume_threshold: f64,
     pub latest_vwap: f64,
     pub latest_close: f64,
@@ -281,6 +301,9 @@ impl SoAVolumeClock {
         self.bar_durations_sec.clear();
     }
 
+    /// Transforms chronological OHLCV + timestamp (epoch seconds) arrays into Volume Clock bars
+    /// with wall-clock timeout fallback (max 30m / 4x base interval) for illiquid lulls/halts,
+    /// and computes continuous information flow velocity & return kurtosis in a single cache-resident pass.
     pub fn sample_and_analyze(
         &mut self,
         timestamps: &[f64],
@@ -296,6 +319,7 @@ impl SoAVolumeClock {
         if n < 5 {
             return VolumeClockMetrics {
                 num_bars: 0,
+                timeout_bars: 0,
                 volume_threshold: 0.0,
                 latest_vwap: closes.last().copied().unwrap_or(0.0),
                 latest_close: closes.last().copied().unwrap_or(0.0),
@@ -315,12 +339,14 @@ impl SoAVolumeClock {
         let target_bars = ((n as f64) * target_bars_ratio).max(5.0);
         let threshold = (total_vol / target_bars).max(1.0);
 
+        // Fallback default interval duration in seconds
         let default_dt = if n >= 2 {
             (timestamps[n - 1] - timestamps[0]).abs() / ((n - 1) as f64)
         } else {
             300.0
         }
         .max(1.0);
+        let max_timeout_sec = (default_dt * 4.0).max(1800.0);
 
         let mut acc_vol = 0.0;
         let mut acc_pv = 0.0;
@@ -328,6 +354,7 @@ impl SoAVolumeClock {
         let mut cur_high = highs[0];
         let mut cur_low = lows[0];
         let mut start_ts = timestamps[0];
+        let mut timeout_bars_count: usize = 0;
 
         for i in 0..n {
             let v = volumes[i].max(0.0);
@@ -349,14 +376,19 @@ impl SoAVolumeClock {
             acc_vol += v;
             acc_pv += typical_price * v;
 
-            if acc_vol >= threshold || i == n - 1 {
+            let raw_dt = (timestamps[i] - start_ts).abs();
+            let is_timeout = acc_vol > 0.0 && raw_dt >= max_timeout_sec;
+
+            if acc_vol >= threshold || is_timeout || i == n - 1 {
+                if is_timeout && acc_vol < threshold {
+                    timeout_bars_count += 1;
+                }
                 let close_p = closes[i];
                 let vwap = if acc_vol > 0.0 {
                     acc_pv / acc_vol
                 } else {
                     close_p
                 };
-                let raw_dt = (timestamps[i] - start_ts).abs();
                 let dt_sec = if raw_dt > 0.0 {
                     raw_dt + default_dt
                 } else {
@@ -380,6 +412,7 @@ impl SoAVolumeClock {
         if m == 0 {
             return VolumeClockMetrics {
                 num_bars: 0,
+                timeout_bars: 0,
                 volume_threshold: threshold,
                 latest_vwap: 0.0,
                 latest_close: 0.0,
@@ -389,6 +422,7 @@ impl SoAVolumeClock {
             };
         }
 
+        // Compute Continuous Information Flow Velocity (volume digested per second vs rolling 20-bar baseline)
         let latest_rate = self.bar_volumes[m - 1] / self.bar_durations_sec[m - 1].max(1.0);
         let lookback_start = m.saturating_sub(20);
         let mut sum_rate = 0.0;
@@ -408,6 +442,7 @@ impl SoAVolumeClock {
 
         VolumeClockMetrics {
             num_bars: m,
+            timeout_bars: timeout_bars_count,
             volume_threshold: threshold,
             latest_vwap,
             latest_close,
@@ -418,6 +453,7 @@ impl SoAVolumeClock {
     }
 }
 
+/// Computes sample excess kurtosis (Fisher's definition, Normal = 0.0) of percentage returns.
 #[inline]
 pub fn compute_excess_kurtosis(prices: &[f64]) -> f64 {
     if prices.len() < 5 {
@@ -458,6 +494,9 @@ pub fn compute_excess_kurtosis(prices: &[f64]) -> f64 {
     kurt - 3.0
 }
 
+/// Processes a single TSV/pipe batch of positions and returns JSON lines.
+/// Input protocol:
+/// `EVAL_POS|symbol,entry,current,peak,stop,target,call_wall,is_half,is_day;symbol2,...`
 fn handle_eval_positions(payload: &str, book: &mut SoAPositionBook) -> String {
     let t0 = Instant::now();
     book.clear();
@@ -512,6 +551,8 @@ fn handle_eval_positions(payload: &str, book: &mut SoAPositionBook) -> String {
     out
 }
 
+/// Processes Volume Clock sampling over pipe:
+/// `EVAL_VC|ratio|ts,open,high,low,close,vol;ts2,open2,...`
 fn handle_eval_volume_clock(payload: &str, vc: &mut SoAVolumeClock) -> String {
     let t0 = Instant::now();
     let mut parts_iter = payload.splitn(2, '|');
@@ -547,9 +588,10 @@ fn handle_eval_volume_clock(payload: &str, vc: &mut SoAVolumeClock) -> String {
     let elapsed_ns = t0.elapsed().as_nanos();
 
     format!(
-        "{{\"status\":\"ok\",\"engine\":\"lumina-sentinel-rs\",\"elapsed_ns\":{},\"num_bars\":{},\"volume_threshold\":{:.2},\"latest_vwap\":{:.4},\"latest_close\":{:.4},\"is_bullish\":{},\"flow_velocity\":{:.4},\"excess_kurtosis\":{:.4}}}",
+        "{{\"status\":\"ok\",\"engine\":\"lumina-sentinel-rs\",\"elapsed_ns\":{},\"num_bars\":{},\"timeout_bars\":{},\"volume_threshold\":{:.2},\"latest_vwap\":{:.4},\"latest_close\":{:.4},\"is_bullish\":{},\"flow_velocity\":{:.4},\"excess_kurtosis\":{:.4}}}",
         elapsed_ns,
         metrics.num_bars,
+        metrics.timeout_bars,
         metrics.volume_threshold,
         metrics.latest_vwap,
         metrics.latest_close,
@@ -564,12 +606,12 @@ fn run_benchmark() {
     for i in 0..1000 {
         let entry = 100.0 + (i as f64) * 0.1;
         let current = match i % 6 {
-            0 => entry * 1.26,
-            1 => entry * 1.11,
-            2 => entry * 1.04,
-            3 => entry * 1.02,
-            4 => entry * 0.86,
-            _ => entry * 1.01,
+            0 => entry * 1.26, // Rule A
+            1 => entry * 1.11, // Rule B
+            2 => entry * 1.04, // Rule B2 near call wall
+            3 => entry * 1.02, // Rule C drawdown from 1.08 peak
+            4 => entry * 0.86, // Rule E
+            _ => entry * 1.01, // Hold
         };
         let peak = if i % 6 == 3 {
             entry * 1.08
@@ -590,6 +632,7 @@ fn run_benchmark() {
         );
     }
 
+    // Warmup L1/L2 cache
     for _ in 0..100 {
         book.evaluate_all();
     }
@@ -603,6 +646,7 @@ fn run_benchmark() {
     let per_batch_ns = total_ns / (iterations as u128);
     let per_pos_ns = (total_ns as f64) / ((iterations * 1000) as f64);
 
+    // Benchmark SoAVolumeClock on 1,000 bars
     let mut ts = Vec::with_capacity(1000);
     let mut opens = Vec::with_capacity(1000);
     let mut highs = Vec::with_capacity(1000);
@@ -699,4 +743,67 @@ fn main() {
     }
 
     run_benchmark();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_soa_position_rules_end_to_end() {
+        let mut book = SoAPositionBook::with_capacity(16);
+        // 0: Rule A (+26% full profit)
+        book.push("NVDA".into(), 100.0, 126.0, 126.0, 87.0, 125.0, 0.0, 0, 0);
+        // 1: Rule B (+11% half profit & breakeven lock)
+        book.push("AAPL".into(), 100.0, 111.0, 111.0, 87.0, 125.0, 0.0, 0, 0);
+        // 2: Rule B2 (Call Wall at 105.0, current at 104.8, PnL +4.8%)
+        book.push("TSLA".into(), 100.0, 104.8, 104.8, 87.0, 125.0, 105.0, 0, 0);
+        // 3: Rule C (Peak 108.0 (+8%), current 103.5 (-4.16% from peak))
+        book.push("META".into(), 100.0, 103.5, 108.0, 87.0, 125.0, 0.0, 1, 0);
+        // 4: Rule D (Half profit taken, price dropped back to entry 100.0)
+        book.push("MSFT".into(), 100.0, 99.8, 110.5, 100.0, 125.0, 0.0, 1, 0);
+        // 5: Rule E (-13.5% Fibonacci stop)
+        book.push("AMZN".into(), 100.0, 86.5, 101.0, 87.0, 125.0, 0.0, 0, 0);
+        // 6: DAY_CIS Wall Stop
+        book.push("AMD".into(), 100.0, 98.9, 100.5, 99.0, 103.0, 0.0, 0, 1);
+
+        book.evaluate_all();
+
+        assert_eq!(book.out_actions[0], SentinelAction::RuleAFullProfit);
+        assert_eq!(book.out_actions[1], SentinelAction::RuleBHalfProfit);
+        assert!(book.out_new_stops[1] >= 100.0); // Breakeven locked
+        assert_eq!(book.out_actions[2], SentinelAction::RuleB2CallWallHalf);
+        assert_eq!(book.out_actions[3], SentinelAction::RuleCTrailingStop);
+        assert_eq!(book.out_actions[4], SentinelAction::RuleDBreakevenStop);
+        assert_eq!(book.out_actions[5], SentinelAction::RuleEFibStop);
+        assert_eq!(book.out_actions[6], SentinelAction::DayCisWallStop);
+    }
+
+    #[test]
+    fn test_soa_volume_clock_sampling() {
+        let mut vc = SoAVolumeClock::with_capacity(64);
+        let mut ts = Vec::new();
+        let mut opens = Vec::new();
+        let mut highs = Vec::new();
+        let mut lows = Vec::new();
+        let mut closes = Vec::new();
+        let mut vols = Vec::new();
+
+        for i in 0..50 {
+            let p = 100.0 + (i as f64) * 0.2;
+            ts.push(1_700_000_000.0 + (i as f64) * 60.0);
+            opens.push(p - 0.05);
+            highs.push(p + 0.15);
+            lows.push(p - 0.15);
+            closes.push(p + 0.10);
+            // Burst of volume on the final bar to simulate institutional whale entry
+            let v = if i == 49 { 50_000.0 } else { 5_000.0 };
+            vols.push(v);
+        }
+
+        let m = vc.sample_and_analyze(&ts, &opens, &highs, &lows, &closes, &vols, 0.5);
+        assert!(m.num_bars >= 5);
+        assert!(m.is_bullish);
+        assert!(m.flow_velocity > 1.5);
+    }
 }
