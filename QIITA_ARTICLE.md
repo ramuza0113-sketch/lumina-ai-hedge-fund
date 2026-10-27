@@ -26,7 +26,7 @@ Lumina Capital は、高レイテンシ・高推論能力を担う **Python層**
 
 ```mermaid
 flowchart TD
-    subgraph MarketData ["1. 市場データ・特徴量抽出"]
+    subgraph MarketData["1. 市場データ・特徴量抽出"]
         Ticks["リアルタイム板情報 / ティック"]
         Hist["日足・分足ヒストリカル"]
         Qlib["Microsoft Qlib Alpha158 (158ファクター)"]
@@ -37,28 +37,28 @@ flowchart TD
         Ticks --> MathEng
     end
 
-    subgraph FastPath ["2. 超低遅延・防壁レイヤー (Rust)"]
-        Sentinel["🦀 lumina-sentinel-rs<br/>L1/L2 SoA 常駐 番犬センチネル<br/>3.63ns 緊急損切り / 出来高クロック"]
+    subgraph FastPath["2. 超低遅延・防壁レイヤー (Rust)"]
+        Sentinel["lumina-sentinel-rs<br/>L1/L2 SoA 常駐 番犬センチネル<br/>3.63ns 緊急損切り / 出来高クロック"]
         Ticks --> Sentinel
     end
 
-    subgraph Brain ["3. 知識・推論レイヤー (Python / LangGraph)"]
-        Ontology["🧠 ファクター・オントロジー辞書<br/>(単位・極性契約 / ハルシネーション物理遮断)"]
-        Reflexion["⚡ SQLite FTS5 (BM25)<br/>0.3ms サブミリ秒 反省教訓記憶"]
-        Council["👥 6大エージェント合議体<br/>(Lumina CIO / Bull / Bear / Piotroski / Sentiment / Valuation)"]
+    subgraph Brain["3. 知識・推論レイヤー (Python / LangGraph)"]
+        Ontology["ファクター・オントロジー辞書<br/>単位・極性契約 / ハルシネーション物理遮断"]
+        Reflexion["SQLite FTS5 (BM25)<br/>0.3ms サブミリ秒 反省教訓記憶"]
+        Council["6大エージェント合議体<br/>Lumina CIO / Bull / Bear / Piotroski / Sentiment / Valuation"]
         
         Qlib --> Ontology
         TimesFM --> Ontology
         MathEng --> Ontology
         Ontology --> Council
-        Reflexion <--> Council
+        Reflexion --- Council
     end
 
-    subgraph Execution ["4. 執行・並行排他制御レイヤー"]
+    subgraph Execution["4. 執行・並行排他制御レイヤー"]
         OrderGen["執行オーダー生成 (Half-Kelly & HRP)"]
         CAS["CAS楽観的並行排他制御 (SQLite WAL)"]
         IBKR["Interactive Brokers (IBKR TWS API)<br/>サーバーサイド ブラケット注文 (OCO)"]
-        Paper["強制控除型 ペーパートレード (0.1%手数料/0.05%滑り)"]
+        Paper["強制控除型 ペーパートレード (手数料0.1% / 滑り0.05%)"]
         
         Council --> OrderGen
         OrderGen --> CAS
@@ -66,8 +66,8 @@ flowchart TD
         CAS --> Paper
     end
 
-    subgraph Monitor ["5. ダッシュボード & 監視"]
-        Streamlit["🖥️ Streamlit リアルタイムクオンツターミナル<br/>(Plotly 多機能チャート / エージェント合議ログ)"]
+    subgraph Monitor["5. ダッシュボード & 監視"]
+        Streamlit["Streamlit リアルタイムクオンツターミナル<br/>Plotly 多機能チャート / エージェント合議ログ"]
     end
 ```
 
@@ -79,23 +79,23 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start([市場データ到着]) --> Macro[Lumina CIO: マクロ環境・レジーム判定]
-    Macro --> Bull[強気派 (Bullish Analyst)]
-    Macro --> Bear[弱気派 (Bear Risk Analyst)]
-    Macro --> Fund[ファンダメンタルズ (Piotroski)]
-    Macro --> Sent[センチメント分析官 (News/LLM)]
-    Macro --> Val[バリュエーション分析官 (DCF/マルチプル)]
+    Start["市場データ到着"] --> Macro["Lumina CIO: マクロ環境・レジーム判定"]
+    Macro --> Bull["強気派 (Bullish Analyst)"]
+    Macro --> Bear["弱気派 (Bear Risk Analyst)"]
+    Macro --> Fund["ファンダメンタルズ (Piotroski)"]
+    Macro --> Sent["センチメント分析官 (News/LLM)"]
+    Macro --> Val["バリュエーション分析官 (DCF/マルチプル)"]
     
-    Bull --> Council[総合合議体 (Debate Council)]
+    Bull --> Council["総合合議体 (Debate Council)"]
     Bear --> Council
     Fund --> Council
     Sent --> Council
     Val --> Council
     
-    Council --> VetoCheck{Bear / Risk 拒否権発動?}
-    VetoCheck -- YES (リスク超過) --> Reject([取引見送り / キャッシュ維持])
-    VetoCheck -- NO (承認) --> CIOFinal[Lumina CIO 最終裁定 & サイズ配分]
-    CIOFinal --> Exec([執行レイヤーへ])
+    Council --> VetoCheck{"Bear / Risk 拒否権発動?"}
+    VetoCheck -->|"YES (リスク超過)"| Reject["取引見送り / キャッシュ維持"]
+    VetoCheck -->|"NO (承認)"| CIOFinal["Lumina CIO 最終裁定 & サイズ配分"]
+    CIOFinal --> Exec["執行レイヤーへ"]
 ```
 
 ### 6大エージェントの役割分担
