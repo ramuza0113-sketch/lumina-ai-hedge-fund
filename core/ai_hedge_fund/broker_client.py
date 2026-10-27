@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import threading
+import queue
 import time
 import json
 from typing import Dict, Any, List, Optional
@@ -26,6 +27,8 @@ class PaperTradingEngine(BaseBrokerClient):
 
     def __init__(self, db_path: Optional[str] = None):
         self._db_lock = threading.RLock()
+        self._reflexion_write_queue: "queue.Queue[Dict[str, Any]]" = queue.Queue()
+        self._writer_thread: Optional[threading.Thread] = None
         if not db_path:
             app_data_dir = os.path.join(os.getenv('APPDATA', ''), 'LuminaAI')
             os.makedirs(app_data_dir, exist_ok=True)
@@ -33,11 +36,12 @@ class PaperTradingEngine(BaseBrokerClient):
         else:
             self.db_path = db_path
         self._init_db()
+        self._start_single_writer_worker()
 
     def _get_conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path, timeout=30.0)
         conn.execute("PRAGMA journal_mode=WAL;")
-        conn.execute("PRAGMA busy_timeout=30000;")
+        conn.execute("PRAGMA busy_timeout=5000;")
         conn.execute("PRAGMA synchronous=NORMAL;")
         conn.row_factory = sqlite3.Row
         return conn
@@ -175,7 +179,15 @@ class PaperTradingEngine(BaseBrokerClient):
                 except Exception: pass
 
             # SQLite FTS5 Virtual Table for sub-millisecond BM25 Reflexion Memory retrieval
+            # Tuned with `unicode61 'tokenchars=-_.'` to preserve compound financial terms
             try:
+                cursor.execute(
+                    "SELECT sql FROM sqlite_master WHERE type='table' AND name='agent_reflexions_fts'"
+                )
+                row_sql = cursor.fetchone()
+                if row_sql and row_sql[0] and "tokenchars" not in str(row_sql[0]):
+                    cursor.execute("DROP TABLE IF EXISTS agent_reflexions_fts")
+
                 cursor.execute("""
                 CREATE VIRTUAL TABLE IF NOT EXISTS agent_reflexions_fts USING fts5(
                     symbol,
@@ -184,7 +196,7 @@ class PaperTradingEngine(BaseBrokerClient):
                     exit_rule,
                     lesson_category,
                     reflection_text,
-                    tokenize='unicode61'
+                    tokenize="unicode61 'tokenchars=-_.'"
                 )
                 """)
                 cursor.execute("SELECT COUNT(*) FROM agent_reflexions_fts")
@@ -886,6 +898,115 @@ class PaperTradingEngine(BaseBrokerClient):
                 cursor.execute("SELECT * FROM trade_memories ORDER BY memory_id DESC LIMIT ?", (limit,))
             return [dict(r) for r in cursor.fetchall()]
 
+    def _start_single_writer_worker(self) -> None:
+        """
+        Starts a dedicated Single-Writer background worker (`u/Zane-Reddit` architecture)
+        that drains `_reflexion_write_queue` in discrete WAL batch transactions,
+        eliminating SQLite lock contention under burst concurrent agent writes.
+        """
+        if self._writer_thread is not None and self._writer_thread.is_alive():
+            return
+
+        def _worker():
+            while True:
+                try:
+                    first_item = self._reflexion_write_queue.get()
+                    if first_item is None:
+                        self._reflexion_write_queue.task_done()
+                        break
+                    batch = [first_item]
+                    while len(batch) < 32:
+                        try:
+                            nxt = self._reflexion_write_queue.get_nowait()
+                            if nxt is not None:
+                                batch.append(nxt)
+                            else:
+                                self._reflexion_write_queue.task_done()
+                        except queue.Empty:
+                            break
+                    try:
+                        self._commit_reflexion_batch(batch)
+                    finally:
+                        for _ in batch:
+                            self._reflexion_write_queue.task_done()
+                except Exception:
+                    pass
+
+        self._writer_thread = threading.Thread(
+            target=_worker, daemon=True, name="LuminaSQLiteSingleWriter"
+        )
+        self._writer_thread.start()
+
+    def _commit_reflexion_batch(self, batch: List[Dict[str, Any]]) -> List[int]:
+        """Commits a batch of agent reflexions inside a single serialized WAL transaction."""
+        if not batch:
+            return []
+        rowids: List[int] = []
+        with self._db_lock:
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
+                for item in batch:
+                    cursor.execute("""
+                    INSERT INTO agent_reflexions (
+                        symbol, company_name, agent_id, stance_at_entry, score_at_entry,
+                        exit_rule, realized_pnl, realized_pnl_pct, reflection_text, lesson_category, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        item["symbol"], item["company_name"], item["agent_id"],
+                        item["stance_at_entry"], item["score_at_entry"], item["exit_rule"],
+                        item["realized_pnl"], item["realized_pnl_pct"], item["reflection_text"],
+                        item["lesson_category"], item["created_at"]
+                    ))
+                    rid = cursor.lastrowid or 0
+                    rowids.append(rid)
+                    if rid:
+                        try:
+                            cursor.execute("""
+                            INSERT INTO agent_reflexions_fts(rowid, symbol, company_name, agent_id, exit_rule, lesson_category, reflection_text)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                            """, (
+                                rid, item["symbol"], item["company_name"], item["agent_id"],
+                                item["exit_rule"], item["lesson_category"], item["reflection_text"]
+                            ))
+                        except Exception:
+                            pass
+                conn.commit()
+        return rowids
+
+    def enqueue_agent_reflexion(
+        self,
+        symbol: str,
+        company_name: str,
+        agent_id: str,
+        stance_at_entry: str,
+        score_at_entry: int,
+        exit_rule: str,
+        realized_pnl: float,
+        realized_pnl_pct: float,
+        reflection_text: str,
+        lesson_category: str = "LESSON"
+    ) -> None:
+        """Zero-latency non-blocking enqueue into the Single-Writer Queue."""
+        norm = MarketDataFeed.normalize_symbol(symbol)
+        now_str = time.strftime("%Y-%m-%d %H:%M:%S")
+        self._reflexion_write_queue.put({
+            "symbol": norm,
+            "company_name": company_name,
+            "agent_id": agent_id,
+            "stance_at_entry": stance_at_entry,
+            "score_at_entry": score_at_entry,
+            "exit_rule": exit_rule,
+            "realized_pnl": realized_pnl,
+            "realized_pnl_pct": realized_pnl_pct,
+            "reflection_text": reflection_text,
+            "lesson_category": lesson_category,
+            "created_at": now_str,
+        })
+
+    def flush_reflexion_queue(self) -> None:
+        """Blocks until all queued agent reflexions are committed to SQLite WAL."""
+        self._reflexion_write_queue.join()
+
     def record_agent_reflexion(
         self,
         symbol: str,
@@ -899,32 +1020,23 @@ class PaperTradingEngine(BaseBrokerClient):
         reflection_text: str,
         lesson_category: str = "LESSON"
     ) -> int:
-        """Record deep reflective self-critique from a specific analyst agent"""
+        """Record deep reflective self-critique from a specific analyst agent via serialized WAL writer"""
         norm = MarketDataFeed.normalize_symbol(symbol)
         now_str = time.strftime("%Y-%m-%d %H:%M:%S")
-        with self._db_lock:
-            with self._get_conn() as conn:
-                cursor = conn.cursor()
-                cursor.execute("""
-                INSERT INTO agent_reflexions (
-                    symbol, company_name, agent_id, stance_at_entry, score_at_entry,
-                    exit_rule, realized_pnl, realized_pnl_pct, reflection_text, lesson_category, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    norm, company_name, agent_id, stance_at_entry, score_at_entry,
-                    exit_rule, realized_pnl, realized_pnl_pct, reflection_text, lesson_category, now_str
-                ))
-                rowid = cursor.lastrowid or 0
-                if rowid:
-                    try:
-                        cursor.execute("""
-                        INSERT INTO agent_reflexions_fts(rowid, symbol, company_name, agent_id, exit_rule, lesson_category, reflection_text)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                        """, (rowid, norm, company_name, agent_id, exit_rule, lesson_category, reflection_text))
-                    except Exception:
-                        pass
-                conn.commit()
-                return rowid
+        rids = self._commit_reflexion_batch([{
+            "symbol": norm,
+            "company_name": company_name,
+            "agent_id": agent_id,
+            "stance_at_entry": stance_at_entry,
+            "score_at_entry": score_at_entry,
+            "exit_rule": exit_rule,
+            "realized_pnl": realized_pnl,
+            "realized_pnl_pct": realized_pnl_pct,
+            "reflection_text": reflection_text,
+            "lesson_category": lesson_category,
+            "created_at": now_str,
+        }])
+        return rids[0] if rids else 0
 
     def search_agent_reflexions_bm25(
         self,
@@ -934,13 +1046,18 @@ class PaperTradingEngine(BaseBrokerClient):
     ) -> List[Dict[str, Any]]:
         """
         Sub-millisecond SQLite FTS5 BM25 ranking search over historical agent reflexions.
+        Preserves compound financial terms (hyphens, underscores, dots).
         """
+        if not self._reflexion_write_queue.empty():
+            self.flush_reflexion_queue()
+
         import re as _re
         clean_tokens = []
         for t in (query_terms or []):
-            tok = _re.sub(r'[^0-9A-Za-z_\u3040-\u30FF\u4E00-\u9FFF]', ' ', str(t)).strip()
+            tok = _re.sub(r'[^0-9A-Za-z_\-.\u3040-\u30FF\u4E00-\u9FFF]', ' ', str(t)).strip()
             for part in tok.split():
-                if len(part) >= 2 and part.upper() not in ("OR", "AND", "NOT", "NEAR"):
+                part_clean = part.strip(".-_")
+                if len(part_clean) >= 2 and part_clean.upper() not in ("OR", "AND", "NOT", "NEAR"):
                     clean_tokens.append(f'"{part}"')
         if not clean_tokens:
             return self.get_agent_reflexions(agent_id=agent_id, limit=limit)

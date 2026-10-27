@@ -242,3 +242,76 @@ class LeadLagAnalyzer:
         except Exception:
             return 0.0
 
+    @staticmethod
+    def project_to_nearest_psd(
+        corr_matrix: np.ndarray,
+        shrinkage: float = 0.10,
+        min_eigenvalue: float = 1e-6,
+    ) -> np.ndarray:
+        """
+        Higham (2002) Spectral Projection to Nearest Positive Semi-Definite (PSD) Correlation Matrix
+        combined with Ledoit-Wolf Linear Shrinkage toward the Identity Matrix.
+
+        Pairwise asynchronous Hayashi-Yoshida correlation matrices across N >= 3 assets are not
+        guaranteed to be positive semi-definite (can exhibit negative eigenvalues). This method:
+          1. Symmetrizes the input matrix.
+          2. Performs spectral decomposition and clips negative eigenvalues to `min_eigenvalue`.
+          3. Rescales to unit diagonal (valid correlation matrix).
+          4. Applies convex Ledoit-Wolf shrinkage `(1 - alpha) * C_psd + alpha * I` to stabilize condition number.
+        """
+        mat = np.array(corr_matrix, dtype=np.float64, copy=True)
+        if mat.ndim != 2 or mat.shape[0] != mat.shape[1]:
+            raise ValueError("Correlation matrix must be a 2D square matrix.")
+        n = mat.shape[0]
+        if n <= 1:
+            return np.ones((n, n), dtype=np.float64)
+
+        # 1. Symmetrize & clean NaNs
+        mat = np.nan_to_num(mat, nan=0.0, posinf=1.0, neginf=-1.0)
+        sym = 0.5 * (mat + mat.T)
+        np.fill_diagonal(sym, 1.0)
+
+        # 2. Spectral decomposition & eigenvalue clipping (Higham spectral step)
+        eigvals, eigvecs = np.linalg.eigh(sym)
+        eigvals_clipped = np.maximum(eigvals, float(min_eigenvalue))
+        psd = eigvecs @ np.diag(eigvals_clipped) @ eigvecs.T
+
+        # 3. Rescale to unit diagonal
+        diag = np.sqrt(np.maximum(1e-12, np.diag(psd)))
+        inv_diag = 1.0 / diag
+        psd = psd * np.outer(inv_diag, inv_diag)
+        psd = 0.5 * (psd + psd.T)
+        psd = np.clip(psd, -1.0, 1.0)
+        np.fill_diagonal(psd, 1.0)
+
+        # 4. Ledoit-Wolf shrinkage toward Identity Matrix
+        alpha = float(np.clip(shrinkage, 0.0, 1.0))
+        if alpha > 0.0:
+            psd = (1.0 - alpha) * psd + alpha * np.eye(n, dtype=np.float64)
+            np.fill_diagonal(psd, 1.0)
+
+        return psd
+
+    @classmethod
+    def compute_hayashi_yoshida_psd_matrix(
+        cls,
+        price_df: pd.DataFrame,
+        shrinkage: float = 0.10,
+    ) -> pd.DataFrame:
+        """
+        Computes the N x N asynchronous Hayashi-Yoshida correlation matrix across multiple assets
+        and guarantees Positive Semi-Definiteness (PSD) via Higham spectral projection & shrinkage.
+        """
+        cols = list(price_df.columns)
+        n = len(cols)
+        raw_corr = np.eye(n, dtype=np.float64)
+        for i in range(n):
+            for j in range(i + 1, n):
+                c = cls.compute_hayashi_yoshida_corr(price_df[cols[i]], price_df[cols[j]])
+                raw_corr[i, j] = c
+                raw_corr[j, i] = c
+
+        psd_corr = cls.project_to_nearest_psd(raw_corr, shrinkage=shrinkage)
+        return pd.DataFrame(psd_corr, index=cols, columns=cols)
+
+

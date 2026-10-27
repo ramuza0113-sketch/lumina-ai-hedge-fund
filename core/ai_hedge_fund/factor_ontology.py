@@ -34,6 +34,8 @@ class FactorSchema:
     bullish_interpretation: str
     bearish_interpretation: str
     neutral_interpretation: str
+    deadzone_margin: float = 0.05  # Relative width around threshold treated as NEUTRAL_INDETERMINATE
+    hysteresis_ratio: float = 0.10  # Schmitt-trigger inner return band ratio to prevent whipsaw chattering
 
 
 class FactorOntology:
@@ -41,7 +43,18 @@ class FactorOntology:
     Canonical Factor Metadata Registry & Deterministic Semantic Translator.
     Guarantees 0% LLM polarity misinterpretation across Alpha158, Volume Clock, Deep OFI,
     Fundamental Quality, and Macro Liquidity metrics.
+    Includes Schmitt-Trigger Hysteresis & Borderline Dead-Zone (`NEUTRAL_INDETERMINATE`) protection.
     """
+
+    VALID_POLARITIES = frozenset({
+        "HIGHER_IS_BULLISH",
+        "LOWER_IS_BULLISH",
+        "EXTREME_IS_RISK",
+        "CONTEXTUAL",
+    })
+
+    # Per-symbol/factor state memory for Schmitt-trigger hysteresis: key = f"{symbol}:{factor_id}"
+    _state_memory: Dict[str, str] = {}
 
     REGISTRY: Dict[str, FactorSchema] = {
         "alpha158_z_score": FactorSchema(
@@ -201,9 +214,68 @@ class FactorOntology:
     }
 
     @classmethod
-    def interpret_value(cls, factor_id: str, raw_value: Any) -> Optional[Dict[str, Any]]:
+    def validate_all_contracts(
+        cls,
+        registry: Optional[Dict[str, FactorSchema]] = None,
+        raise_on_error: bool = False,
+    ) -> Tuple[bool, List[str]]:
+        """
+        CI/CD Contract Guard (`u/eddzsh` architecture):
+        Verifies that every registered factor enforces an explicit polarity contract,
+        consistent threshold ordering, non-empty semantic interpretations, and agent assignments.
+        Prevents silent regression back to raw unlabeled numbers when new factors are added.
+        """
+        target_reg = registry if registry is not None else cls.REGISTRY
+        errors: List[str] = []
+
+        if not target_reg:
+            errors.append("FactorOntology REGISTRY is empty.")
+
+        for fid, schema in target_reg.items():
+            if not isinstance(schema, FactorSchema):
+                errors.append(f"[{fid}] Entry is not a FactorSchema instance.")
+                continue
+            if schema.factor_id != fid:
+                errors.append(f"[{fid}] Mismatched factor_id '{schema.factor_id}'.")
+            if schema.polarity not in cls.VALID_POLARITIES:
+                errors.append(
+                    f"[{fid}] Invalid or missing polarity contract '{schema.polarity}'. "
+                    f"Must be one of {sorted(cls.VALID_POLARITIES)}."
+                )
+            if schema.polarity in ("HIGHER_IS_BULLISH", "CONTEXTUAL"):
+                if schema.bullish_threshold <= schema.bearish_threshold:
+                    errors.append(
+                        f"[{fid}] HIGHER_IS_BULLISH requires bullish_threshold ({schema.bullish_threshold}) "
+                        f"> bearish_threshold ({schema.bearish_threshold})."
+                    )
+            elif schema.polarity in ("LOWER_IS_BULLISH", "EXTREME_IS_RISK"):
+                if schema.bullish_threshold >= schema.bearish_threshold:
+                    errors.append(
+                        f"[{fid}] {schema.polarity} requires bullish_threshold ({schema.bullish_threshold}) "
+                        f"< bearish_threshold ({schema.bearish_threshold})."
+                    )
+            if not schema.assigned_agents or len(schema.assigned_agents) == 0:
+                errors.append(f"[{fid}] Must have at least one assigned agent persona.")
+            if not schema.bullish_interpretation or not schema.bearish_interpretation or not schema.neutral_interpretation:
+                errors.append(f"[{fid}] Missing semantic interpretation text.")
+
+        is_valid = len(errors) == 0
+        if not is_valid and raise_on_error:
+            raise ValueError("FactorOntology Contract Validation Failed:\n" + "\n".join(errors))
+        return is_valid, errors
+
+    @classmethod
+    def interpret_value(
+        cls,
+        factor_id: str,
+        raw_value: Any,
+        prev_signal: Optional[str] = None,
+        symbol: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
         """
         Translates a raw numeric factor value into a deterministic ontology entry.
+        Applies Schmitt-Trigger Hysteresis & Borderline Dead-Zone (`NEUTRAL_INDETERMINATE`)
+        so that noise near thresholds never causes chattering or forced binary hallucination.
         """
         if raw_value is None or factor_id not in cls.REGISTRY:
             return None
@@ -213,6 +285,15 @@ class FactorOntology:
             return None
 
         schema = cls.REGISTRY[factor_id]
+        span = max(1e-6, abs(schema.bullish_threshold - schema.bearish_threshold))
+        deadzone = span * schema.deadzone_margin
+        hyst = span * schema.hysteresis_ratio
+
+        mem_key = f"{symbol.strip().upper()}:{factor_id}" if symbol else None
+        prior = prev_signal or (cls._state_memory.get(mem_key) if mem_key else None)
+
+        is_hysteresis_held = False
+        is_borderline_deadzone = False
 
         if schema.polarity == "HIGHER_IS_BULLISH":
             if val >= schema.bullish_threshold:
@@ -221,6 +302,21 @@ class FactorOntology:
             elif val <= schema.bearish_threshold:
                 signal = "BEARISH"
                 meaning = schema.bearish_interpretation
+            elif prior == "BULLISH" and val >= (schema.bullish_threshold - hyst):
+                signal = "BULLISH"
+                meaning = schema.bullish_interpretation + "（※ヒステリシス保持：閾値境界の微小ノイズを無視して強気維持）"
+                is_hysteresis_held = True
+            elif prior == "BEARISH" and val <= (schema.bearish_threshold + hyst):
+                signal = "BEARISH"
+                meaning = schema.bearish_interpretation + "（※ヒステリシス保持：閾値境界の微小ノイズを無視して弱気維持）"
+                is_hysteresis_held = True
+            elif (
+                abs(val - schema.bullish_threshold) <= deadzone
+                or abs(val - schema.bearish_threshold) <= deadzone
+            ):
+                signal = "NEUTRAL_INDETERMINATE"
+                meaning = schema.neutral_interpretation + "（※境界不感帯：優位性エッジ未確定のため強引な方向付け厳禁）"
+                is_borderline_deadzone = True
             else:
                 signal = "NEUTRAL"
                 meaning = schema.neutral_interpretation
@@ -231,6 +327,21 @@ class FactorOntology:
             elif val >= schema.bearish_threshold or val < 0:
                 signal = "BEARISH"
                 meaning = schema.bearish_interpretation
+            elif prior == "BULLISH" and 0 < val <= (schema.bullish_threshold + hyst):
+                signal = "BULLISH"
+                meaning = schema.bullish_interpretation + "（※ヒステリシス保持：割安優位を維持）"
+                is_hysteresis_held = True
+            elif prior == "BEARISH" and val >= (schema.bearish_threshold - hyst):
+                signal = "BEARISH"
+                meaning = schema.bearish_interpretation + "（※ヒステリシス保持：割高警戒を維持）"
+                is_hysteresis_held = True
+            elif (
+                abs(val - schema.bullish_threshold) <= deadzone
+                or abs(val - schema.bearish_threshold) <= deadzone
+            ):
+                signal = "NEUTRAL_INDETERMINATE"
+                meaning = schema.neutral_interpretation + "（※境界不感帯：判定保留・エッジなし）"
+                is_borderline_deadzone = True
             else:
                 signal = "NEUTRAL"
                 meaning = schema.neutral_interpretation
@@ -241,6 +352,10 @@ class FactorOntology:
             elif val >= schema.bearish_threshold:
                 signal = "HIGH_RISK_CAUTION"
                 meaning = schema.bearish_interpretation
+            elif prior == "HIGH_RISK_CAUTION" and val >= (schema.bearish_threshold - hyst):
+                signal = "HIGH_RISK_CAUTION"
+                meaning = schema.bearish_interpretation + "（※ヒステリシス保持：高ボラティリティ警戒継続）"
+                is_hysteresis_held = True
             else:
                 signal = "NORMAL_RISK"
                 meaning = schema.neutral_interpretation
@@ -251,9 +366,19 @@ class FactorOntology:
             elif val <= schema.bearish_threshold:
                 signal = "LOW_ZONE"
                 meaning = schema.bearish_interpretation
+            elif (
+                abs(val - schema.bullish_threshold) <= deadzone
+                or abs(val - schema.bearish_threshold) <= deadzone
+            ):
+                signal = "NEUTRAL_INDETERMINATE"
+                meaning = schema.neutral_interpretation + "（※境界不感帯：優位性エッジ未確定）"
+                is_borderline_deadzone = True
             else:
                 signal = "MID_ZONE"
                 meaning = schema.neutral_interpretation
+
+        if mem_key:
+            cls._state_memory[mem_key] = signal
 
         return {
             "factor_id": schema.factor_id,
@@ -265,6 +390,8 @@ class FactorOntology:
             "semantic_signal": signal,
             "interpretation": meaning,
             "assigned_agents": list(schema.assigned_agents),
+            "hysteresis_held": is_hysteresis_held,
+            "borderline_deadzone": is_borderline_deadzone,
         }
 
     @classmethod
@@ -280,6 +407,7 @@ class FactorOntology:
         and compiles a complete, human-and-LLM-verifiable Factor Ontology Bundle.
         """
         extracted: Dict[str, Any] = {}
+        symbol = (stock_data or {}).get("symbol") or (stock_data or {}).get("ticker")
 
         # 1. Fundamental metrics from stock_data
         if stock_data:
@@ -314,12 +442,12 @@ class FactorOntology:
 
         entries: List[Dict[str, Any]] = []
         for fid, raw_val in extracted.items():
-            item = cls.interpret_value(fid, raw_val)
+            item = cls.interpret_value(fid, raw_val, symbol=symbol)
             if item:
                 entries.append(item)
 
         return {
-            "schema_version": "v6.4.5-ontology",
+            "schema_version": "v6.4.6-ontology",
             "factors_count": len(entries),
             "factors": entries,
         }

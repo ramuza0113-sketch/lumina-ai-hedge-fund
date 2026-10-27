@@ -26,12 +26,17 @@ jobs:
       - name: Install Validation Tools
         run: |
           python -m pip install --upgrade pip
-          pip install flake8
+          pip install flake8 numpy pandas
 
       - name: Compile and Validate Python Syntax
         run: |
-          python -m compileall app.py core ui
+          python -m compileall app.py core ui tests
 
       - name: Flake8 Code Integrity Check
         run: |
           flake8 app.py core ui --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Factor Ontology Contract Guard & Institutional Hardening Suite
+        run: |
+          python tests/test_institutional_hardening.py
+
