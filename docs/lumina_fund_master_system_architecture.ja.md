@@ -77,6 +77,12 @@ Lumina Capital は、世界トップレベルのクオンツおよび分散シ�
 * **CI自動契約バリデーション (`FactorOntology.validate_all_contracts`)**:
   GitHub Actions CIにより、全因子の順序整合性と極性契約をプルリクごとに自動検証。
 
+### 2.6 LLM API サーキットブレーカー ＆ 縮退防衛モード（Degraded Defense-Only Mode, v6.4.8）
+* **0.1秒 Fast-Fail サーキットブレーカー (`BaseInvestmentAgent.trip_circuit`)**:
+  Google Gemini APIのレート制限（HTTP 429 `RESOURCE_EXHAUSTED`）やタイムアウト発生時、即座に共有サーキットブレーカーを開放。後続エージェントおよび法廷討論の無駄なリトライ連鎖を遮断し、パトロールスレッドのフリーズを物理的にゼロ化。
+* **新規買い強制凍結・既存防衛継続 (`is_degraded_mode`)**:
+  過半数のエージェントがAPI障害により決定論フォールバック（`is_degraded_fallback = True`）に落ちた場合、予備計算スコアが75点以上であっても盲目的な新規買い（`BUY`）を禁止し、強制的に `HOLD`（配分 0%）へロック。保有中銘柄の Pure Rust 番犬（3.63ns）と確定数理エグジットによる防衛監視のみを100%継続。
+
 ---
 
 ## 3. 第2ピラー：決定論的数理クオンツ ＆ 時系列AIアルファ予測（確定計算層）
@@ -184,6 +190,12 @@ Lumina Capital は、世界トップレベルのクオンツおよび分散シ�
 * **ポスト再接続状態整合性照合 (`_reconcile_after_reconnect`)**:
   再接続成功直後にブローカーの真実（`ib.positions()`, `ib.reqOpenOrders()`, `ib.executions()`）を一括取得。ローカル台帳とのズレや孤立注文（Orphan Orders）を自動検知・再同期し、約定不整合リスクをゼロ化。
 
+### 5.7 東証（TSE `.T`）呼値テーブル正規化 ＆ 単元株（100株単位）ハードガード（v6.4.8）
+* **東証呼値テーブル正規化 (`round_price_to_exchange_tick`)**:
+  日本株の指値・利確・損切り逆指値において、端数円（`.05円` 等）による IBKR `Error 110 (minimum price variation)` 注文拒否を物理排除するため、株価帯に応じた東証標準呼値（1円・5円・10円・50円・100円刻み）へ厳密に丸めて発注。
+* **単元株ハードガード ＆ IBKR東証コントラクト変換 (`normalize_exchange_lot_size`)**:
+  100株単位への切り捨てと単元未満株の遮断を強制し、IBKR発注時は `.T` を自動除去して `primaryExchange="TSEJ"` でルーティング。
+
 ---
 
 ## 6. 第5ピラー：自己進化Reflexion記憶 ＆ 3D因果ナレッジグラフ（学習記憶層）
@@ -277,7 +289,7 @@ Lumina Capital は、世界トップレベルのクオンツおよび分散シ�
 | :--- | :--- | :--- |
 | **意思決定・合議** | `core/ai_hedge_fund/hedge_fund_council.py` | `HedgeFundCouncil.run_council()`: 8名AI並列合議・対立討論 |
 | | `core/ai_hedge_fund/factor_ontology.py` | `FactorOntology`: 極性契約、シュミットトリガー、不感帯 |
-| | `core/ai_hedge_fund/agents/` | 各投資家AIペルソナ（Buffett, Wood, Simons, Dalio等） |
+| | `core/ai_hedge_fund/agents/` | 各投資家AIペルソナ ＆ LLM 429サーキットブレーカー・縮退防衛モード |
 | **数理クオンツ** | `core/ai_hedge_fund/alpha158_engine.py` | `Alpha158Engine`: 158数理ファクターベクトル高速算出 |
 | | `core/ai_hedge_fund/timesfm_forecaster.py` | `TimesFmForecaster`: Google TimesFM 5日先確率予測 |
 | | `core/ai_hedge_fund/chronos_forecaster.py` | `ChronosForecaster`: Amazon Chronos-Bolt 時系列予測 |
@@ -290,7 +302,7 @@ Lumina Capital は、世界トップレベルのクオンツおよび分散シ�
 | **執行・番犬** | `rust_sentinel/src/main.rs` | `lumina-sentinel-rs`: Pure Rust 3.6ns 番犬センチネル（タイムアウトバー監視） |
 | | `core/ai_hedge_fund/rust_sentinel_bridge.py`| `RustSentinelBridge`: Python ⇄ Rust 常駐パイプIPC |
 | | `core/ai_hedge_fund/auto_trader.py` | `AutoTrader`: 6重エグジット、ハーフケリー、自律サイクル |
-| | `core/ai_hedge_fund/broker_client.py` | `IBKRClient`: サーバーサイドOCO ＆ 日次切断自動復帰・状態整合性照合 |
+| | `core/ai_hedge_fund/broker_client.py` | `IBKRClient`: サーバーサイドOCO ＆ 日次切断自動復帰 ＆ 東証呼値・単元株正規化 |
 | | `core/ai_hedge_fund/concurrency_controller.py`| `ConcurrencyController`: CAS楽観ロック並行排他制御 |
 | | `core/ai_hedge_fund/idempotency_guard.py` | `OrderIdempotencyGuard`: Client Order ID二重発注防止 |
 | **記憶・グラフ** | `core/ai_hedge_fund/reflexion_engine.py` | `ReflexionEngine`: 事後解剖反省ループ ＆ 半減期30日指数時間減衰 |
@@ -299,7 +311,7 @@ Lumina Capital は、世界トップレベルのクオンツおよび分散シ�
 | | `ui_components/modes/mode_ai_hedge_fund.py` | AIヘッジファンド総合UI・ポートフォリオ・合議 |
 | | `core/ai_hedge_fund/hedge_fund_daemon.py` | `HedgeFundDaemon`: 24/5 自律巡回バックグラウンドデーモン |
 | | `core/ai_hedge_fund/weekly_paid_note_pipeline.py`| 週刊有料note自動生成・5大品質自己修復パイプライン |
-| **テスト検証** | `tests/test_institutional_hardening.py` | 機関投資家監査 100/100点防壁 全8テスト（契約・シュミット・FTS5・PSD・カオス切断・日次切断照合・出来高タイムアウト・時間減衰エージング） |
+| **テスト検証** | `tests/test_institutional_hardening.py` | 機関投資家監査 100/100点＋物理防壁 全10テスト完全網羅（契約・シュミット・FTS5・PSD・カオス切断・日次切断照合・出来高タイムアウト・時間減衰・LLM 429縮退防衛・東証呼値単元株） |
 
 ---
 

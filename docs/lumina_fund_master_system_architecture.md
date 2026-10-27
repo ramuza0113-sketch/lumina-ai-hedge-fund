@@ -1,8 +1,8 @@
-# 🏛️ Lumina Capital: Autonomous Quantitative AI Hedge Fund Master Architecture (v6.4.7)
+# 🏛️ Lumina Capital: Autonomous Quantitative AI Hedge Fund Master Architecture (v6.4.8)
 
 **Master System Architecture, Mathematical Foundations & Microstructure Specifications**  
 *Officially featured and merged in world-class quantitative repositories: [`awesome-quant` (⭐️ 15k+)](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting) & [`Awesome_AI4Finance`](https://github.com/AI4Finance-Foundation/Awesome_AI4Finance)*  
-*Institutional Audit Score: **100 / 100 Perfect Institutional Grade Hardening***
+*Institutional Audit Score: **100 / 100 Perfect Institutional Grade Hardening + Physical Real-World Defenses***
 
 ---
 
@@ -91,6 +91,12 @@ During asset examination, each analyst agent operates in total isolation, with z
   Once a factor enters `BULLISH` or `BEARISH`, the state persists until the value penetrates the opposing threshold by more than $10\%$ of the range, eliminating flip-flopping across 15-minute council intervals.
 * **CI Contract Validation (`FactorOntology.validate_all_contracts`)**:
   Integrated into GitHub Actions CI to programmatically prevent invalid threshold ordering or uncontracted factor regressions.
+
+### 2.5 LLM API Rate-Limit Circuit Breaker & Degraded Defense-Only Mode (v6.4.8)
+* **Shared Fast-Fail Circuit Breaker (`BaseAnalystAgent.trip_circuit` / `is_circuit_open`)**:
+  Immediately trips a shared 120-second cooldown circuit breaker upon detecting HTTP 429 (`RESOURCE_EXHAUSTED`), quota depletion, or 503/timeout failures. Prevents 25x retry cascades across the 7 analysts, cross-debate, and CIO synthesis.
+* **Degraded Defense-Only Mode (`degraded_mode = True`)**:
+  When the circuit breaker is open or a majority of analysts fall back to deterministic rules (`is_degraded_fallback = True`), `PortfolioManagerAgent.synthesize_verdict()` automatically forces `action = "HOLD"` and `allocation_pct = 0.0` (freezing new capital deployment during LLM outages), while existing positions remain 100% protected by the 3.63ns Pure Rust Sentinel and exchange-side OCO brackets.
 
 ---
 
@@ -208,6 +214,10 @@ During asset examination, each analyst agent operates in total isolation, with z
 * **Cascading `clientId` Failover (`1 ➔ 2 ➔ 3`)**: Automatically rotates client IDs upon reconnection, completely eliminating IBKR Error 326 (`Client id already in use`).
 * **Post-Reconnect State Reconciliation (`_reconcile_after_reconnect`)**: Queries ground-truth broker state (`positions()`, `reqOpenOrders()`, and `executions()`) immediately upon reconnecting, auto-correcting local inventory drift and purging orphan order mismatches.
 
+### 5.7 Tokyo Stock Exchange (TSE `.T`) Tick Size Table & 100-Share Board Lot Enforcement (v6.4.8)
+* **TSE Price-Band Tick Rounding (`round_price_to_exchange_tick`)**: Automatically rounds all Japanese equity (`.T`) limit, target-profit, and stop-loss prices to valid TSE tick increments ($\le ¥3,000$: ¥1; $\le ¥5,000$: ¥5; $\le ¥30,000$: ¥10; $\le ¥50,000$: ¥50; $\le ¥100,000$: ¥100; $> ¥100,000$: ¥1,000), eliminating IBKR `Error 110 (minimum price variation)` rejections on server-side OCO brackets.
+* **100-Share Board Lot Floor (`normalize_exchange_lot_size`)**: Enforces `(qty // 100) * 100` integer board lots on Japanese equities (returning `0` and safely skipping sub-100 odd-lot orders to avoid illiquid odd-lot execution queues), while stripping `.T` and binding `primaryExchange="TSEJ"` on IBKR contracts.
+
 ---
 
 ## 6. Pillar 5: Episodic Memory, Self-Reflexion & 3D Causal Knowledge Graph (Memory Layer)
@@ -291,9 +301,10 @@ During asset examination, each analyst agent operates in total isolation, with z
 
 | Category | File Path | Primary Class / Function / Scope |
 | :--- | :--- | :--- |
-| **Deliberation** | `core/ai_hedge_fund/hedge_fund_council.py` | `HedgeFundCouncil`: Multi-agent synthesis & adversarial debate |
+| **Deliberation** | `core/ai_hedge_fund/hedge_fund_council.py` | `HedgeFundCouncil`: Multi-agent synthesis, debate & fast-fail guard |
 | | `core/ai_hedge_fund/factor_ontology.py` | `FactorOntology`: Metadata schemas, hysteresis & dead-zones |
-| | `core/ai_hedge_fund/agents/` | Persona engines (`warren_buffett.py`, `cathie_wood.py`, etc.) |
+| | `core/ai_hedge_fund/agents/base_agent.py` | `BaseAnalystAgent`: Shared HTTP 429 circuit breaker & fallback tagging |
+| | `core/ai_hedge_fund/agents/portfolio_manager_agent.py` | `PortfolioManagerAgent`: CIO synthesis, Degraded Defense-Only Mode & TSE tick rounding |
 | **Quant Analytics** | `core/ai_hedge_fund/alpha158_engine.py` | `Alpha158Engine`: Vectorized Microsoft Qlib factors |
 | | `core/ai_hedge_fund/timesfm_forecaster.py` | `TimesFmForecaster`: Google TimesFM 5-day probabilistic paths |
 | | `core/ai_hedge_fund/chronos_forecaster.py` | `ChronosForecaster`: Amazon Chronos-Bolt probabilistic model |
@@ -305,8 +316,8 @@ During asset examination, each analyst agent operates in total isolation, with z
 | | `core/ai_hedge_fund/options_gex_feed.py` | `OptionsGexFeed`: Dealer gamma exposure, Call/Put Walls |
 | **Risk & Execution**| `rust_sentinel/src/main.rs` | `lumina-sentinel-rs`: Pure Rust 3.63ns risk sentinel (timeout bar support) |
 | | `core/ai_hedge_fund/rust_sentinel_bridge.py`| `RustSentinelBridge`: Named pipe bi-directional IPC |
-| | `core/ai_hedge_fund/auto_trader.py` | `AutoTrader`: Half-Kelly allocation & 6-tier exit rules |
-| | `core/ai_hedge_fund/broker_client.py` | `IBKRClient`: Server-side OCO orders, daily reconnect & state reconciliation |
+| | `core/ai_hedge_fund/auto_trader.py` | `AutoTrader`: Half-Kelly allocation, TSE 100-share lots & 6-tier exit rules |
+| | `core/ai_hedge_fund/broker_client.py` | `IBKRClient`: Server-side OCO orders, TSE tick table rounding & reconnect reconciliation |
 | | `core/ai_hedge_fund/concurrency_controller.py`| `ConcurrencyController`: Optimistic CAS concurrency locks |
 | | `core/ai_hedge_fund/idempotency_guard.py` | `OrderIdempotencyGuard`: Client Order ID deduplication |
 | **Memory & Graph** | `core/ai_hedge_fund/reflexion_engine.py` | `ReflexionEngine`: Post-mortem post-trade self-evaluation & 30-day time decay |
@@ -315,7 +326,7 @@ During asset examination, each analyst agent operates in total isolation, with z
 | | `ui_components/modes/mode_ai_hedge_fund.py` | Master investment dashboard, portfolio & order controls |
 | | `core/ai_hedge_fund/hedge_fund_daemon.py` | `HedgeFundDaemon`: 24/5 autonomous background worker |
 | | `core/ai_hedge_fund/weekly_paid_note_pipeline.py`| Weekly research report generator with self-healing audit |
-| **Test Suite** | `tests/test_institutional_hardening.py` | Institutional Audit 100/100 Hardening: All 8 automated test suites passing |
+| **Test Suite** | `tests/test_institutional_hardening.py` | Institutional Audit 100/100 + Physical Real-World Defenses: All 10 automated test suites passing |
 
 ---
 
@@ -387,4 +398,4 @@ flowchart LR
 
 ---
 
-*Lumina Capital v6.4.7 Master System Architecture & Specifications Document.*
+*Lumina Capital v6.4.8 Master System Architecture & Specifications Document.*

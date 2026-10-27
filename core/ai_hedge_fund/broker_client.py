@@ -9,8 +9,53 @@ from typing import Dict, Any, List, Optional
 from core.ai_hedge_fund.market_data_feed import MarketDataFeed
 from core.ai_hedge_fund.market_session import MarketSession
 
+def round_price_to_exchange_tick(price: float, is_jp: bool = False) -> float:
+    """
+    Normalize order limit/stop prices to strictly conform to exchange minimum tick size rules.
+    - TSE (Tokyo Stock Exchange / .T): Enforces standard tick size bands (1, 5, 10, 50, 100, 1000 JPY)
+      to prevent IBKR Error 110 ('The price does not conform to the minimum price variation').
+    - US Exchanges (NYSE/NASDAQ): Enforces $0.01 tick size (>= $1.00) or $0.0001 (< $1.00, SEC Rule 612).
+    """
+    p = float(price)
+    if p <= 0:
+        return 0.0
+    if not is_jp:
+        return round(p, 2) if p >= 1.0 else round(p, 4)
+
+    # Tokyo Stock Exchange (TSE) Standard Tick Size Table (呼値の単位)
+    if p <= 3000.0:
+        return float(int(round(p)))
+    elif p <= 5000.0:
+        return float(int(round(p / 5.0)) * 5)
+    elif p <= 30000.0:
+        return float(int(round(p / 10.0)) * 10)
+    elif p <= 50000.0:
+        return float(int(round(p / 50.0)) * 50)
+    elif p <= 300000.0:
+        return float(int(round(p / 100.0)) * 100)
+    else:
+        return float(int(round(p / 1000.0)) * 1000)
+
+
+def normalize_exchange_lot_size(quantity: int, is_jp: bool = False) -> int:
+    """
+    Enforce exchange board lot size constraints (単元株制度).
+    - TSE (.T): Floors to nearest 100-share board lot (returns 0 if < 100 to prevent odd-lot OCO rejection).
+    - US Exchanges: Allows 1-share integer increments.
+    """
+    q = int(quantity)
+    if q <= 0:
+        return 0
+    if is_jp:
+        return (q // 100) * 100
+    return q
+
+
 class BaseBrokerClient:
     """Abstract Interface for Brokerage Execution Adapters"""
+    round_price_to_exchange_tick = staticmethod(round_price_to_exchange_tick)
+    normalize_exchange_lot_size = staticmethod(normalize_exchange_lot_size)
+
     def get_account_balance(self) -> Dict[str, float]:
         raise NotImplementedError
     def get_positions(self) -> List[Dict[str, Any]]:
@@ -316,10 +361,14 @@ class PaperTradingEngine(BaseBrokerClient):
                     # 🌟 注文時逆指値強制付帯ルール (Mandatory Bracket Stop-Loss / No Naked Buy Mandate)
                     # 買い注文時に逆指値（損切りライン）が未設定または無効な場合、フィボナッチ最適値 (-13.0%) を自動算出して強制付帯する
                     if stop_loss_price is None or stop_loss_price <= 0 or stop_loss_price >= exec_price:
-                        stop_loss_price = round(exec_price * 0.87, 2 if (currency == "USD" or is_eu) else 1)
+                        stop_loss_price = round_price_to_exchange_tick(exec_price * 0.87, is_jp=is_jp)
+                    else:
+                        stop_loss_price = round_price_to_exchange_tick(stop_loss_price, is_jp=is_jp)
                     
                     if not target_price or target_price <= exec_price:
-                        target_price = round(exec_price * 1.25, 2 if (currency == "USD" or is_eu) else 1)
+                        target_price = round_price_to_exchange_tick(exec_price * 1.25, is_jp=is_jp)
+                    else:
+                        target_price = round_price_to_exchange_tick(target_price, is_jp=is_jp)
 
                     bracket_tag = f"[強制ブラケット逆指値付帯: {stop_loss_price:,.2f} {currency} (-13.0%)]"
                     if bracket_tag not in notes:
@@ -1375,12 +1424,34 @@ class IBKRClient(BaseBrokerClient):
             }
         try:
             import ib_insync
-            contract = ib_insync.Stock(symbol, "SMART", "USD")
+            norm_sym = MarketDataFeed.normalize_symbol(symbol)
+            is_jp = norm_sym.endswith(".T")
+            currency = "JPY" if is_jp else "USD"
+
+            norm_qty = normalize_exchange_lot_size(quantity, is_jp=is_jp)
+            if norm_qty <= 0:
+                return {
+                    "success": False,
+                    "tse_lot_rejected": True,
+                    "message": f"【東証単元株ガード】{norm_sym} の発注数量 ({quantity}株) が単元株（100株単位）未満のため発注を遮断しました。"
+                }
+            quantity = norm_qty
+
+            ib_symbol = norm_sym[:-2] if is_jp else norm_sym
+            contract = (
+                ib_insync.Stock(ib_symbol, "SMART", currency, primaryExchange="TSEJ")
+                if is_jp
+                else ib_insync.Stock(ib_symbol, "SMART", currency)
+            )
             ib.qualifyContracts(contract)
 
             action = side.upper()
+            if stop_loss_price:
+                stop_loss_price = round_price_to_exchange_tick(float(stop_loss_price), is_jp=is_jp)
+            if target_price:
+                target_price = round_price_to_exchange_tick(float(target_price), is_jp=is_jp)
             if order_type.upper() == "LIMIT" and price:
-                order = ib_insync.LimitOrder(action, quantity, price)
+                order = ib_insync.LimitOrder(action, quantity, round_price_to_exchange_tick(float(price), is_jp=is_jp))
             else:
                 order = ib_insync.MarketOrder(action, quantity)
 
@@ -1390,7 +1461,7 @@ class IBKRClient(BaseBrokerClient):
                 "success": True,
                 "order_id": trade.order.orderId,
                 "status": trade.orderStatus.status,
-                "message": f"IBKR発注完了: {symbol} {action} {quantity}株 ({order_type})" + (f" [ブラケット逆指値: {stop_loss_price}]" if stop_loss_price else "")
+                "message": f"IBKR発注完了: {norm_sym} {action} {quantity}株 ({order_type})" + (f" [ブラケット逆指値: {stop_loss_price}]" if stop_loss_price else "")
             }
         except Exception as e:
             return {

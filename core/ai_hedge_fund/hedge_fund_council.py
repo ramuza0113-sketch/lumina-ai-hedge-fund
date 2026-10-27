@@ -259,6 +259,8 @@ class HedgeFundCouncil:
                 except Exception as e:
                     print(f"[HedgeFundCouncil] Agent {agent_cls.name} evaluation error: {e}")
                     fallback_res = agent_cls._rule_based_fallback(stock_data, context_data)
+                    fallback_res["is_degraded_fallback"] = True
+                    fallback_res["degraded_reason"] = str(e)
                     analyst_results.append(fallback_res)
                     if langfuse_trace:
                         LuminaLangfuseTracer.record_agent_span(
@@ -409,6 +411,16 @@ class HedgeFundCouncil:
         analysts = [a for a in analyst_results if a.get("agent_id") != "risk_manager"]
         if len(analysts) < 2:
             return {"occurred": False, "reason": "討論に必要なアナリスト数が不足しています。"}
+
+        # 🛡️ Fast-Fail Circuit Breaker: Skip LLM Cross-Debate if LLM layer is in Degraded Mode
+        from core.ai_hedge_fund.agents.base_agent import BaseInvestmentAgent
+        degraded_cnt = sum(1 for a in analysts if a.get("is_degraded_fallback"))
+        if BaseInvestmentAgent.is_circuit_open() or degraded_cnt > (len(analysts) // 2):
+            return {
+                "occurred": False,
+                "degraded_mode": True,
+                "reason": "🛡️ LLM APIサーキットブレーカー作動（縮退防衛モード）のため直接討論をスキップ"
+            }
 
         # Find Bear Leader and Bull Leader
         sorted_by_score = sorted(analysts, key=lambda x: x.get("score", 50))

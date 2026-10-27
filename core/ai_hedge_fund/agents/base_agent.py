@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 from typing import Dict, Any, Optional
 from core.state_manager import load_app_settings
 
@@ -16,6 +17,31 @@ class BaseInvestmentAgent:
     title: str = "投資分析官"
     avatar: str = "🤖"
     philosophy: str = ""
+
+    # 🛡️ LLM API Rate-Limit / Timeout Fast-Fail Circuit Breaker (Shared across all agents)
+    _circuit_open_until: float = 0.0
+    _circuit_reason: str = ""
+    _consecutive_api_failures: int = 0
+    _CIRCUIT_TRIP_THRESHOLD: int = 2
+    _CIRCUIT_COOLDOWN_SEC: float = 60.0
+
+    @classmethod
+    def is_circuit_open(cls) -> bool:
+        """Returns True if the LLM API Circuit Breaker is currently open (degraded defense mode)."""
+        return time.time() < BaseInvestmentAgent._circuit_open_until
+
+    @classmethod
+    def trip_circuit(cls, reason: str = "HTTP_429_OR_TIMEOUT", cooldown_sec: float = 60.0) -> None:
+        """Trips the shared circuit breaker to immediately halt cascading API retries."""
+        BaseInvestmentAgent._circuit_open_until = time.time() + float(cooldown_sec)
+        BaseInvestmentAgent._circuit_reason = str(reason)
+
+    @classmethod
+    def reset_circuit(cls) -> None:
+        """Resets the LLM API Circuit Breaker back to normal operation."""
+        BaseInvestmentAgent._circuit_open_until = 0.0
+        BaseInvestmentAgent._circuit_reason = ""
+        BaseInvestmentAgent._consecutive_api_failures = 0
 
     @classmethod
     def get_system_prompt(cls) -> str:
@@ -53,20 +79,33 @@ class BaseInvestmentAgent:
     @classmethod
     def evaluate(cls, stock_data: Dict[str, Any], context_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
-        Execute independent reasoning via Gemini Flash. Falls back to deterministic rule if API fails.
+        Execute independent reasoning via Gemini Flash.
+        If the LLM API Circuit Breaker is open or API fails, falls back to deterministic rule
+        and tags the output with `is_degraded_fallback = True` for Degraded Defense-Only Mode.
         """
+        if cls.is_circuit_open():
+            fb = cls._rule_based_fallback(stock_data, context_data)
+            fb["is_degraded_fallback"] = True
+            fb["degraded_reason"] = BaseInvestmentAgent._circuit_reason or "CIRCUIT_BREAKER_OPEN"
+            return fb
+
         prompt = cls._build_evaluation_prompt(stock_data, context_data)
         result = cls._call_gemini_json(prompt)
         if result and isinstance(result, dict) and "score" in result:
+            BaseInvestmentAgent._consecutive_api_failures = 0
             # Ensure identifiers are correct
             result["agent_id"] = cls.agent_id
             result["name"] = cls.name
             result["title"] = cls.title
             result["avatar"] = cls.avatar
+            result["is_degraded_fallback"] = False
             return result
         
-        # Rule-based fallback
-        return cls._rule_based_fallback(stock_data, context_data)
+        # Rule-based fallback (Degraded Mode)
+        fb = cls._rule_based_fallback(stock_data, context_data)
+        fb["is_degraded_fallback"] = True
+        fb["degraded_reason"] = BaseInvestmentAgent._circuit_reason or "LLM_API_UNAVAILABLE"
+        return fb
 
     @classmethod
     def _build_evaluation_prompt(cls, stock_data: Dict[str, Any], context_data: Optional[Dict[str, Any]] = None) -> str:
@@ -162,6 +201,8 @@ class BaseInvestmentAgent:
 
     @classmethod
     def _call_gemini_json(cls, prompt: str) -> Optional[Dict[str, Any]]:
+        if cls.is_circuit_open():
+            return None
         try:
             cfg = load_app_settings()
             api_key = cfg.get("google_api_key", "")
@@ -178,7 +219,9 @@ class BaseInvestmentAgent:
                 response_mime_type="application/json"
             )
             
-            for model_name in ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-3.8-flash"]:
+            for model_name in ["gemini-3.8-flash", "gemini-2.5-flash"]:
+                if cls.is_circuit_open():
+                    return None
                 try:
                     res = client.models.generate_content(
                         model=model_name,
@@ -193,9 +236,19 @@ class BaseInvestmentAgent:
                             raw = raw[:-3]
                         return json.loads(raw.strip())
                 except Exception as m_err:
+                    err_low = str(m_err).lower()
+                    if any(k in err_low for k in ("429", "resource_exhausted", "quota", "timeout", "deadline", "503", "unavailable")):
+                        cls.trip_circuit(reason=f"API_RATE_LIMIT_OR_TIMEOUT ({m_err})")
+                        return None
                     continue
+            BaseInvestmentAgent._consecutive_api_failures += 1
+            if BaseInvestmentAgent._consecutive_api_failures >= BaseInvestmentAgent._CIRCUIT_TRIP_THRESHOLD:
+                cls.trip_circuit(reason="CONSECUTIVE_LLM_API_FAILURES")
             return None
         except Exception as e:
+            BaseInvestmentAgent._consecutive_api_failures += 1
+            if BaseInvestmentAgent._consecutive_api_failures >= BaseInvestmentAgent._CIRCUIT_TRIP_THRESHOLD:
+                cls.trip_circuit(reason=f"LLM_CLIENT_EXCEPTION ({e})")
             return None
 
     @classmethod

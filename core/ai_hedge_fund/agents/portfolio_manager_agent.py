@@ -116,7 +116,14 @@ class PortfolioManagerAgent:
         """
         price = float(stock_data.get("current_price") or 1000.0)
         currency = stock_data.get("currency", "JPY")
-        stop_loss = risk_result.get("stop_loss_price", round(price * 0.87, 2))
+        sym_str = str(stock_data.get("symbol", ""))
+        is_jp = (currency == "JPY") or sym_str.endswith(".T")
+
+        from core.ai_hedge_fund.broker_client import round_price_to_exchange_tick
+        from core.ai_hedge_fund.agents.base_agent import BaseInvestmentAgent
+
+        raw_sl = risk_result.get("stop_loss_price", price * 0.87)
+        stop_loss = round_price_to_exchange_tick(float(raw_sl), is_jp=is_jp)
         max_alloc = risk_result.get("max_allocation_pct", 10.0)
 
         # 1. Calculate Radar Scores based on specific agents
@@ -153,44 +160,54 @@ class PortfolioManagerAgent:
 
         overall_score = int(round(weighted_sum / weight_total)) if weight_total > 0 else 50
 
-        # 3. Determine action & target price (Enforcing CRO Absolute Veto Power)
-        is_en = (context_data and context_data.get("lang") == "en")
+        # 3. Determine action & target price (Enforcing CRO Absolute Veto Power & LLM Degraded Defense-Only Mode)
         veto_triggered = risk_result.get("veto_triggered", False)
-        veto_reason = risk_result.get("veto_reason", "Risk manager crisis alert" if is_en else "リスク管理者による危機警戒")
+        veto_reason = risk_result.get("veto_reason", "リスク管理者による危機警戒")
+
+        degraded_count = sum(1 for a in analyst_results if a.get("is_degraded_fallback"))
+        is_degraded_mode = BaseInvestmentAgent.is_circuit_open() or (
+            len(analyst_results) > 0 and degraded_count > (len(analyst_results) // 2)
+        )
 
         if veto_triggered:
             action = "HOLD"
-            action_label = "🚨 CRO VETO (ENTRY FROZEN)" if is_en else "🚨 CRO拒否権発動（新規建て完全凍結）"
-            target_price = round(price * 1.0, 2)
+            action_label = f"🚨 CRO拒否権発動（新規建て完全凍結）"
+            target_price = round_price_to_exchange_tick(price * 1.0, is_jp=is_jp)
             alloc = 0.0
             overall_score = min(overall_score, 30)
+        elif is_degraded_mode:
+            # 🛡️ Degraded Defense-Only Fallback Mode: Freeze new BUY entries when LLM layer is down/rate-limited
+            action = "HOLD"
+            action_label = "🛡️ LLM縮退防衛モード（新規買い凍結・番犬監視継続）"
+            target_price = round_price_to_exchange_tick(price * 1.0, is_jp=is_jp)
+            alloc = 0.0
+            overall_score = min(overall_score, 49)
         elif overall_score >= 75:
             action = "BUY"
-            action_label = "STRONG BUY" if is_en else "積極買い推奨"
-            target_price = round(price * 1.25, 2)
+            action_label = "積極買い推奨"
+            target_price = round_price_to_exchange_tick(price * 1.25, is_jp=is_jp)
             alloc = max_alloc
         elif overall_score >= 60:
             action = "ACCUMULATE"
-            action_label = "ACCUMULATE (SCALE-IN)" if is_en else "打診買い（分散積立）"
-            target_price = round(price * 1.15, 2)
+            action_label = "打診買い（分散積立）"
+            target_price = round_price_to_exchange_tick(price * 1.15, is_jp=is_jp)
             alloc = min(max_alloc, 7.0)
         elif overall_score >= 45:
             action = "HOLD"
-            action_label = "HOLD / NEUTRAL" if is_en else "様子見・保有継続"
-            target_price = round(price * 1.05, 2)
+            action_label = "様子見・保有継続"
+            target_price = round_price_to_exchange_tick(price * 1.05, is_jp=is_jp)
             alloc = 0.0
         else:
             action = "SELL"
-            action_label = "TAKE PROFIT / EXIT" if is_en else "利益確定 / 撤退売り"
-            target_price = round(price * 0.95, 2)
+            action_label = "利益確定 / 撤退売り"
+            target_price = round_price_to_exchange_tick(price * 0.95, is_jp=is_jp)
             alloc = 0.0
 
-        # 4. Generate thesis summary via Gemini 3.8 Flash or fallback
+        # 4. Generate thesis summary via Gemini 3.8 Flash or deterministic degraded fallback
         thesis_summary = cls._generate_thesis_summary(
-            stock_data, analyst_results, risk_result, action_label, overall_score, regime_info, cross_debate, context_data=context_data
+            stock_data, analyst_results, risk_result, action_label, overall_score, regime_info, cross_debate,
+            is_degraded_mode=is_degraded_mode
         )
-
-        horizon_label = ("Medium-Term (6-12M)" if action in ("BUY", "ACCUMULATE") else "Short-Term (Standby)") if is_en else ("中期（6〜12ヶ月）" if action in ("BUY", "ACCUMULATE") else "短期（見送り）")
 
         return {
             "radar_scores": radar_scores,
@@ -202,7 +219,9 @@ class PortfolioManagerAgent:
                 "stop_loss_price": stop_loss,
                 "allocation_pct": alloc,
                 "confidence_score": overall_score,
-                "horizon": horizon_label,
+                "degraded_mode": is_degraded_mode,
+                "degraded_fallback_count": degraded_count,
+                "horizon": "中期（6〜12ヶ月）" if action in ("BUY", "ACCUMULATE") else "短期（見送り）",
                 "thesis_summary": thesis_summary,
                 "market_regime": regime_info.get("regime_name")
             }
@@ -218,19 +237,25 @@ class PortfolioManagerAgent:
         overall_score: int,
         regime_info: Optional[Dict[str, Any]] = None,
         cross_debate: Optional[Dict[str, Any]] = None,
-        context_data: Optional[Dict[str, Any]] = None
+        is_degraded_mode: bool = False
     ) -> str:
         """Generate high-conviction editorial synthesis"""
-        is_en = (context_data and context_data.get("lang") == "en")
+        from core.ai_hedge_fund.agents.base_agent import BaseInvestmentAgent
+        if is_degraded_mode or BaseInvestmentAgent.is_circuit_open():
+            return (
+                "【🛡️ LLM API縮退防衛モード作動】外部LLM推論APIのレート制限（HTTP 429）または応答遅延を検知したため、"
+                "サーキットブレーカーにより新規買いエントリーを安全サイド（HOLD）へ強制凍結しました。"
+                "既存保有ポジションはPure Rust番犬（3.63ns）および確定数理ルールにより100%防衛監視を継続中です。"
+            )
         try:
             cfg = load_app_settings()
             api_key = cfg.get("google_api_key", "")
             if api_key:
                 from google import genai
                 
-                name = stock_data.get("name", "Asset")
-                opinions = "\n".join([f"- {a['name']} ({a['stance']}, Score {a['score']}): {a['dialogue']}" for a in analyst_results])
-                opinions += f"\n- {risk_result['name']} (Safety Score {risk_result['score']}): {risk_result['dialogue']}"
+                name = stock_data.get("name", "対象銘柄")
+                opinions = "\n".join([f"- {a['name']} ({a['stance']}, スコア{a['score']}): {a['dialogue']}" for a in analyst_results])
+                opinions += f"\n- {risk_result['name']} (安全スコア{risk_result['score']}): {risk_result['dialogue']}"
                 
                 debate_section = ""
                 if cross_debate and cross_debate.get("occurred"):
@@ -239,27 +264,14 @@ class PortfolioManagerAgent:
                     b_atk = cross_debate.get("turn1_attack")
                     u_adj = cross_debate.get("adjusted_score")
                     b_orig = cross_debate.get("bull_initial_score")
-                    if is_en:
-                        debate_section = f"\n\n[Cross-Debate Clash]\n- {b_name} challenge: \"{b_atk}\"\n- {u_name} response: Initial {b_orig} pts ➔ Adjusted {u_adj} pts ({cross_debate.get('adjustment_rationale', '')})"
-                    else:
-                        debate_section = f"\n\n【クロスディベート直接対決】\n- {b_name}の糾弾: 「{b_atk}」\n- {u_name}の対応: 当初{b_orig}点 ➔ 修正後{u_adj}点（{cross_debate.get('adjustment_rationale', '')}）"
+                    debate_section = f"\n\n【クロスディベート直接対決】\n- {b_name}の糾弾: 「{b_atk}」\n- {u_name}の対応: 当初{b_orig}点 ➔ 修正後{u_adj}点（{cross_debate.get('adjustment_rationale', '')}）"
 
                 regime_section = ""
                 if regime_info:
-                    regime_label = regime_info.get('regime_name')
-                    regime_section = f"\nMarket Regime: {regime_label}" if is_en else f"\n市場レジーム: {regime_label} ({regime_info.get('rationale')})"
+                    regime_section = f"\n市場レジーム: {regime_info.get('regime_name')} ({regime_info.get('rationale')})"
 
                 client = genai.Client(api_key=api_key)
-                if is_en:
-                    prompt = f"""Asset: {name}
-CIO Verdict: {action_label} (Overall Confidence: {overall_score}/100){regime_section}
-
-Analyst & Risk Council Opinions:{debate_section}
-{opinions}
-
-As Lead Portfolio Manager & Chief Investment Officer (CIO Lumina), write a high-conviction, professional investment thesis summary (60-90 words in 1 concise paragraph in English) synthesizing the fundamental strengths, valuation counter-arguments, and risk mitigations for institutional investors."""
-                else:
-                    prompt = f"""銘柄: {name}
+                prompt = f"""銘柄: {name}
 総合判定: {action_label} (総合確信度スコア: {overall_score}点){regime_section}
 
 各エージェントの独立意見:{debate_section}
@@ -277,14 +289,9 @@ As Lead Portfolio Manager & Chief Investment Officer (CIO Lumina), write a high-
             pass
 
         # Deterministic fallback
-        name = stock_data.get("name", "Asset")
+        name = stock_data.get("name", "対象銘柄")
         bulls = [a['name'] for a in analyst_results if a.get('stance') == 'BULLISH']
         bears = [a['name'] for a in analyst_results if a.get('stance') in ('BEARISH', 'CAUTION')]
-        
-        if is_en:
-            bull_str = " and ".join(bulls[:2]) if bulls else "Growth analysts"
-            bear_str = " and ".join(bears[:2]) if bears else "Defensive analysts"
-            return f"Synthesizing {bull_str}'s growth and momentum thesis against {bear_str}'s valuation and tail-risk warnings. Enforcing a strict stop-loss floor with positive risk-reward asymmetry to execute a {action_label} allocation."
         
         bull_str = "、".join(bulls[:2]) if bulls else "一部アナリスト"
         bear_str = "、".join(bears[:2]) if bears else "慎重派"
