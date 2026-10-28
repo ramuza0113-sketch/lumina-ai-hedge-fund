@@ -381,6 +381,16 @@ Tested against the final battery of aggressive stress scenarios required by tier
 | **⑤ Intraday Flash-Crash Whipsaw Lower Wick Defense** | Injected artificial flash-crash spikes (-13.5% intraday drop recovering by market close) across all holdings to trigger stop-hunting | • Naive Tick Stop: **`-55.27%` (MaxDD `-57.53%`, PF `0.66` ruinous whipsaw)**<br>• **Lumina Wick Defense (Open/Close & MA50 structure guard): `+176.95%` (MaxDD `-14.42%`, PF `1.86` / 63 stop-hunts blocked)** | ✅ **PASS**<br>*(63 Traps Quarantined)* |
 | **⑥ 100,000-Tick High-Frequency Soak & `NaN/Inf` Fuzzing** | Injected 100,000 ticks corrupted with `NaN`, `±Infinity`, negative volume, zero prices, and massive spikes into Volume Clocks and Deep OFI | • Processing Speed: **`100,000 ticks in 3.56 seconds` (`28,059 ops/sec`)**<br>• Unhandled Crashes: **`0`**, Net Memory Delta: **`+3.29 KB` (Zero memory leak)** | ✅ **PASS**<br>*(24/5 Production Resilience)* |
 
+### 8.9 Production Infrastructure & Chaos Engineering Unit Suite (`test_15`–`test_18` / 18/18 CI Pass)
+In addition to historical econometrics, the live execution engine is continuously verified in GitHub Actions CI (`tests/test_institutional_hardening.py`) against 4 production infrastructure failure modes:
+
+| Test ID | Production Chaos Engineering Scenario | Verification Mechanism & Empirical Result | CI Verdict |
+| :--- | :--- | :--- | :---: |
+| **`test_15`** | **IBKR Socket Timeout & Orphaned Order Double-Execution Guard** | Simulates an immediate retry of the same order signal after a socket ACK timeout; verifies `OrderIdempotencyGuard` (`order_idempotency` SQLite ledger) blocks duplicate execution (`idempotency_blocked=True`) with zero double fills. | ✅ **PASS** |
+| **`test_16`** | **In-Flight Corporate Action (5-for-1 Stock Split) Auto-Scaling** | Injects an overnight 5-for-1 stock split on held position `7011.T` (100 shares @ ¥10,000 ➔ live quote ¥2,050). Verifies `AutoTrader.patrol_positions` automatically scales `quantity` to `500`, `avg_entry_price` to `¥2,000`, and `stop_loss_price` to `¥1,740` without misfiring Rule E (-13% Stop-Loss). | ✅ **PASS** |
+| **`test_17`** | **Partial Fill Weighted-Average Pricing & 100-Share TSE Minimum Lot Breakeven/Trailing** | (a) Verifies multi-leg partial fills (`200 @ ¥2,000 + 300 @ ¥2,050`) compute exact weighted average `¥2,030.00`.<br>(b) Verifies a 100-share TSE minimum lot hitting `+12%` avoids 50-share odd-lot rejection, locks breakeven stop (`stop_loss=¥3,000`), and fires Rule C trailing stop on a `-4.5%` pullback from peak. | ✅ **PASS** |
+| **`test_18`** | **Process Crash (`kill -9` / `SIGKILL`) & SQLite Cooldown State Hydration** | Simulates `SIGKILL` wiping all in-memory dicts and verifies `AutoTrader.hydrate_cooldowns_from_db()` restores 14-day `TIME_BARRIER_ROTATION` and `FIBONACCI_STOP_LOSS` anti-churn locks directly from SQLite `trade_memories`. | ✅ **PASS** |
+
 ---
 
 ## 9. Codebase Module Mapping
@@ -412,7 +422,7 @@ Tested against the final battery of aggressive stress scenarios required by tier
 | | `ui_components/modes/mode_ai_hedge_fund.py` | Master investment dashboard, portfolio & order controls |
 | | `core/ai_hedge_fund/hedge_fund_daemon.py` | `HedgeFundDaemon`: 24/5 autonomous background worker |
 | | `core/ai_hedge_fund/weekly_paid_note_pipeline.py`| Weekly research report generator with self-healing audit |
-| **Test Suite** | `tests/test_institutional_hardening.py` | Institutional Audit 100/100 + Physical Real-World Defenses: All 10 automated test suites passing |
+| **Test Suite** | `tests/test_institutional_hardening.py` | Institutional Audit 100/100 + Extreme Scenarios + Chaos Engineering: All 18 automated CI test suites passing |
 
 ---
 
