@@ -365,7 +365,14 @@ class PaperTradingEngine(BaseBrokerClient):
                     "error": "【取引時間外エラー】米国市場（NYSE/NASDAQ）は取引時間外です（日本時間 22:30〜翌05:00 JST）。実発注API（IBKR Client Portal）準拠のため、成行発注は約定できません。"
                 }
 
-        stock_data = MarketDataFeed.get_stock_data(norm_sym)
+        if os.getenv("LUMINA_TEST_MODE") == "1" and price and price > 0:
+            stock_data = MarketDataFeed._cache.get(norm_sym, {}).get("data") or {
+                "company_name": norm_sym,
+                "currency": "JPY" if is_jp else ("EUR" if is_eu else "USD"),
+                "current_price": float(price),
+            }
+        else:
+            stock_data = MarketDataFeed.get_stock_data(norm_sym)
         company_name = stock_data.get("company_name", norm_sym)
         currency = stock_data.get("currency", "JPY" if is_jp else ("EUR" if is_eu else "USD"))
         
@@ -641,6 +648,8 @@ class PaperTradingEngine(BaseBrokerClient):
     @classmethod
     def get_usdjpy_rate(cls) -> float:
         """Fetch live USD/JPY exchange rate with fast 60s memory caching and safe fallback"""
+        if os.getenv("LUMINA_TEST_MODE") == "1":
+            return cls._cached_usdjpy_rate or 155.0
         now = time.time()
         if cls._cached_usdjpy_rate > 50.0 and (now - cls._cached_usdjpy_time < 60):
             return cls._cached_usdjpy_rate
@@ -658,6 +667,8 @@ class PaperTradingEngine(BaseBrokerClient):
     @classmethod
     def get_eurjpy_rate(cls) -> float:
         """Fetch live EUR/JPY exchange rate with fast 60s memory caching and safe fallback"""
+        if os.getenv("LUMINA_TEST_MODE") == "1":
+            return cls._cached_eurjpy_rate or 165.0
         now = time.time()
         if cls._cached_eurjpy_rate > 50.0 and (now - cls._cached_eurjpy_time < 60):
             return cls._cached_eurjpy_rate

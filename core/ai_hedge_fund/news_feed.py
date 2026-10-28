@@ -13,7 +13,10 @@ import json
 import re
 import urllib.parse
 from typing import Dict, Any, List, Optional
-import feedparser
+try:
+    import feedparser
+except ImportError:
+    feedparser = None
 import yfinance as yf
 
 class NewsFeed:

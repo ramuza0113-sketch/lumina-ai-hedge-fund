@@ -12,8 +12,12 @@ from core.ai_hedge_fund.sec_insider_feed import SecInsiderFeed
 from core.ai_hedge_fund.options_gex_feed import OptionsGexFeed
 from core.openbb_provider import OpenBBProvider
 from core.state_manager import load_app_settings
-from google import genai
-from google.genai import types
+try:
+    from google import genai
+    from google.genai import types
+except ImportError:
+    genai = None
+    types = None
 
 from core.ai_hedge_fund.agents import (
     ALL_ANALYST_AGENTS,
