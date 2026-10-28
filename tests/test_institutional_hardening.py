@@ -392,6 +392,166 @@ def test_10_tse_tick_size_and_board_lot_enforcement():
     print("[PASS] 10. TSE Tick Size Table (1/5/10/50 JPY) & 100-Share Board Lot Enforcement verified.")
 
 
+def test_11_simultaneous_multi_slot_crash_liquidation():
+    """
+    11. Simultaneous 6-Slot Black Swan Crash Liquidation & Margin Integrity
+    Verifies that when all 6 portfolio slots simultaneously breach stop-loss (including overnight -16% gap-downs),
+    concurrent liquidation completes without lock contention, zero orphan positions, and zero negative margin.
+    """
+    from core.ai_hedge_fund.broker_client import round_price_to_exchange_tick
+
+    os.environ["LUMINA_TEST_MODE"] = "1"
+    tmp_dir = tempfile.mkdtemp()
+    db_file = os.path.join(tmp_dir, "test_sim_crash.db")
+    engine = PaperTradingEngine(db_path=db_file)
+
+    with engine._get_conn() as conn:
+        conn.execute("UPDATE accounts SET cash_balance = 10000000.0 WHERE currency = 'JPY'")
+        conn.execute("UPDATE accounts SET cash_balance = 50000.0 WHERE currency = 'USD'")
+        conn.commit()
+
+    slots = [
+        ("7203.T", 300, 2500.0),
+        ("8001.T", 200, 7000.0),
+        ("6758.T", 200, 3000.0),
+        ("MSFT",   25,  400.0),
+        ("AAPL",   50,  200.0),
+        ("JPM",    50,  200.0),
+    ]
+    for sym, qty, p in slots:
+        r = engine.place_order(sym, "BUY", qty, p, order_type="MARKET", enforce_market_hours=False, stop_loss_price=p * 0.87, target_price=p * 1.25)
+        assert r["success"] is True
+
+    assert len(engine.get_positions()) == 6
+
+    errors = []
+    results = []
+
+    def _burst_exit(sym, qty, p):
+        try:
+            gap_crash_price = round_price_to_exchange_tick(p * 0.84, is_jp=sym.endswith(".T"))
+            res = engine.place_order(sym, "SELL", qty, gap_crash_price, order_type="MARKET", enforce_market_hours=False, notes="Simultaneous Black Swan Gap Stop")
+            results.append(res)
+        except Exception as e:
+            errors.append(e)
+
+    threads = [threading.Thread(target=_burst_exit, args=s) for s in slots]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert len(errors) == 0, f"Concurrent crash liquidation errors: {errors}"
+    assert sum(1 for r in results if r.get("success")) == 6
+    assert len(engine.get_positions()) == 0, "All 6 slots must be 100% liquidated to cash!"
+    bal = engine.get_account_balance()
+    assert bal["JPY"] > 0 and bal["USD"] > 0, "Cash balances must remain strictly positive!"
+    print("[PASS] 11. Simultaneous 6-Slot Black Swan Crash & Overnight Gap Liquidation verified.")
+
+
+def test_12_tsfm_ood_adversarial_inversion_veto():
+    """
+    12. TSFM (TimesFM/Chronos) Out-of-Distribution (OOD) & Adversarial Hallucination CRO Veto
+    Verifies that if foundation time-series models hallucinate DOUBLE_BULLISH on a structurally broken stock
+    (F-Score < 6, ROE < 12%, Stage 4 below SMA200, or heavy negative OFI), the CRO exercises Absolute Veto.
+    """
+    from core.ai_hedge_fund.agents.risk_manager_agent import RiskManagerAgent
+    from core.ai_hedge_fund.agents.portfolio_manager_agent import PortfolioManagerAgent
+
+    broken_stock = {
+        "symbol": "PTON",
+        "name": "Peloton",
+        "current_price": 8.0,
+        "currency": "USD",
+        "roe": -35.0,
+        "piotroski_f_score": 2,
+        "history_metrics": {"volatility_annualized_pct": 25.0, "sma_200": 15.0, "atr_pct": 4.0},
+    }
+    adversarial_context = {
+        "quantum_forecast": {
+            "consensus_status": "DOUBLE_BULLISH",
+            "ensemble_expected_return_pct": 12.5,
+        },
+        "deep_ofi": {"deep_ofi_score": -55.0},
+    }
+    bullish_analysts = [{"agent_id": "cathie_wood", "name": "Cathie Wood", "stance": "BULLISH", "score": 88, "is_degraded_fallback": False}]
+
+    risk_res = RiskManagerAgent.evaluate_risk(broken_stock, bullish_analysts, context_data=adversarial_context)
+    assert risk_res["veto_triggered"] is True, "CRO must veto adversarial TSFM OOD bullish hallucination!"
+    assert "TSFM" in risk_res["veto_reason"]
+
+    synth = PortfolioManagerAgent.synthesize_verdict(broken_stock, bullish_analysts, risk_res, context_data=adversarial_context)
+    assert synth["verdict"]["action"] == "HOLD"
+    assert synth["verdict"]["allocation_pct"] == 0.0
+    print("[PASS] 12. TSFM Out-of-Distribution (OOD) Adversarial Hallucination CRO Veto verified.")
+
+
+def test_13_tse_premarket_fake_order_book_and_special_quote_quarantine():
+    """
+    13. TSE Pre-Market (08:00-08:59 JST) Fake Order Book & Special Quote (特買・特売) Quarantine
+    Verifies that pre-open crossed books, 08:59 mass cancellations, and special quote freezes are quarantined
+    and automatically purged at the 09:00:00 JST opening bell so zero fake OFI bleeds into Zaraba.
+    """
+    import datetime
+    from core.ai_hedge_fund.deep_ofi_analyzer import DeepOFIAnalyzer
+
+    analyzer = DeepOFIAnalyzer("8035.T", alpha_decay=0.25)
+    jst = datetime.timezone(datetime.timedelta(hours=9))
+
+    # 08:45 JST Pre-open fake crossed walls (Bid 25,500 >= Ask 25,000)
+    ts_0845 = datetime.datetime(2026, 10, 28, 8, 45, 0, tzinfo=jst).timestamp()
+    m_pre1 = analyzer.update(
+        [{"price": 25500.0 - i * 10, "size": 50000} for i in range(10)],
+        [{"price": 25000.0 + i * 10, "size": 1000} for i in range(10)],
+        timestamp=ts_0845,
+    )
+    assert m_pre1["summary_signal"] == "PREMARKET_SPECIAL_QUOTE_QUARANTINED"
+    assert m_pre1.get("is_premarket_quarantined") is True
+
+    # 08:59:30 JST Pre-open mass cancellation
+    ts_0859 = datetime.datetime(2026, 10, 28, 8, 59, 30, tzinfo=jst).timestamp()
+    m_pre2 = analyzer.update(
+        [{"price": 24990.0 - i * 10, "size": 500} for i in range(10)],
+        [{"price": 25000.0 + i * 10, "size": 1000} for i in range(10)],
+        timestamp=ts_0859,
+    )
+    assert m_pre2["summary_signal"] == "PREMARKET_SPECIAL_QUOTE_QUARANTINED"
+
+    # 09:00:05 JST Zaraba Opening Bell -> must start clean with 0.0 OFI (zero pre-open contamination)
+    ts_0900 = datetime.datetime(2026, 10, 28, 9, 0, 5, tzinfo=jst).timestamp()
+    m_open = analyzer.update(
+        [{"price": 24990.0 - i * 10, "size": 1200} for i in range(10)],
+        [{"price": 25000.0 + i * 10, "size": 1200} for i in range(10)],
+        timestamp=ts_0900,
+    )
+    assert m_open["deep_ofi_score"] == 0.0
+    assert m_open["summary_signal"] == "INITIALIZING"
+
+    # 09:05:00 JST Special Sell Quote Freeze (特売)
+    ts_0905 = datetime.datetime(2026, 10, 28, 9, 5, 0, tzinfo=jst).timestamp()
+    m_sq = analyzer.update([], [{"price": 24500.0, "size": 90000}], timestamp=ts_0905, is_special_quote=True)
+    assert m_sq["summary_signal"] == "PREMARKET_SPECIAL_QUOTE_QUARANTINED"
+    print("[PASS] 13. TSE Pre-Market Fake Order Book & Special Quote (特買・特売) Quarantine verified.")
+
+
+def test_14_dead_range_time_barrier_anti_churn_suppression():
+    """
+    14. Ultra-Low Volatility Dead-Range Churn Suppression
+    Verifies that Schmitt Trigger Hysteresis deadzone + Volume-Clock compression
+    suppresses whipsaw churn during oscillating sideways dead-range markets.
+    """
+    FactorOntology._state_memory.clear()
+    # 50 bars of oscillating sideways range values inside [-0.45, +0.72] (never breaking 0.75 bullish outer threshold)
+    range_vals = [0.10 + 0.55 * np.sin(i * 0.5) for i in range(50)]
+    bull_entries = 0
+    for val in range_vals:
+        res = FactorOntology.interpret_value("alpha158_z_score", float(val), symbol="9432.T")
+        if res and res["semantic_signal"] == "BULLISH":
+            bull_entries += 1
+    assert bull_entries == 0, f"Dead-range oscillation must trigger 0 false bullish entries, got {bull_entries}"
+    print("[PASS] 14. Dead-Range Hysteresis Anti-Churn Suppression verified (0 false entries across 50 range bars).")
+
+
 if __name__ == "__main__":
     test_1_ci_factor_ontology_contracts()
     test_2_schmitt_trigger_hysteresis_and_deadzone()
@@ -403,6 +563,12 @@ if __name__ == "__main__":
     test_8_reflexion_exponential_time_decay_aging()
     test_9_llm_api_circuit_breaker_and_degraded_defense_mode()
     test_10_tse_tick_size_and_board_lot_enforcement()
-    print("\n[SUCCESS] ALL 10 INSTITUTIONAL HARDENING TESTS (100/100 AUDIT + PHYSICAL REAL-WORLD DEFENSES) PASSED SUCCESSFULLY!")
+    test_11_simultaneous_multi_slot_crash_liquidation()
+    test_12_tsfm_ood_adversarial_inversion_veto()
+    test_13_tse_premarket_fake_order_book_and_special_quote_quarantine()
+    test_14_dead_range_time_barrier_anti_churn_suppression()
+    print("\n[SUCCESS] ALL 14 INSTITUTIONAL HARDENING & EXTREME SCENARIO TESTS PASSED SUCCESSFULLY!")
+
+
 
 

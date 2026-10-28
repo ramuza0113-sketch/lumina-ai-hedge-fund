@@ -79,6 +79,29 @@ class RiskManagerAgent(BaseInvestmentAgent):
         elif context_data and context_data.get("news_intelligence", {}).get("is_quarantined", False):
             veto_triggered = True
             veto_reason = "Quarantine protocol triggered: suspicious hype or malicious misinformation detected" if is_en else "不審な風説・煽りニュース検知による情報汚染遮断（検疫プロトコル発動）"
+        else:
+            # 🛡️ TSFM Out-of-Distribution (OOD) / Adversarial Divergence Veto Guard
+            qf = (context_data or {}).get("quantum_forecast", {})
+            tsfm_ret = float(qf.get("ensemble_expected_return_pct", 0.0) or 0.0)
+            tsfm_status = str(qf.get("consensus_status", "NEUTRAL"))
+            f_score_val = stock_data.get("piotroski_f_score")
+            roe_val = stock_data.get("roe")
+            sma200_val = hist_metrics.get("sma_200")
+            ofi_score = float((context_data or {}).get("deep_ofi", {}).get("deep_ofi_score", 0.0) or 0.0)
+
+            det_broken = (
+                (f_score_val is not None and f_score_val < 6)
+                or (roe_val is not None and roe_val < 12.0)
+                or (sma200_val and price > 0 and price < float(sma200_val) * 0.98)
+                or (ofi_score <= -45.0)
+            )
+            if (tsfm_status == "DOUBLE_BULLISH" or tsfm_ret >= 3.0) and det_broken:
+                veto_triggered = True
+                veto_reason = (
+                    "TSFM Out-of-Distribution (OOD) bullish hallucination contradicted by deterministic physical barriers (F-Score/ROE/Stage2/OFI)"
+                    if is_en else
+                    "TSFM時系列AIの分布外(OOD)強気誤予測を検知（確定数理防壁 F-Score/ROE/Stage2/深層OFI との矛盾により強制遮断）"
+                )
 
         if veto_triggered:
             alloc = 0.0

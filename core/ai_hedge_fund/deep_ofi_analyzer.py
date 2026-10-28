@@ -52,16 +52,26 @@ class DeepOFIAnalyzer:
         self.last_bvwp: float = 0.0
         self.last_avwp: float = 0.0
 
+    @staticmethod
+    def _is_jst_premarket(ts: float) -> bool:
+        """Returns True if timestamp falls in TSE pre-open window (08:00:00 - 08:59:59 JST)."""
+        import datetime
+        jst = datetime.timezone(datetime.timedelta(hours=9))
+        dt_jst = datetime.datetime.fromtimestamp(ts, tz=jst)
+        return dt_jst.hour == 8
+
     def update(
         self,
         bids: List[Dict[str, Any]],
         asks: List[Dict[str, Any]],
         timestamp: Optional[float] = None,
-        trades: Optional[List[Dict[str, Any]]] = None
+        trades: Optional[List[Dict[str, Any]]] = None,
+        is_special_quote: bool = False
     ) -> Dict[str, Any]:
         """
         Ingests a new order book snapshot (up to 10 rows of bids/asks).
         Returns comprehensive microstructure & OFI analysis metrics.
+        Includes TSE Pre-Market (08:00-08:59 JST) Fake Order Book & Special Quote (特買・特売) Quarantine Guard.
         """
         ts = timestamp if timestamp is not None else time.time()
         
@@ -80,6 +90,32 @@ class DeepOFIAnalyzer:
 
         trade_list = trades or []
         snapshot = OrderBookSnapshot(timestamp=ts, bids=clean_bids, asks=clean_asks, trades=trade_list)
+
+        # 🛡️ TSE Pre-Market (08:00-08:59 JST) & Special Quote (特別気配: 特買・特売 / Crossed Book) Quarantine Guard
+        is_crossed_book = bool(clean_bids and clean_asks and clean_bids[0].price >= clean_asks[0].price)
+        is_one_sided_freeze = bool((not clean_bids or not clean_asks) and len(trade_list) == 0)
+        is_tse_preopen = self.symbol.endswith(".T") and self._is_jst_premarket(ts)
+
+        if is_special_quote or is_crossed_book or is_one_sided_freeze or is_tse_preopen:
+            # Flush history & EMA so pre-open fake walls / special quotes never contaminate 09:00 Zaraba open
+            self.history.clear()
+            self.ema_ofi = 0.0
+            self.last_bvwp = 0.0
+            self.last_avwp = 0.0
+            q_metrics = self._default_metrics(snapshot)
+            q_metrics["summary_signal"] = "PREMARKET_SPECIAL_QUOTE_QUARANTINED"
+            q_metrics["confidence_boost"] = -50
+            q_metrics["is_premarket_quarantined"] = True
+            return q_metrics
+
+        # If transitioning across TSE 09:00 JST opening bell, purge any stale pre-market snapshots
+        if self.symbol.endswith(".T") and len(self.history) > 0:
+            if self._is_jst_premarket(self.history[-1].timestamp) and not self._is_jst_premarket(ts):
+                self.history.clear()
+                self.ema_ofi = 0.0
+                self.last_bvwp = 0.0
+                self.last_avwp = 0.0
+
         self.history.append(snapshot)
         for tr in trade_list:
             self.cum_trades.append(tr)
