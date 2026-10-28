@@ -28,9 +28,39 @@ class AutoTrader:
     """
 
     _examined_cooldowns: Dict[str, float] = {}
+    _time_barrier_cooldowns: Dict[str, float] = {}  # 14-day (1,209,600s) anti-churn lock after TIME_BARRIER_ROTATION / STOP_LOSS
+    TIME_BARRIER_COOLDOWN_SEC: float = 14.0 * 86400.0
     _prices_cache: Dict[str, Tuple[float, pd.Series]] = {}
     PRICES_CACHE_TTL: float = 1800.0  # 30-min price history cache
     _swing_ofi_gate_retries: Dict[str, int] = {}
+
+    @classmethod
+    def hydrate_cooldowns_from_db(cls, broker_engine: PaperTradingEngine) -> int:
+        """
+        Rehydrate 14-day anti-churn cooldowns (`_time_barrier_cooldowns`) from SQLite `trade_memories`
+        upon process startup or crash recovery (`kill -9` / `systemctl restart`), ensuring zero state loss.
+        """
+        restored = 0
+        now_ts = time.time()
+        try:
+            memories = broker_engine.get_trade_memories(limit=100)
+            for m in memories:
+                rule = str(m.get("trigger_rule") or "")
+                sym = str(m.get("symbol") or "")
+                created_str = str(m.get("created_at") or "")
+                if sym and rule in ("TIME_BARRIER_ROTATION", "FIBONACCI_STOP_LOSS", "DAY_CIS_STOP") and created_str:
+                    try:
+                        dt = datetime.datetime.strptime(created_str[:19], "%Y-%m-%d %H:%M:%S")
+                        exit_ts = dt.timestamp()
+                        if (now_ts - exit_ts) < cls.TIME_BARRIER_COOLDOWN_SEC:
+                            if sym not in cls._time_barrier_cooldowns or exit_ts > cls._time_barrier_cooldowns[sym]:
+                                cls._time_barrier_cooldowns[sym] = exit_ts
+                                restored += 1
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        return restored
 
     @classmethod
     def evaluate_swing_ofi_execution_gate(
@@ -459,6 +489,29 @@ class AutoTrader:
             target_price = float(pos.get("target_price") or (entry_price * 1.25))
             stop_loss_price = float(pos.get("stop_loss_price") or (entry_price * 0.87))
 
+            # 🛡️ Corporate Action (Stock Split / Reverse Split) Auto-Scaling Guard:
+            # If price diverges sharply (>= -35% drop or >= +80% jump) and a recent split ratio exists
+            # whose scaled entry price aligns within 25% of cur_price, atomically rescale position in SQLite!
+            if entry_price > 0 and (pnl_pct <= -35.0 or pnl_pct >= 80.0):
+                split_ratio = MarketDataFeed.get_recent_stock_split_ratio(sym, days_window=14)
+                if split_ratio > 0.0 and abs(split_ratio - 1.0) > 1e-4:
+                    theoretical_post_split_entry = entry_price / split_ratio
+                    if abs(cur_price - theoretical_post_split_entry) / max(theoretical_post_split_entry, 1e-6) < 0.25:
+                        adj = broker_engine.apply_stock_split_adjustment(sym, split_ratio, expected_version=pos_ver)
+                        if adj:
+                            qty = adj["new_quantity"]
+                            entry_price = adj["new_entry_price"]
+                            peak_price = max(adj["new_peak_price"], cur_price)
+                            stop_loss_price = adj["new_stop_loss_price"]
+                            target_price = adj["new_target_price"]
+                            pnl_pct = ((cur_price - entry_price) / entry_price * 100.0) if entry_price > 0 else 0.0
+                            pos_ver += 1
+                            logs.append(
+                                f"[{now_str}] 🔄 【株式分割・併合 自動スケーリング補正】{name} ({sym}) のコーポレートアクション（分割比率 1:{split_ratio:g}）を検知！"
+                                f"保有株数を {adj['old_quantity']}株 → {qty}株、取得単価を {adj['old_entry_price']:,.2f} → {entry_price:,.2f} {curr}、"
+                                f"逆指値を {stop_loss_price:,.2f} {curr} に自動スケーリング補正し、誤損切りを完全防止しました。"
+                            )
+
             # Update peak price in DB if new high is printed (with CAS)
             if cur_price > float(pos.get("peak_price") or 0.0):
                 if broker_engine.update_position_tracking(sym, peak_price=cur_price, expected_version=pos_ver):
@@ -575,6 +628,17 @@ class AutoTrader:
                         logs.append(f"[{now_str}] 🎯 【第1弾・ハーフ利確執行】{name} ({sym}) の半分 ({sell_qty}株) を利益確定ロック (+{pnl_pct:.1f}%)！残り {qty - sell_qty}株 は買値ストップでノーリスク大化け追従へ。")
                         closed_orders.append(res)
                         continue
+            elif pnl_pct >= 10.0 and half_taken == 0 and not can_split:
+                # 100-share TSE minimum board lot (or 1-share US lot) cannot be split into odd-lot 50 shares:
+                # Activate synthetic Breakeven Stop & Trailing Stop protection immediately without odd-lot rejection!
+                if broker_engine.update_position_tracking(sym, peak_price=cur_price, half_profit_taken=1, stop_loss_price=entry_price, expected_version=pos_ver):
+                    pos_ver += 1
+                    half_taken = 1
+                    stop_loss_price = entry_price
+                    logs.append(
+                        f"[{now_str}] 🛡️ 【単元株+10%建値ロック発動】{name} ({sym}) は最小単元（{qty}株）のため端株分割を行わず、"
+                        f"逆指値を建値（{entry_price:,.1f} {curr}）へ引き上げてノーリスク・トレイリング追従モードへ移行しました (+{pnl_pct:.1f}%)！"
+                    )
 
             # --- Rule B2: Options Call Wall Half-Take-Profit & Squeeze Free-Ride (US Stocks) ---
             # If stock approaches Call Wall (-1.0% to +0.0%), lock in 50% profit early and ride Gamma Squeeze with free-ride stop!
@@ -610,8 +674,9 @@ class AutoTrader:
                             continue
 
             # --- Rule C: Trailing Stop Trigger (Peak-out after substantial gain) ---
-            # If stock gained >= 10% and drops -4% from peak -> sell remaining to lock peak profit!
-            if pnl_pct >= 10.0 and drawdown_from_peak_pct <= -4.0:
+            # If stock gained >= 10% (either currently or at peak) and drops -4% from peak -> sell remaining to lock peak profit!
+            peak_pnl_pct = ((peak_price - entry_price) / entry_price * 100.0) if entry_price > 0 else 0.0
+            if (pnl_pct >= 10.0 or peak_pnl_pct >= 10.0) and drawdown_from_peak_pct <= -4.0:
                 res = broker_engine.place_order(sym, "SELL", qty, cur_price, notes=f"トレイリングストップ発動 (高値 {peak_price:,.2f} から {drawdown_from_peak_pct:.1f}%)", enforce_market_hours=enforce_market_hours, signal_timestamp=patrol_sig_ts, expected_version=pos_ver)
                 if res.get("cas_conflict"):
                     logs.append(f"[{now_str}] 🛡️ {res.get('error')}")

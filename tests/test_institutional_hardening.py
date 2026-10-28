@@ -552,6 +552,206 @@ def test_14_dead_range_time_barrier_anti_churn_suppression():
     print("[PASS] 14. Dead-Range Hysteresis Anti-Churn Suppression verified (0 false entries across 50 range bars).")
 
 
+def test_15_orphaned_order_idempotency_and_timeout_recovery():
+    """
+    15. IBKR Network Timeout / Orphaned Order Double-Execution Guard
+    Verifies that if a socket timeout occurs mid-flight and the caller retries the same order signal,
+    OrderIdempotencyGuard blocks duplicate execution (Exactly-Once semantics).
+    """
+    import time
+    os.environ["LUMINA_TEST_MODE"] = "1"
+    tmp_dir = tempfile.mkdtemp()
+    db_file = os.path.join(tmp_dir, "test_idemp.db")
+    engine = PaperTradingEngine(db_path=db_file)
+
+    sig_ts = time.time()
+    # First order succeeds
+    r1 = engine.place_order("7203.T", "BUY", 100, 2500.0, order_type="MARKET", enforce_market_hours=False, signal_timestamp=sig_ts)
+    assert r1["success"] is True, f"First order failed: {r1}"
+
+    # Immediate retry after simulated socket ACK timeout with same symbol/side/qty within 120s window
+    r2 = engine.place_order("7203.T", "BUY", 100, 2500.0, order_type="MARKET", enforce_market_hours=False, signal_timestamp=sig_ts)
+    assert r2["success"] is False
+    assert r2.get("idempotency_blocked") is True, "Duplicate retry after socket timeout must be blocked by IdempotencyGuard!"
+    pos = engine.get_positions()
+    assert len(pos) == 1 and pos[0]["quantity"] == 100, "Position quantity must remain 100 (no double fill)!"
+    print("[PASS] 15. Orphaned Order & Socket Timeout Idempotency Guard (Zero Double Execution) verified.")
+
+
+def test_16_corporate_action_stock_split_auto_scaling():
+    """
+    16. Corporate Action (1-for-5 Stock Split) Auto-Scaling & False Stop-Loss Prevention
+    Verifies that when a held stock undergoes a 5-for-1 split (price drops to 1/5), AutoTrader.patrol_positions
+    automatically scales quantity x5 and price anchors /5 instead of misfiring Rule E (-13% Stop-Loss).
+    """
+    import time
+    from core.ai_hedge_fund.auto_trader import AutoTrader
+    from core.ai_hedge_fund.market_data_feed import MarketDataFeed
+
+    os.environ["LUMINA_TEST_MODE"] = "1"
+    tmp_dir = tempfile.mkdtemp()
+    db_file = os.path.join(tmp_dir, "test_split.db")
+    engine = PaperTradingEngine(db_path=db_file)
+    with engine._get_conn() as conn:
+        conn.execute("UPDATE accounts SET cash_balance = 5000000.0 WHERE currency = 'JPY'")
+        conn.commit()
+
+    # Buy 100 shares of 7011.T at pre-split price ¥10,000 (stop_loss = ¥8,700)
+    r = engine.place_order("7011.T", "BUY", 100, 10000.0, order_type="MARKET", enforce_market_hours=False, stop_loss_price=8700.0, target_price=12500.0)
+    assert r["success"] is True
+
+    # Simulate 5-for-1 stock split overnight: live quote is now ¥2,050 (+2.5% post-split, but -79.5% vs unadjusted ¥10,000)
+    now_ts = time.time()
+    MarketDataFeed._split_cache["7011.T"] = (now_ts, 5.0)
+    MarketDataFeed._quote_cache["7011.T"] = {
+        "cached_at": now_ts,
+        "data": {
+            "symbol": "7011.T",
+            "current_price": 2050.0,
+            "previous_close": 2000.0,
+            "change": 50.0,
+            "change_pct": 2.5,
+            "currency": "JPY",
+            "timestamp": now_ts,
+        },
+    }
+
+    patrol_res = AutoTrader.patrol_positions(engine, enforce_market_hours=False)
+    assert len(patrol_res["closed_orders"]) == 0, "Stock split must NOT trigger a false stop-loss exit!"
+
+    pos_list = engine.get_positions()
+    assert len(pos_list) == 1
+    p = pos_list[0]
+    assert p["quantity"] == 500, f"Expected 500 shares after 5-for-1 split, got {p['quantity']}"
+    assert abs(float(p["avg_entry_price"]) - 2000.0) < 1e-2, f"Expected entry price 2000.0, got {p['avg_entry_price']}"
+    assert abs(float(p["stop_loss_price"]) - 1740.0) < 1e-2, f"Expected stop loss 1740.0, got {p['stop_loss_price']}"
+
+    MarketDataFeed._split_cache.pop("7011.T", None)
+    MarketDataFeed._quote_cache.pop("7011.T", None)
+    print("[PASS] 16. Corporate Action (5-for-1 Stock Split) Auto-Scaling & False Stop Prevention verified.")
+
+
+def test_17_partial_fill_weighted_avg_and_100share_breakeven_trailing():
+    """
+    17. Partial Fill Weighted-Average Pricing & 100-Share TSE Minimum Lot Breakeven/Trailing Transition
+    Verifies:
+      (a) Partial fills (200 shares @ 2000 + 300 shares @ 2050) compute exact weighted average 2030.0.
+      (b) A 100-share TSE position hitting +12% does not throw a 50-share odd-lot error, locks breakeven stop,
+          and triggers Rule C trailing stop when pulling back -4.5% from peak (even if current PnL < +10%).
+    """
+    import time
+    from core.ai_hedge_fund.auto_trader import AutoTrader
+    from core.ai_hedge_fund.market_data_feed import MarketDataFeed
+
+    os.environ["LUMINA_TEST_MODE"] = "1"
+    tmp_dir = tempfile.mkdtemp()
+    db_file = os.path.join(tmp_dir, "test_partial_odd.db")
+    engine = PaperTradingEngine(db_path=db_file)
+    with engine._get_conn() as conn:
+        conn.execute("UPDATE accounts SET cash_balance = 10000000.0 WHERE currency = 'JPY'")
+        conn.commit()
+
+    # (a) Partial fills: 200 shares @ 2000, then 300 shares @ 2050 (different signal_timestamp for second fill leg)
+    r_leg1 = engine.place_order("8001.T", "BUY", 200, 2000.0, order_type="LIMIT", enforce_market_hours=False)
+    assert r_leg1["success"] is True
+    # Clear idempotency lock to simulate second partial fill arrival on same order
+    with engine._get_conn() as conn:
+        conn.execute("DELETE FROM order_idempotency")
+        conn.commit()
+    r_leg2 = engine.place_order("8001.T", "BUY", 300, 2050.0, order_type="LIMIT", enforce_market_hours=False)
+    assert r_leg2["success"] is True
+
+    pos_8001 = [p for p in engine.get_positions() if p["symbol"] == "8001.T"][0]
+    assert pos_8001["quantity"] == 500
+    assert abs(float(pos_8001["avg_entry_price"]) - 2030.0) < 1e-4, f"Expected weighted avg 2030.0, got {pos_8001['avg_entry_price']}"
+
+    # (b) 100-share TSE minimum lot on 8035.T @ ¥3,000
+    r_100 = engine.place_order("8035.T", "BUY", 100, 3000.0, order_type="MARKET", enforce_market_hours=False, stop_loss_price=2610.0, target_price=3750.0)
+    assert r_100["success"] is True
+
+    # Price rises +12% to ¥3,360 -> 100 shares cannot split into 50, must lock half_profit_taken=1 & stop_loss=3000.0
+    now_ts = time.time()
+    MarketDataFeed._quote_cache["8035.T"] = {
+        "cached_at": now_ts,
+        "data": {"symbol": "8035.T", "current_price": 3360.0, "previous_close": 3000.0, "change": 360.0, "change_pct": 12.0, "currency": "JPY", "timestamp": now_ts},
+    }
+    MarketDataFeed._quote_cache["8001.T"] = {
+        "cached_at": now_ts,
+        "data": {"symbol": "8001.T", "current_price": 2030.0, "previous_close": 2030.0, "change": 0.0, "change_pct": 0.0, "currency": "JPY", "timestamp": now_ts},
+    }
+
+    patrol_1 = AutoTrader.patrol_positions(engine, enforce_market_hours=False)
+    assert len(patrol_1["closed_orders"]) == 0, "100-share position must not sell 50 odd-lot shares!"
+    pos_8035 = [p for p in engine.get_positions() if p["symbol"] == "8035.T"][0]
+    assert int(pos_8035["half_profit_taken"]) == 1, "100-share position at +12% must lock half_profit_taken=1!"
+    assert float(pos_8035["stop_loss_price"]) == 3000.0, "100-share position at +12% must raise stop_loss_price to entry 3000.0!"
+
+    # Next cycle: price pulls back -4.5% from peak 3360 to 3205 (+6.83% vs entry 3000) -> Rule C Trailing Stop must fire!
+    with engine._get_conn() as conn:
+        conn.execute("DELETE FROM order_idempotency")
+        conn.commit()
+    MarketDataFeed._quote_cache["8035.T"]["data"]["current_price"] = 3205.0
+    patrol_2 = AutoTrader.patrol_positions(engine, enforce_market_hours=False)
+    assert len(patrol_2["closed_orders"]) == 1, "Rule C Trailing Stop must fire when dropping -4.5% from +12% peak!"
+    assert patrol_2["closed_orders"][0]["symbol"] == "8035.T"
+    MarketDataFeed._quote_cache.pop("8035.T", None)
+    MarketDataFeed._quote_cache.pop("8001.T", None)
+    print("[PASS] 17. Partial Fill Weighted-Average & 100-Share TSE Breakeven/Trailing Transition verified.")
+
+
+def test_18_sigkill_crash_recovery_and_cooldown_hydration():
+    """
+    18. Process Crash (`kill -9` / SIGKILL) & SQLite Cooldown State Hydration
+    Verifies that after an abrupt process kill wipes all in-memory dicts, `hydrate_cooldowns_from_db`
+    restores 14-day Time-Barrier and Stop-Loss anti-churn cooldowns directly from SQLite `trade_memories`.
+    """
+    import time
+    from core.ai_hedge_fund.auto_trader import AutoTrader
+
+    tmp_dir = tempfile.mkdtemp()
+    db_file = os.path.join(tmp_dir, "test_sigkill.db")
+    engine = PaperTradingEngine(db_path=db_file)
+
+    # Record a TIME_BARRIER_ROTATION exit and a FIBONACCI_STOP_LOSS exit in SQLite trade_memories
+    engine.record_trade_memory(
+        symbol="4911.T",
+        company_name="Shiseido",
+        trade_type="SELL_EXIT",
+        quantity=100,
+        price=2500.0,
+        currency="JPY",
+        realized_pnl=1500.0,
+        realized_pnl_pct=0.6,
+        trigger_rule="TIME_BARRIER_ROTATION",
+        lesson_learned="35d time barrier exit",
+    )
+    engine.record_trade_memory(
+        symbol="7201.T",
+        company_name="Nissan",
+        trade_type="SELL_EXIT",
+        quantity=100,
+        price=400.0,
+        currency="JPY",
+        realized_pnl=-5200.0,
+        realized_pnl_pct=-13.0,
+        trigger_rule="FIBONACCI_STOP_LOSS",
+        lesson_learned="-13% stop loss exit",
+    )
+
+    # Simulate `kill -9` wiping all in-memory state
+    AutoTrader._time_barrier_cooldowns.clear()
+    assert len(AutoTrader._time_barrier_cooldowns) == 0
+
+    # Rehydrate from SQLite on restart
+    restored_count = AutoTrader.hydrate_cooldowns_from_db(engine)
+    assert restored_count == 2, f"Expected 2 cooldowns restored from SQLite, got {restored_count}"
+    now_ts = time.time()
+    assert (now_ts - AutoTrader._time_barrier_cooldowns["4911.T"]) < AutoTrader.TIME_BARRIER_COOLDOWN_SEC
+    assert (now_ts - AutoTrader._time_barrier_cooldowns["7201.T"]) < AutoTrader.TIME_BARRIER_COOLDOWN_SEC
+    AutoTrader._time_barrier_cooldowns.clear()
+    print("[PASS] 18. SIGKILL Process Crash Recovery & SQLite 14-Day Cooldown Hydration verified.")
+
+
 if __name__ == "__main__":
     test_1_ci_factor_ontology_contracts()
     test_2_schmitt_trigger_hysteresis_and_deadzone()
@@ -567,7 +767,11 @@ if __name__ == "__main__":
     test_12_tsfm_ood_adversarial_inversion_veto()
     test_13_tse_premarket_fake_order_book_and_special_quote_quarantine()
     test_14_dead_range_time_barrier_anti_churn_suppression()
-    print("\n[SUCCESS] ALL 14 INSTITUTIONAL HARDENING & EXTREME SCENARIO TESTS PASSED SUCCESSFULLY!")
+    test_15_orphaned_order_idempotency_and_timeout_recovery()
+    test_16_corporate_action_stock_split_auto_scaling()
+    test_17_partial_fill_weighted_avg_and_100share_breakeven_trailing()
+    test_18_sigkill_crash_recovery_and_cooldown_hydration()
+    print("\n[SUCCESS] ALL 18 INSTITUTIONAL HARDENING, EXTREME SCENARIO & CHAOS ENGINEERING TESTS PASSED SUCCESSFULLY!")
 
 
 

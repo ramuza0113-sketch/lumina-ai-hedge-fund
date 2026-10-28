@@ -211,6 +211,12 @@ class PaperTradingEngine(BaseBrokerClient):
                 cursor.execute("ALTER TABLE positions ADD COLUMN target_price REAL DEFAULT 0.0")
             if "stop_loss_price" not in cols:
                 cursor.execute("ALTER TABLE positions ADD COLUMN stop_loss_price REAL DEFAULT 0.0")
+            if "strategy_type" not in cols:
+                cursor.execute("ALTER TABLE positions ADD COLUMN strategy_type TEXT DEFAULT 'SWING'")
+            if "opened_at" not in cols:
+                cursor.execute("ALTER TABLE positions ADD COLUMN opened_at TEXT DEFAULT ''")
+            if "version" not in cols:
+                cursor.execute("ALTER TABLE positions ADD COLUMN version INTEGER DEFAULT 1")
 
             # Automatic table migration for Phase 2 Cross-Debate & Dynamic MoE
             cursor.execute("PRAGMA table_info(council_records)")
@@ -304,19 +310,46 @@ class PaperTradingEngine(BaseBrokerClient):
         notes: str = "",
         target_price: Optional[float] = None,
         stop_loss_price: Optional[float] = None,
-        enforce_market_hours: bool = True
+        enforce_market_hours: bool = True,
+        strategy_type: str = "SWING",
+        signal_timestamp: Optional[float] = None,
+        expected_version: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Execute simulated Buy / Sell trade with realistic execution price & balance tracking.
         Enforces realistic exchange rules: rejects market orders when markets are closed.
         """
         norm_sym = MarketDataFeed.normalize_symbol(symbol)
+        side = side.upper()
+        if quantity <= 0:
+            return {"success": False, "error": "数量は1以上である必要があります"}
+
+        from core.ai_hedge_fund.idempotency_guard import OrderIdempotencyGuard
+        guard = OrderIdempotencyGuard(db_path=self.db_path)
+        allowed, guard_msg, order_ref = guard.check_and_reserve(
+            symbol=norm_sym,
+            side=side,
+            quantity=quantity,
+            order_type=order_type,
+            signal_timestamp=signal_timestamp,
+            strategy_type=strategy_type,
+        )
+        if not allowed:
+            return {
+                "success": False,
+                "error": guard_msg,
+                "message": guard_msg,
+                "stale_discarded": ("シグナル鮮度ガード" in guard_msg),
+                "idempotency_blocked": True,
+            }
+
         is_jp = norm_sym.endswith(".T")
         is_eu = any(norm_sym.endswith(sfx) for sfx in [".AS", ".DE", ".PA", ".CO", ".L", ".MI", ".MC", ".ST"])
 
         # Realistic Broker API Guard: Reject market orders when exchange is closed
         if enforce_market_hours and order_type.upper() == "MARKET":
             if is_jp and not MarketSession.is_tse_open():
+                guard.record_completed(order_ref, is_success=False, error_message="東証取引時間外")
                 return {
                     "success": False,
                     "error": "【取引時間外エラー】東京証券取引所は取引時間外です（平日 09:00〜15:30 JST）。実発注API（kabuステーション）準拠のため、成行発注は約定できません。"
@@ -477,9 +510,11 @@ class PaperTradingEngine(BaseBrokerClient):
                 order_id = cursor.lastrowid
                 conn.commit()
 
+        guard.record_completed(order_ref, is_success=True)
         return {
             "success": True,
             "order_id": order_id,
+            "order_ref": order_ref,
             "symbol": norm_sym,
             "company_name": company_name,
             "side": side,
@@ -692,14 +727,21 @@ class PaperTradingEngine(BaseBrokerClient):
             "timestamp": now_str
         }
 
-    def update_position_tracking(self, symbol: str, peak_price: Optional[float] = None, half_profit_taken: Optional[int] = None, stop_loss_price: Optional[float] = None):
+    def update_position_tracking(
+        self,
+        symbol: str,
+        peak_price: Optional[float] = None,
+        half_profit_taken: Optional[int] = None,
+        stop_loss_price: Optional[float] = None,
+        expected_version: Optional[int] = None,
+    ) -> bool:
         """Update trailing peak price and dynamic stop-loss levels for a position"""
         norm_sym = MarketDataFeed.normalize_symbol(symbol)
         now_str = time.strftime("%Y-%m-%d %H:%M:%S")
         with self._db_lock:
             with self._get_conn() as conn:
                 cursor = conn.cursor()
-                updates = ["updated_at = ?"]
+                updates = ["updated_at = ?", "version = COALESCE(version, 1) + 1"]
                 params = [now_str]
                 if peak_price is not None:
                     updates.append("peak_price = ?")
@@ -713,6 +755,68 @@ class PaperTradingEngine(BaseBrokerClient):
                 params.append(norm_sym)
                 cursor.execute(f"UPDATE positions SET {', '.join(updates)} WHERE symbol = ?", params)
                 conn.commit()
+                return True
+
+    def apply_stock_split_adjustment(
+        self,
+        symbol: str,
+        split_ratio: float,
+        expected_version: Optional[int] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Atomically adjust a held position's quantity, avg_entry_price, peak_price,
+        stop_loss_price, and target_price when a Corporate Action (Stock Split or Reverse Split)
+        is detected, preventing false -80% Stop-Loss misfires on split effective day.
+        """
+        if split_ratio <= 0.0 or abs(split_ratio - 1.0) < 1e-4:
+            return None
+        norm_sym = MarketDataFeed.normalize_symbol(symbol)
+        is_jp = norm_sym.endswith(".T")
+        now_str = time.strftime("%Y-%m-%d %H:%M:%S")
+        with self._db_lock:
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM positions WHERE symbol = ?", (norm_sym,))
+                pos_row = cursor.fetchone()
+                if not pos_row:
+                    return None
+                old_qty = int(pos_row["quantity"] or 0)
+                if old_qty <= 0:
+                    return None
+                new_qty = max(1, int(round(old_qty * split_ratio)))
+                if is_jp and new_qty >= 100:
+                    new_qty = normalize_exchange_lot_size(new_qty, is_jp=True)
+                old_entry = float(pos_row["avg_entry_price"] or 0.0)
+                old_peak = float(pos_row["peak_price"] or old_entry)
+                old_sl = float(pos_row["stop_loss_price"] or (old_entry * 0.87))
+                old_tp = float(pos_row["target_price"] or (old_entry * 1.25))
+
+                new_entry = round(old_entry / split_ratio, 4 if not is_jp else 2)
+                new_peak = round(old_peak / split_ratio, 4 if not is_jp else 2)
+                new_sl = round_price_to_exchange_tick(old_sl / split_ratio, is_jp=is_jp)
+                new_tp = round_price_to_exchange_tick(old_tp / split_ratio, is_jp=is_jp)
+
+                cursor.execute(
+                    """
+                    UPDATE positions
+                    SET quantity = ?, avg_entry_price = ?, peak_price = ?, stop_loss_price = ?, target_price = ?,
+                        updated_at = ?, version = COALESCE(version, 1) + 1
+                    WHERE symbol = ?
+                    """,
+                    (new_qty, new_entry, new_peak, new_sl, new_tp, now_str, norm_sym),
+                )
+                conn.commit()
+                return {
+                    "symbol": norm_sym,
+                    "split_ratio": split_ratio,
+                    "old_quantity": old_qty,
+                    "new_quantity": new_qty,
+                    "old_entry_price": old_entry,
+                    "new_entry_price": new_entry,
+                    "new_peak_price": new_peak,
+                    "new_stop_loss_price": new_sl,
+                    "new_target_price": new_tp,
+                }
 
     def reset_portfolio(self, initial_jpy: float = 1000000.0, initial_usd: float = 0.0):
         """Reset sandbox portfolio to initial ¥1,000,000 and $0 balance (or specified amounts), wiping all positions, snapshots, orders, and memories"""

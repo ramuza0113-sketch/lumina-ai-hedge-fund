@@ -21,6 +21,8 @@ class MarketDataFeed:
     HISTORY_CACHE_TTL = 900  # 15 minutes cache for sparklines
     _dividend_cache: Dict[str, Any] = {}
     DIVIDEND_CACHE_TTL = 21600.0  # 6 hours cache for ex-dividend checks
+    _split_cache: Dict[str, Any] = {}
+    SPLIT_CACHE_TTL = 21600.0  # 6 hours cache for stock split / reverse split checks
 
     @classmethod
     def get_historical_closes(cls, symbol: str, period: str = "1mo") -> list:
@@ -199,6 +201,36 @@ class MarketDataFeed:
 
         cls._dividend_cache[norm_sym] = (now, 0.0)
         return 0.0
+
+    @classmethod
+    def get_recent_stock_split_ratio(cls, symbol: str, days_window: int = 14) -> float:
+        """
+        Check if the stock has undergone a stock split or reverse split within `days_window` days.
+        Returns the split ratio (e.g. 5.0 for a 5-for-1 split, 0.1 for a 1-for-10 reverse split, or 1.0 if none).
+        """
+        norm_sym = cls.normalize_symbol(symbol)
+        now = time.time()
+        if norm_sym in cls._split_cache:
+            c_time, c_val = cls._split_cache[norm_sym]
+            if now - c_time < cls.SPLIT_CACHE_TTL:
+                return float(c_val)
+
+        try:
+            ticker = yf.Ticker(norm_sym)
+            splits = ticker.splits
+            if splits is not None and not splits.empty:
+                cutoff = pd.Timestamp.now(tz=splits.index.tz) - pd.Timedelta(days=days_window)
+                recent_splits = splits[splits.index >= cutoff]
+                if not recent_splits.empty:
+                    ratio = float(recent_splits.iloc[-1])
+                    if ratio > 0.0 and abs(ratio - 1.0) > 1e-4:
+                        cls._split_cache[norm_sym] = (now, ratio)
+                        return ratio
+        except Exception:
+            pass
+
+        cls._split_cache[norm_sym] = (now, 1.0)
+        return 1.0
 
     @classmethod
     def get_realtime_quote(cls, symbol: str, force_refresh: bool = False) -> Dict[str, Any]:
