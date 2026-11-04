@@ -8,6 +8,8 @@
 🏆 **Officially Featured in [awesome-quant](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting) & [Awesome_AI4Finance](https://github.com/AI4Finance-Foundation/Awesome_AI4Finance)**
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23935930.svg)](https://doi.org/10.5281/zenodo.23935930)
+[![ORCID](https://img.shields.io/badge/ORCID-0009--0009--8292--5085-A6CE39.svg?logo=orcid&logoColor=white)](https://orcid.org/0009-0009-8292-5085)
+[![Google Scholar](https://img.shields.io/badge/Google%20Scholar-Katsutoshi%20Hashimoto-4285F4.svg?logo=google-scholar&logoColor=white)](https://scholar.google.com/citations?user=yhTWOKIAAAAJ)
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-blue.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
 [![Featured in awesome-quant](https://awesome.re/mentioned-badge.svg)](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting)
 [![CI](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/actions/workflows/ci.yml/badge.svg)](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/actions/workflows/ci.yml)
@@ -248,7 +250,7 @@ This project is built upon and inspired by the incredible open-source research a
 
 ## 📄 Academic Citation (CERN Zenodo DOI)
 
-If you use **Lumina Capital**, its **Schmitt-Trigger Factor Ontology**, **Scroll-Out Resistant Deep OFI (Theorem 1)**, or **Slippage-Proof Pyramiding Bound (Theorem 2)** in your research, please cite the official working paper ([**Download PDF**](docs/whitepaper/Hashimoto_2026_Lumina_Quantitative_Microstructure_Whitepaper.pdf) | [**CERN Zenodo Record**](https://doi.org/10.5281/zenodo.23935930)):
+If you use **Lumina Capital**, its **Schmitt-Trigger Factor Ontology**, **Scroll-Out Resistant Deep OFI (Theorem 1)**, or **Slippage-Proof Pyramiding Bound (Theorem 2)** in your research, please cite the official working paper ([**Download PDF**](docs/whitepaper/Hashimoto_2026_Lumina_Quantitative_Microstructure_Whitepaper.pdf) | [**CERN Zenodo Record**](https://doi.org/10.5281/zenodo.23935930) | [**Google Scholar**](https://scholar.google.com/citations?user=yhTWOKIAAAAJ) | [**ORCID**](https://orcid.org/0009-0009-8292-5085)):
 
 > **Hashimoto, K. (2026).** *Eliminating Polarity Hallucinations and Order Book Horizon Truncation Bias in Autonomous Multi-Agent Quantitative Systems: Schmitt-Trigger Factor Ontologies, Scroll-Out Resistant Deep OFI, and Slippage-Proof Pyramiding.* Zenodo (CERN). https://doi.org/10.5281/zenodo.23935930
 
