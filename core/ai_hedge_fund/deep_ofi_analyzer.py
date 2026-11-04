@@ -60,6 +60,22 @@ class DeepOFIAnalyzer:
         dt_jst = datetime.datetime.fromtimestamp(ts, tz=jst)
         return dt_jst.hour == 8
 
+    @staticmethod
+    def _safe_pos_float(val: Any) -> float:
+        try:
+            f = float(val or 0.0)
+            return f if (math.isfinite(f) and f > 0.0) else 0.0
+        except (TypeError, ValueError):
+            return 0.0
+
+    @staticmethod
+    def _safe_pos_int(val: Any) -> int:
+        try:
+            f = float(val or 0)
+            return int(f) if (math.isfinite(f) and f > 0.0) else 0
+        except (TypeError, ValueError, OverflowError):
+            return 0
+
     def update(
         self,
         bids: List[Dict[str, Any]],
@@ -73,22 +89,31 @@ class DeepOFIAnalyzer:
         Returns comprehensive microstructure & OFI analysis metrics.
         Includes TSE Pre-Market (08:00-08:59 JST) Fake Order Book & Special Quote (特買・特売) Quarantine Guard.
         """
-        ts = timestamp if timestamp is not None else time.time()
+        ts = timestamp if (timestamp is not None and math.isfinite(float(timestamp))) else time.time()
         
-        # Clean and sort bids (descending) & asks (ascending)
-        clean_bids = [
-            OrderBookLevel(price=round(float(b.get("price", 0.0)), 2), size=int(b.get("size", 0)), orders=b.get("orders"))
-            for b in bids if float(b.get("price", 0.0)) > 0 and int(b.get("size", 0)) > 0
-        ]
+        # Clean and sort bids (descending) & asks (ascending) with NaN/Inf immunity
+        clean_bids = []
+        for b in (bids or []):
+            bp = self._safe_pos_float(b.get("price", 0.0))
+            bs = self._safe_pos_int(b.get("size", 0))
+            if bp > 0.0 and bs > 0:
+                clean_bids.append(OrderBookLevel(price=round(bp, 4 if bp < 1.0 else 2), size=bs, orders=b.get("orders")))
         clean_bids.sort(key=lambda x: x.price, reverse=True)
 
-        clean_asks = [
-            OrderBookLevel(price=round(float(a.get("price", 0.0)), 2), size=int(a.get("size", 0)), orders=a.get("orders"))
-            for a in asks if float(a.get("price", 0.0)) > 0 and int(a.get("size", 0)) > 0
-        ]
+        clean_asks = []
+        for a in (asks or []):
+            ap = self._safe_pos_float(a.get("price", 0.0))
+            as_ = self._safe_pos_int(a.get("size", 0))
+            if ap > 0.0 and as_ > 0:
+                clean_asks.append(OrderBookLevel(price=round(ap, 4 if ap < 1.0 else 2), size=as_, orders=a.get("orders")))
         clean_asks.sort(key=lambda x: x.price, reverse=False)
 
-        trade_list = trades or []
+        trade_list = []
+        for tr in (trades or []):
+            tp = self._safe_pos_float(tr.get("price", 0.0))
+            ts_sz = self._safe_pos_int(tr.get("size", 0))
+            if tp > 0.0 and ts_sz > 0:
+                trade_list.append({"price": tp, "size": ts_sz, "side": tr.get("side", "")})
         snapshot = OrderBookSnapshot(timestamp=ts, bids=clean_bids, asks=clean_asks, trades=trade_list)
 
         # 🛡️ TSE Pre-Market (08:00-08:59 JST) & Special Quote (特別気配: 特買・特売 / Crossed Book) Quarantine Guard
@@ -183,8 +208,12 @@ class DeepOFIAnalyzer:
         self.ema_ofi = 0.65 * normalized_ofi + 0.35 * self.ema_ofi
 
         # 2. Spoofing Cancellation Detection (Level 2 to 10)
-        spoof_buy_detected, spoof_buy_details = self._detect_spoofing(curr.bids, prev.bids, side="bid")
-        spoof_sell_detected, spoof_sell_details = self._detect_spoofing(curr.asks, prev.asks, side="ask")
+        spoof_buy_detected, spoof_buy_details = self._detect_spoofing(
+            curr.bids, prev.bids, side="bid", dt=dt, recent_trades=curr.trades
+        )
+        spoof_sell_detected, spoof_sell_details = self._detect_spoofing(
+            curr.asks, prev.asks, side="ask", dt=dt, recent_trades=curr.trades
+        )
 
         # 3. Iceberg Order Accumulation Detection
         iceberg_detected, iceberg_details = self._detect_iceberg(curr, prev)
@@ -244,24 +273,56 @@ class DeepOFIAnalyzer:
         self,
         curr_levels: List[OrderBookLevel],
         prev_levels: List[OrderBookLevel],
-        side: str = "bid"
+        side: str = "bid",
+        dt: float = 1.0,
+        recent_trades: Optional[List[Dict[str, Any]]] = None
     ) -> Tuple[bool, Dict[str, Any]]:
         """
         Detects sudden disappearance of a large wall at levels 2 to 10 without trade volume.
+        Includes Visible Window Scroll-Out Guard & Time-Delta Guard so rising prices that scroll
+        old bid levels below the top-10 window (or stale cross-cycle snapshots) are never
+        misclassified as spoofing cancellations.
         """
+        if not curr_levels or not prev_levels:
+            return False, {}
+        if dt > 15.0:
+            return False, {}
+
         prev_map = {lvl.price: lvl.size for lvl in prev_levels[1:10]}
         curr_map = {lvl.price: lvl.size for lvl in curr_levels}
+
+        if side == "bid":
+            curr_best_bid = curr_levels[0].price
+            curr_lowest_bid = curr_levels[-1].price
+        else:
+            curr_best_ask = curr_levels[0].price
+            curr_highest_ask = curr_levels[-1].price
 
         median_size = (
             sorted([lvl.size for lvl in prev_levels])[len(prev_levels) // 2]
             if prev_levels else 100
         )
 
+        trades_list = recent_trades or []
+
         for price, prev_size in prev_map.items():
+            # Visible Window Boundary Invariant (Hashimoto, 2026 - Theorem 1):
+            if side == "bid":
+                if price < curr_lowest_bid or price > curr_best_bid:
+                    continue
+            else:
+                if price > curr_highest_ask or price < curr_best_ask:
+                    continue
+
             # A wall must have been at least 2.2x median size to be considered an intentional spoof wall
             if prev_size >= max(500, int(median_size * 2.2)):
                 curr_size = curr_map.get(price, 0)
-                cancelled_size = prev_size - curr_size
+                exec_size = sum(
+                    int(tr.get("size", 0))
+                    for tr in trades_list
+                    if abs(float(tr.get("price", 0.0)) - price) <= 0.005
+                )
+                cancelled_size = max(0, prev_size - curr_size - exec_size)
                 cancellation_ratio = cancelled_size / prev_size if prev_size > 0 else 0.0
 
                 # If canceled by > 55% between consecutive snapshots without execution

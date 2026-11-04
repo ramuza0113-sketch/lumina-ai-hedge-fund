@@ -167,3 +167,43 @@ class DeterministicMetrics:
             "data_points": 0,
             "computation_engine": "Pure Python Deterministic (Empty)"
         }
+
+    @staticmethod
+    def evaluate_slippage_proof_pyramiding_bound(
+        alpha: float = 0.30,
+        delta_lock_pct: float = 0.0135,
+        delta_buf_pct: float = 0.0040,
+        round_trip_cost_pct: float = 0.0010,
+        expected_slippage_pct: float = 0.0035,
+        initial_sl_pct: float = 0.0150,
+    ) -> Dict[str, Any]:
+        """
+        Implements Theorem 2 (Slippage-Proof Pyramiding Boundary Inequality) from:
+        Hashimoto, K. (2026). "Eliminating Polarity Hallucinations and Order Book Horizon
+        Truncation Bias in Autonomous Multi-Agent Quantitative Systems", Zenodo.
+        DOI: 10.5281/zenodo.23935930
+
+        Computes the closed-form maximum tolerable stop-loss slippage (delta_slip_max)
+        and worst-case realized payoff (in R-multiples) when scaling into a winning position.
+        """
+        alpha = max(0.0, float(alpha))
+        delta_lock_net = float(delta_lock_pct) - float(delta_buf_pct)
+        denom = 1.0 + alpha
+        numerator = delta_lock_net - (alpha * float(delta_buf_pct)) - (denom * float(round_trip_cost_pct))
+        delta_slip_max = numerator / denom if denom > 0 else 0.0
+
+        worst_case_net_return_pct = numerator - (denom * float(expected_slippage_pct))
+        worst_case_r_multiple = (
+            worst_case_net_return_pct / float(initial_sl_pct)
+            if float(initial_sl_pct) > 0 else 0.0
+        )
+
+        return {
+            "alpha_scale_in_ratio": round(alpha, 4),
+            "delta_lock_net_pct": round(delta_lock_net * 100.0, 4),
+            "max_tolerable_slippage_pct": round(delta_slip_max * 100.0, 4),
+            "worst_case_net_return_pct": round(worst_case_net_return_pct * 100.0, 4),
+            "worst_case_r_multiple": round(worst_case_r_multiple, 4),
+            "is_slippage_proof": bool(worst_case_net_return_pct > 0.0 and expected_slippage_pct < delta_slip_max),
+        }
+

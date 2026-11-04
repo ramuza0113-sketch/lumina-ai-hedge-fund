@@ -7,6 +7,7 @@
 <br>
 🏆 **Officially Featured in [awesome-quant](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting) & [Awesome_AI4Finance](https://github.com/AI4Finance-Foundation/Awesome_AI4Finance)**
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23935930.svg)](https://doi.org/10.5281/zenodo.23935930)
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-blue.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
 [![Featured in awesome-quant](https://awesome.re/mentioned-badge.svg)](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting)
 [![CI](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/actions/workflows/ci.yml/badge.svg)](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/actions/workflows/ci.yml)
@@ -33,7 +34,7 @@
 > ⭐️ **Found this project inspiring? Give it a Star!**  
 > If you find Lumina Capital helpful or educational, please consider hitting the **⭐️ Star** button on the top right. It helps support active open-source research and continuous development of new factor models!
 
-[English](#-overview) | [📖 Master Architecture & Math Specification](docs/lumina_fund_master_system_architecture.md) | [コミュニティ・公式リンク](#-connect-with-the-author--community) | [日本語ドキュメント](#-日本語概要-japanese-summary) ([🇯🇵 完全仕様書](docs/lumina_fund_master_system_architecture.ja.md))
+[English](#-overview) | [📄 Academic Whitepaper (PDF / CERN DOI)](docs/whitepaper/Hashimoto_2026_Lumina_Quantitative_Microstructure_Whitepaper.pdf) | [📖 Master Architecture & Math Specification](docs/lumina_fund_master_system_architecture.md) | [コミュニティ・公式リンク](#-connect-with-the-author--community) | [日本語ドキュメント](#-日本語概要-japanese-summary) ([🇯🇵 完全仕様書](docs/lumina_fund_master_system_architecture.ja.md))
 
 <br><br>
 
@@ -242,6 +243,26 @@ This project is built upon and inspired by the incredible open-source research a
 - [OpenBB Platform](https://github.com/OpenBB-finance/OpenBB) (Financial market data infrastructure)
 - [TradingAgents](https://github.com/TauricResearch/TradingAgents) & [ai-hedge-fund](https://github.com/virattt/ai-hedge-fund) (Multi-agent debate paradigms)
 - [3d-force-graph](https://github.com/vasturiano/3d-force-graph) by Vasco Asturiano (3D network visualization)
+
+---
+
+## 📄 Academic Citation (CERN Zenodo DOI)
+
+If you use **Lumina Capital**, its **Schmitt-Trigger Factor Ontology**, **Scroll-Out Resistant Deep OFI (Theorem 1)**, or **Slippage-Proof Pyramiding Bound (Theorem 2)** in your research, please cite the official working paper ([**Download PDF**](docs/whitepaper/Hashimoto_2026_Lumina_Quantitative_Microstructure_Whitepaper.pdf) | [**CERN Zenodo Record**](https://doi.org/10.5281/zenodo.23935930)):
+
+> **Hashimoto, K. (2026).** *Eliminating Polarity Hallucinations and Order Book Horizon Truncation Bias in Autonomous Multi-Agent Quantitative Systems: Schmitt-Trigger Factor Ontologies, Scroll-Out Resistant Deep OFI, and Slippage-Proof Pyramiding.* Zenodo (CERN). https://doi.org/10.5281/zenodo.23935930
+
+```bibtex
+@article{hashimoto2026eliminating,
+  author    = {Hashimoto, Katsutoshi},
+  title     = {Eliminating Polarity Hallucinations and Order Book Horizon Truncation Bias in Autonomous Multi-Agent Quantitative Systems: Schmitt-Trigger Factor Ontologies, Scroll-Out Resistant Deep OFI, and Slippage-Proof Pyramiding},
+  year      = {2026},
+  month     = {11},
+  publisher = {Zenodo (CERN)},
+  doi       = {10.5281/zenodo.23935930},
+  url       = {https://doi.org/10.5281/zenodo.23935930}
+}
+```
 
 ---
 
