@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🏛️ Lumina Capital (AI Hedge Fund Engine v6.4.8)
+# 🏛️ Lumina Capital (AI Hedge Fund Engine v6.6.5)
 
 **An Autonomous Multi-Agent Quantitative Hedge Fund Studio**  
 *Powered by `#![forbid(unsafe_code)]` Rust SoA Sentinel, Volume Clocks, Factor Ontology (Schmitt-Trigger Hysteresis), Higham PSD Covariance, LLM API Circuit Breaker, TSE Tick Size Table Normalization, LangGraph, Microsoft Qlib Alpha158, Google TimesFM & 3D Causal Knowledge Graph*  
@@ -61,7 +61,7 @@ Most LLM-based autonomous trading bots in the open-source community remain **con
 
 How Lumina Capital compares against leading open-source financial agent frameworks:
 
-| Feature / Architecture | virattt/ai-hedge-fund (63k★) | Tauric TradingAgents (44k★) | 🌟 **Lumina Capital (v6.4.8)** |
+| Feature / Architecture | virattt/ai-hedge-fund (63k★) | Tauric TradingAgents (44k★) | 🌟 **Lumina Capital (v6.6.5)** |
 | :--- | :---: | :---: | :---: |
 | **Multi-Agent Deliberation** | Sequential Chat | LangGraph DAG | **LangGraph + Anti-Sycophancy Cross-Debate** |
 | **Investor Personas** | 6 Personas | Internal Analyst Roles | **7 Legendary Personas + CRO Absolute Veto** |
@@ -320,7 +320,7 @@ Join our growing community of quantitative researchers, AI developers, and algor
 
 ## 🇯🇵 日本語概要 (Japanese Summary)
 
-**Lumina Capital (v6.4.8)** は、`#![forbid(unsafe_code)]` のPure RustによるL1/L2キャッシュ常駐（SoA）番犬センチネル（1ポジション `3.63ナノ秒` 判定）、出来高クロック（Volume Clock / 30分タイムアウト救済）、深層10本板情報OFI（Order Flow Imbalance）、数理ファクター・オントロジー辞書（Factor Ontology Schema: シュミットトリガー・ヒステリシス ＆ 境界不感帯）、SQLite FTS5 (`BM25`) 半減期30日指数時間減衰エージング反省記憶検索＋シングルライター・バッチキュー、林・吉田（Hayashi-Yoshida）非同期共分散推定＋Higham (2002) 最近傍PSD射影、LLM APIレート制限（HTTP 429）即時サーキットブレーカー＆縮退防衛モード、東証呼値テーブル（1/5/10/50/100/1000円刻み）正規化＆100株単元強制、LangGraphによるマルチエージェント合議、Microsoft QlibのAlpha158数理クオンツ、Google TimesFM × Chronos による時系列予測、そしてNeo4j 3Dナレッジグラフを単一のパイプラインに統合した機関投資家グレードの自律型AIヘッジファンドエンジンです。
+**Lumina Capital (v6.6.5)** は、`#![forbid(unsafe_code)]` のPure RustによるL1/L2キャッシュ常駐（SoA）番犬センチネル（1ポジション `3.63ナノ秒` 判定）、出来高クロック（Volume Clock / 30分タイムアウト救済）、深層10本板情報OFI（Order Flow Imbalance / 可視板ウィンドウ境界ガード Theorem 1）、耐スリッページ非対称ピラミッディング境界不等式（Theorem 2 / CERN Zenodo DOI: `10.5281/zenodo.23935930`）、数理ファクター・オントロジー辞書（Factor Ontology Schema: シュミットトリガー・ヒステリシス ＆ 境界不感帯）、SQLite FTS5 (`BM25`) 半減期30日指数時間減衰エージング反省記憶検索＋シングルライター・バッチキュー、林・吉田（Hayashi-Yoshida）非同期共分散推定＋Higham (2002) 最近傍PSD射影、LLM APIレート制限（HTTP 429）即時サーキットブレーカー＆縮退防衛モード、東証呼値テーブル（1/5/10/50/100/1000円刻み）正規化＆100株単元強制、LangGraphによるマルチエージェント合議、Microsoft QlibのAlpha158数理クオンツ、Google TimesFM × Chronos による時系列予測、そしてNeo4j 3Dナレッジグラフを単一のパイプラインに統合した機関投資家グレードの自律型AIヘッジファンドエンジンです。
 
 - 🏆 **世界最大のクオンツ投資リソース集公式採択**: [awesome-quant (⭐️ 15,000+)](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting) の「Trading & Backtesting」部門に正式採択・マージされました。
 - 📖 **Qiita技術解説記事（400+ Views）**: [LangGraphとQlib Alpha158、Google TimesFMで作る「自律型AIヘッジファンド」をOSS公開した話](https://qiita.com/ramuza0113/items/434af1b23fa220590f017)

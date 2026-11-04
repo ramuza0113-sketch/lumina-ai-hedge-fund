@@ -1,4 +1,4 @@
-# 🏛️ Lumina Capital: 自律型AIヘッジファンド＆クオンツ投資システム 全機能詳細解説書 (v6.4.7)
+# 🏛️ Lumina Capital: 自律型AIヘッジファンド＆クオンツ投資システム 全機能詳細解説書 (v6.6.5)
 
 **Lumina Capital — Master System Architecture & Functional Specifications**  
 *世界二大クオンツ投資リソース集（`awesome-quant` ⭐️15,000+ / `Awesome_AI4Finance`）公式採択・マージ*  
@@ -503,7 +503,15 @@ flowchart LR
   * **実装**: `core/ai_hedge_fund/broker_client.py`, `reflexion_engine.py`
   * **実務効果**: 過去の相場環境（高ボラティリティ、金融引き締め期など）における損切り教訓が現在の相場レジームに過剰適合（AIトラウマ）して特Aシグナルを萎縮見送りすることを数理的に防止。
 
+### 10.8 可視板ウィンドウ境界不変条件（Theorem 1）＆ 耐スリッページ非対称ピラミッディング境界不等式（Theorem 2, v6.6.5 / CERN DOI: `10.5281/zenodo.23935930`）
+* **Order Book Horizon Truncation Bias（スクロールアウト偽見せ板幻想）の排除（Hashimoto, 2026 - Theorem 1）**:
+  * **数理定式化**: 有限 $K$ 段の移動窓板配信において、急騰時に下位買い板が第 $K$ 段の下限外（$p < P_{\text{bid}, K}^{(t)}$）へスクロールアウトすることでキャンセル率 $100\%$ の見せ板と誤判定されるバイアスを防ぐため、可視板ウィンドウ境界不変条件 $\mathcal{V}_{\text{bid}}^{(t)}(p) \iff P_{\text{bid}, K}^{(t)} \le p \le P_{\text{bid}, 1}^{(t)}$ および約定出来高控除 $\Delta q_{\text{cancel}}^{(t)}(p) = \max(0, q^{(t-1)}(p) - q^{(t)}(p) - \Delta V_{\text{trade}}^{(t-1, t)})$ を強制（`core/ai_hedge_fund/deep_ofi_analyzer.py`）。
+* **耐スリッページ非対称ピラミッディング境界不等式（Hashimoto, 2026 - Theorem 2）**:
+  * **数理定式化**: 増し玉倍率 $\alpha$、純利益ロック幅 $\Delta_{\text{lock}}^{\text{net}}$、逆指値バッファ $\Delta_{\text{buf}}$、往復取引コスト $c$ の下で、追撃直後の逆指値スリッページ $\delta_{\text{slip}}$ に対しても合算確定損益 $\Pi_{\text{worst}}^{\text{real}} > 0$ を保証する限界許容スリッページ率：
+    $$\delta_{\text{slip}}^{\max} = \frac{\Delta_{\text{lock}}^{\text{net}} - \alpha \Delta_{\text{buf}} - (1 + \alpha)c}{1 + \alpha} \approx 0.5385\%$$
+  * **実装・形式検証**: `DeterministicMetrics.evaluate_slippage_proof_pyramiding_bound()`（`core/ai_hedge_fund/deterministic_metrics.py`）。`Hypothesis` 1,000通りのプロパティベース検証および `oss-fuzz` 境界値ファジングで違反0件を実証。
+
 ---
 
-**以上、Lumina Capital v6.4.8 自律型AIヘッジファンド＆クオンツ投資システム 正式マスター解説書**
+**以上、Lumina Capital v6.6.5 自律型AIヘッジファンド＆クオンツ投資システム 正式マスター解説書**
 
