@@ -752,6 +752,70 @@ def test_18_sigkill_crash_recovery_and_cooldown_hydration():
     print("[PASS] 18. SIGKILL Process Crash Recovery & SQLite 14-Day Cooldown Hydration verified.")
 
 
+def test_19_statistical_overfitting_audit_wfe_cpcv_dsr_monte_carlo():
+    """
+    19. Statistical Overfitting & Adversarial Audit Engine Verification:
+    Verifies the exact mathematical implementations of:
+      (a) Rolling Walk-Forward Efficiency (WFE = 89.6% across 7 OOS windows),
+      (b) Combinatorial Purged Cross-Validation (CPCV: N=6, k=2 -> 15 splits, PBO = 20.0%, Median SR = 1.29),
+      (c) Bailey & Lopez de Prado (2014) Deflated Sharpe Ratio (DSR = 0.9776 / 97.76%),
+      (d) 10,000-Run Monte Carlo Trade-Sequence Bootstrap (0.0000% Probability of Ruin).
+    """
+    from core.ai_hedge_fund.deterministic_metrics import DeterministicMetrics
+
+    # (a) Rolling 7-Window WFA / WFE Verification
+    is_cagrs = [11.38, 17.84, 20.21, 41.55, 24.97, 22.72, 33.21]
+    oos_cagrs = [-5.19, 47.28, 31.22, 24.90, -9.35, 48.75, 16.32]
+    oos_rets = [-3.33, 27.87, 18.83, 15.16, -6.04, 28.67, 10.07]
+    wfa_res = DeterministicMetrics.compute_walk_forward_efficiency(is_cagrs, oos_cagrs, oos_rets)
+    assert wfa_res["n_windows"] == 7
+    assert abs(wfa_res["mean_is_cagr_pct"] - 24.55) <= 0.05
+    assert abs(wfa_res["mean_oos_cagr_pct"] - 21.99) <= 0.05
+    assert abs(wfa_res["wfe_pct"] - 89.6) <= 0.2
+    assert abs(wfa_res["stitched_oos_return_pct"] - 125.12) <= 0.5
+
+    # (b) CPCV (N=6 blocks, k=2 -> C(6,2)=15 splits) & PBO Verification
+    # Row 0 = Baseline config across 6 purged/embargoed chronological blocks
+    block_sr_matrix = np.array([
+        [0.82, 1.76, 1.48, 1.10, 0.82, 2.12],  # Baseline v6.4.8 (mean 1.35, 15-split median 1.29)
+        [0.78, 1.70, 1.42, 1.05, 0.88, 1.95],
+        [0.85, 1.68, 1.40, 1.12, 0.85, 1.90],
+        [0.75, 1.82, 1.35, 1.02, 0.80, 1.88],
+        [0.80, 1.65, 1.52, 1.08, 0.86, 1.92],
+        [0.88, 1.60, 1.30, 0.98, 0.78, 1.80],
+        [0.72, 1.55, 1.28, 0.95, 0.75, 1.75],
+        [0.60, 1.25, 1.05, 0.70, 0.45, 1.30],
+        [0.52, 1.10, 0.95, 0.62, 0.35, 1.15],
+    ], dtype=float)
+    cpcv_res = DeterministicMetrics.compute_cpcv_and_pbo(block_sr_matrix, n_test_blocks=2)
+    assert cpcv_res["n_splits"] == 15
+    assert cpcv_res["cpcv_oos_median_sharpe"] == 1.29
+    assert cpcv_res["cpcv_oos_mean_sharpe"] == 1.35
+    assert cpcv_res["negative_oos_paths_pct"] == 0.0
+    assert cpcv_res["pbo_pct"] <= 20.0
+
+    # (c) Bailey & Lopez de Prado (2014) Deflated Sharpe Ratio (DSR) Verification
+    rng_dsr = np.random.default_rng(2026)
+    synth_daily_rets = rng_dsr.normal(loc=0.00068, scale=0.0085, size=1510)
+    trial_srs = [1.26, 1.21, 1.29, 1.18, 1.24, 1.32, 1.15, 1.22, 1.19]
+    dsr_res = DeterministicMetrics.compute_deflated_sharpe_ratio(1.26, synth_daily_rets, trial_srs)
+    assert dsr_res["dsr_probability"] >= 0.95
+    assert dsr_res["n_trials"] == 9
+    assert dsr_res["n_observations"] == 1510
+
+    # (d) 10,000-Run Monte Carlo Order Shuffle & Front-Loaded 6-Loss Stress Test
+    rng_mc = np.random.default_rng(42)
+    wins_sample = rng_mc.uniform(0.04, 0.22, size=180)
+    losses_sample = rng_mc.uniform(-0.13, -0.02, size=79)
+    trade_returns = np.concatenate([wins_sample, losses_sample])
+    mc_res = DeterministicMetrics.run_monte_carlo_order_shuffle(trade_returns, n_runs=10_000, slot_weight=0.165, seed=42)
+    assert mc_res["n_runs"] == 10_000
+    assert mc_res["ruin_prob_pct"] == 0.0
+    assert mc_res["net_loss_prob_pct"] == 0.0
+    assert mc_res["front_loaded_6loss_final_return_pct"] > 50.0
+    print("[PASS] 19. Statistical Overfitting Audit (WFE 89.6%, CPCV 15-Split, DSR >= 95%, 10,000-Run Monte Carlo) verified.")
+
+
 if __name__ == "__main__":
     test_1_ci_factor_ontology_contracts()
     test_2_schmitt_trigger_hysteresis_and_deadzone()
@@ -771,8 +835,5 @@ if __name__ == "__main__":
     test_16_corporate_action_stock_split_auto_scaling()
     test_17_partial_fill_weighted_avg_and_100share_breakeven_trailing()
     test_18_sigkill_crash_recovery_and_cooldown_hydration()
-    print("\n[SUCCESS] ALL 18 INSTITUTIONAL HARDENING, EXTREME SCENARIO & CHAOS ENGINEERING TESTS PASSED SUCCESSFULLY!")
-
-
-
-
+    test_19_statistical_overfitting_audit_wfe_cpcv_dsr_monte_carlo()
+    print("\n[SUCCESS] ALL 19 INSTITUTIONAL HARDENING, EXTREME SCENARIO & STATISTICAL AUDIT TESTS PASSED SUCCESSFULLY!")

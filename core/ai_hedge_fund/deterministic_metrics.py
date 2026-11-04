@@ -5,9 +5,10 @@ Calculates objective quantitative indicators using pure Python, NumPy, and Panda
 Completely eliminates numerical hallucinations from LLM agents.
 """
 
+import itertools
 import math
 import time
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 import yfinance as yf
@@ -207,3 +208,187 @@ class DeterministicMetrics:
             "is_slippage_proof": bool(worst_case_net_return_pct > 0.0 and expected_slippage_pct < delta_slip_max),
         }
 
+    @staticmethod
+    def compute_deflated_sharpe_ratio(
+        best_sr_annual: float,
+        daily_returns: np.ndarray,
+        trial_srs_annual: List[float],
+    ) -> Dict[str, float]:
+        """
+        Implements Bailey & Lopez de Prado (2014) Deflated Sharpe Ratio (DSR).
+        Corrects for multiple-testing selection bias (Euler-Mascheroni expected maximum SR0)
+        and non-Normal return moments (sample skewness gamma_3 and sample kurtosis gamma_4).
+        """
+        from scipy.stats import norm, skew, kurtosis
+
+        rets = np.asarray(daily_returns, dtype=float)
+        T = max(len(rets), 2)
+        N = max(len(trial_srs_annual), 2)
+
+        sr_hat_daily = float(best_sr_annual) / math.sqrt(252.0)
+        trials_daily = np.asarray(trial_srs_annual, dtype=float) / math.sqrt(252.0)
+        var_trials_daily = float(np.var(trials_daily, ddof=1)) if len(trials_daily) > 1 else 0.0005
+
+        euler_gamma = 0.5772156649015329
+        z1 = float(norm.ppf(1.0 - 1.0 / N))
+        z2 = float(norm.ppf(1.0 - 1.0 / (N * math.e)))
+        sr0_daily = math.sqrt(max(var_trials_daily, 1e-10)) * ((1.0 - euler_gamma) * z1 + euler_gamma * z2)
+
+        g3 = float(skew(rets)) if len(rets) > 2 else 0.0
+        g4 = float(kurtosis(rets, fisher=False)) if len(rets) > 3 else 3.0
+
+        denom = math.sqrt(max(1.0 - g3 * sr_hat_daily + ((g4 - 1.0) / 4.0) * (sr_hat_daily ** 2), 1e-8))
+        z_dsr = ((sr_hat_daily - sr0_daily) * math.sqrt(T - 1)) / denom
+        dsr_prob = float(norm.cdf(z_dsr))
+
+        return {
+            "dsr_probability": round(dsr_prob, 4),
+            "dsr_pct": round(dsr_prob * 100.0, 2),
+            "sr0_hurdle_annual": round(sr0_daily * math.sqrt(252.0), 4),
+            "skewness": round(g3, 4),
+            "kurtosis": round(g4, 4),
+            "n_trials": N,
+            "n_observations": T,
+        }
+
+    @staticmethod
+    def compute_cpcv_and_pbo(
+        block_sr_matrix: np.ndarray,
+        n_test_blocks: int = 2,
+    ) -> Dict[str, Any]:
+        """
+        Implements Lopez de Prado (2018) Combinatorial Purged Cross-Validation (CPCV)
+        and Probability of Backtest Overfitting (PBO) across C(N, k) splits.
+        Expects `block_sr_matrix` of shape (M_configs, N_blocks), where row 0 is the baseline strategy.
+        """
+        mat = np.asarray(block_sr_matrix, dtype=float)
+        if mat.ndim != 2 or mat.shape[1] <= n_test_blocks:
+            raise ValueError("block_sr_matrix must have shape (M_configs, N_blocks) with N_blocks > n_test_blocks")
+
+        _, n_blocks = mat.shape
+        combos = list(itertools.combinations(range(n_blocks), n_test_blocks))
+        oos_srs_baseline: List[float] = []
+        pbo_under_median_count = 0
+
+        for test_blocks in combos:
+            train_blocks = [b for b in range(n_blocks) if b not in test_blocks]
+            is_scores = np.mean(mat[:, train_blocks], axis=1)
+            oos_scores = np.mean(mat[:, list(test_blocks)], axis=1)
+
+            best_is_idx = int(np.argmax(is_scores))
+            winner_oos_sr = float(oos_scores[best_is_idx])
+            median_oos_sr = float(np.median(oos_scores))
+
+            if winner_oos_sr < median_oos_sr:
+                pbo_under_median_count += 1
+
+            oos_srs_baseline.append(float(oos_scores[0]))
+
+        n_splits = len(combos)
+        neg_count = sum(1 for s in oos_srs_baseline if s <= 0.0)
+        return {
+            "n_splits": n_splits,
+            "cpcv_oos_median_sharpe": round(float(np.median(oos_srs_baseline)), 2),
+            "cpcv_oos_mean_sharpe": round(float(np.mean(oos_srs_baseline)), 2),
+            "negative_oos_paths_count": neg_count,
+            "negative_oos_paths_pct": round((neg_count / n_splits) * 100.0, 2),
+            "pbo_pct": round((pbo_under_median_count / n_splits) * 100.0, 2),
+            "pbo_under_median_splits": pbo_under_median_count,
+            "oos_sharpe_distribution": [round(x, 4) for x in oos_srs_baseline],
+        }
+
+    @staticmethod
+    def compute_walk_forward_efficiency(
+        is_cagrs: List[float],
+        oos_cagrs: List[float],
+        oos_period_returns_pct: Optional[List[float]] = None,
+    ) -> Dict[str, float]:
+        """
+        Computes Rolling Walk-Forward Efficiency (WFE = Mean OOS CAGR / Mean IS CAGR)
+        and stitched Out-of-Sample cumulative return across rolling WFA windows.
+        """
+        mean_is = float(np.mean(is_cagrs)) if is_cagrs else 0.0
+        mean_oos = float(np.mean(oos_cagrs)) if oos_cagrs else 0.0
+        wfe_pct = (mean_oos / max(mean_is, 1e-6)) * 100.0
+
+        stitched_mult = 1.0
+        if oos_period_returns_pct:
+            for r_pct in oos_period_returns_pct:
+                stitched_mult *= (1.0 + float(r_pct) / 100.0)
+        stitched_oos_return_pct = (stitched_mult - 1.0) * 100.0
+
+        return {
+            "n_windows": len(oos_cagrs),
+            "mean_is_cagr_pct": round(mean_is, 2),
+            "mean_oos_cagr_pct": round(mean_oos, 2),
+            "wfe_pct": round(wfe_pct, 1),
+            "stitched_oos_return_pct": round(stitched_oos_return_pct, 2),
+        }
+
+    @staticmethod
+    def run_monte_carlo_order_shuffle(
+        trade_returns_pct: np.ndarray,
+        n_runs: int = 10_000,
+        slot_weight: float = 0.165,
+        seed: int = 42,
+    ) -> Dict[str, Any]:
+        """
+        Executes a 10,000-run Monte Carlo trade-sequence bootstrap and a deterministic
+        front-loaded 6-loss stress test (placing the 6 worst trades of the 5-year period
+        at Trades #1..#6 on Day 1).
+        """
+        trades = np.asarray(trade_returns_pct, dtype=float)
+        n_trades = len(trades)
+        if n_trades == 0:
+            return {
+                "n_runs": 0,
+                "ruin_prob_pct": 0.0,
+                "net_loss_prob_pct": 0.0,
+                "median_return_pct": 0.0,
+                "var_99_max_dd_pct": 0.0,
+            }
+
+        rng = np.random.default_rng(seed)
+        mc_final_rets = np.zeros(n_runs, dtype=float)
+        mc_max_dds = np.zeros(n_runs, dtype=float)
+        ruin_50_count = 0
+        loss_count = 0
+
+        for i in range(n_runs):
+            sampled = rng.choice(trades, size=n_trades, replace=True)
+            port_multipliers = 1.0 + (sampled * float(slot_weight))
+            eq_path = np.cumprod(port_multipliers)
+            eq_full = np.concatenate([[1.0], eq_path])
+            pks = np.maximum.accumulate(eq_full)
+            dds = (eq_full - pks) / pks * 100.0
+            mc_max_dds[i] = abs(float(np.min(dds)))
+            mc_final_rets[i] = (eq_full[-1] - 1.0) * 100.0
+            if np.min(eq_full) <= 0.50:
+                ruin_50_count += 1
+            if eq_full[-1] < 1.0:
+                loss_count += 1
+
+        sorted_asc = np.sort(trades)
+        k_front = min(6, n_trades)
+        worst_front_seq = np.concatenate([sorted_asc[:k_front], rng.permutation(sorted_asc[k_front:])])
+        wf_eq = np.concatenate([[1.0], np.cumprod(1.0 + worst_front_seq * float(slot_weight))])
+        wf_pks = np.maximum.accumulate(wf_eq)
+        wf_max_dd = abs(float(np.min((wf_eq - wf_pks) / wf_pks * 100.0)))
+        wf_initial_dip = (1.0 - float(np.min(wf_eq[: k_front + 1]))) * 100.0
+        wf_final_ret = (wf_eq[-1] - 1.0) * 100.0
+
+        return {
+            "n_runs": n_runs,
+            "n_trades": n_trades,
+            "median_return_pct": round(float(np.median(mc_final_rets)), 2),
+            "var_95_return_pct": round(float(np.percentile(mc_final_rets, 5)), 2),
+            "var_99_return_pct": round(float(np.percentile(mc_final_rets, 1)), 2),
+            "median_max_dd_pct": round(float(np.median(mc_max_dds)), 2),
+            "var_95_max_dd_pct": round(float(np.percentile(mc_max_dds, 95)), 2),
+            "var_99_max_dd_pct": round(float(np.percentile(mc_max_dds, 99)), 2),
+            "ruin_prob_pct": round((ruin_50_count / n_runs) * 100.0, 4),
+            "net_loss_prob_pct": round((loss_count / n_runs) * 100.0, 4),
+            "front_loaded_6loss_initial_dip_pct": round(wf_initial_dip, 2),
+            "front_loaded_6loss_max_dd_pct": round(wf_max_dd, 2),
+            "front_loaded_6loss_final_return_pct": round(wf_final_ret, 2),
+        }
