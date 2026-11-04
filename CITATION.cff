@@ -5,6 +5,7 @@ abstract: "An autonomous multi-agent quantitative hedge fund engine integrating 
 authors:
   - family-names: "Hashimoto"
     given-names: "Katsutoshi"
+    orcid: "https://orcid.org/0009-0009-8292-5085"
     affiliation: "Lumina Capital AI Research"
     website: "https://prompter-note.com"
 version: 6.6.5
@@ -17,6 +18,7 @@ preferred-citation:
   authors:
     - family-names: "Hashimoto"
       given-names: "Katsutoshi"
+      orcid: "https://orcid.org/0009-0009-8292-5085"
       affiliation: "Lumina Capital AI Research"
   title: "Eliminating Polarity Hallucinations and Order Book Horizon Truncation Bias in Autonomous Multi-Agent Quantitative Systems: Schmitt-Trigger Factor Ontologies, Scroll-Out Resistant Deep OFI, and Slippage-Proof Pyramiding"
   year: 2026
