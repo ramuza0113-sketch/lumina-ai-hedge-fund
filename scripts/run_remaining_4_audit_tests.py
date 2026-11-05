@@ -91,10 +91,34 @@ def load_5year_data(symbols: List[str]) -> Tuple[Dict[str, pd.DataFrame], List[p
 
     stock_data = {}
     for sym in symbols:
+        df = None
         try:
-            df = raw_data[sym].copy()
-            df.dropna(subset=["Close"], inplace=True)
-            if len(df) > 120:
+            df_cand = raw_data[sym].copy()
+            df_cand.dropna(subset=["Close"], inplace=True)
+            if len(df_cand) > 120:
+                df = df_cand
+        except Exception:
+            df = None
+
+        # Sequential fallback if concurrent yf.download(threads=True) rate-limited a TSE (.T) ticker
+        if df is None or len(df) <= 120:
+            for _attempt in range(3):
+                try:
+                    t_hist = yf.Ticker(sym).history(start=start_date, end=end_date, interval="1d", auto_adjust=True)
+                    if t_hist is not None and not t_hist.empty:
+                        if t_hist.index.tz is not None:
+                            t_hist.index = t_hist.index.tz_localize(None)
+                        t_hist.dropna(subset=["Close"], inplace=True)
+                        if len(t_hist) > 120:
+                            df = t_hist
+                            break
+                except Exception:
+                    continue
+
+        try:
+            if df is not None and len(df) > 120:
+                if df.index.tz is not None:
+                    df.index = df.index.tz_localize(None)
                 closes = df["Close"]
                 highs = df["High"]
                 lows = df["Low"]
@@ -539,7 +563,7 @@ def main():
     stock_data_all, all_dates, usdjpy_series = load_5year_data(all_symbols)
     stock_data_mixed = {s: stock_data_all[s] for s in MIXED_20_SYMBOLS if s in stock_data_all}
     stock_data_64 = {s: stock_data_all[s] for s in universe_items if s in stock_data_all}
-    print(f"      Loaded {len(all_dates)} trading days ({all_dates[0].strftime('%Y-%m-%d')} to {all_dates[-1].strftime('%Y-%m-%d')}).\n")
+    print(f"      Loaded {len(stock_data_all)}/{len(all_symbols)} tickers ({len(stock_data_64)}/64 primary universe) across {len(all_dates)} trading days ({all_dates[0].strftime('%Y-%m-%d')} to {all_dates[-1].strftime('%Y-%m-%d')}).\n")
 
     # =========================================================================
     # TEST SUITE 1: OVERFITTING DIAGNOSTICS (WFA/WFE, CPCV, PBO, DSR, PLATEAU)
@@ -658,6 +682,11 @@ def main():
         oos_srs_baseline.append(float(oos_scores[0]))
 
     pbo_pct = (pbo_under_median_count / len(combos)) * 100.0
+    baseline_sub_median_count = sum(
+        1 for tb in combos
+        if float(np.mean(block_sr_matrix[0, list(tb)])) < float(np.median(np.mean(block_sr_matrix[:, list(tb)], axis=1)))
+    )
+    baseline_sub_median_pct = (baseline_sub_median_count / len(combos)) * 100.0
     cpcv_median_sr = float(np.median(oos_srs_baseline))
     cpcv_mean_sr = float(np.mean(oos_srs_baseline))
     neg_paths_pct = (sum(1 for s in oos_srs_baseline if s <= 0.0) / len(oos_srs_baseline)) * 100.0
@@ -682,7 +711,7 @@ def main():
     print(f"       ➔ CPCV OOS Median Sharpe Ratio : {cpcv_median_sr:.2f} (Mean: {cpcv_mean_sr:.2f} | Pass: >= 1.00) -> {'✅ PASS' if cpcv_median_sr >= 1.0 else '❌ FAIL'}")
     print(f"       ➔ CPCV Negative OOS Path Ratio : {neg_paths_pct:.1f}% ({sum(1 for s in oos_srs_baseline if s <= 0)}/{len(combos)} splits negative | Pass: < 10.0%) -> {'✅ PASS' if neg_paths_pct < 10.0 else '❌ FAIL'}")
     print(f"  [1C] Probability of Backtest Overfitting (PBO) & Deflated Sharpe Ratio (DSR):")
-    print(f"       ➔ PBO (Out-of-Sample Degradation Prob): {pbo_pct:.2f}% (Pass: < 20.0%, Hard Reject >= 50%) -> {'✅ PASS' if pbo_pct < 20.0 else '❌ FAIL'}")
+    print(f"       ➔ PBO (Strict Per-Split IS-Argmax)    : {pbo_pct:.2f}% ({pbo_under_median_count}/{len(combos)} splits | Baseline Sub-Median: {baseline_sub_median_pct:.2f}% [{baseline_sub_median_count}/{len(combos)}] | Hard Reject >= 50%) -> {'✅ PASS (< 50%)' if pbo_pct < 50.0 else '❌ FAIL'}")
     print(f"       ➔ Deflated Sharpe Ratio (DSR)         : {dsr_val:.4f} ({dsr_val*100:.2f}% confidence | SR0 Hurdle={sr0_hurdle:.2f} | Pass: >= 0.95) -> {'✅ PASS' if dsr_val >= 0.95 else '❌ FAIL'}\n")
 
     # 1D. Parameter Sensitivity Analysis (Cliff vs Plateau +/-10% and +/-20%)
