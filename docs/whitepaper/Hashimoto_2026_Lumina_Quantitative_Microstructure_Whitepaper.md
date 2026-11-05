@@ -10,7 +10,7 @@ October 2026
 
 Autonomous financial trading architectures driven by Large Language Models (LLMs) and high-frequency Limit Order Book (LOB) telemetry suffer from three structural failure modes that degrade out-of-sample Sharpe ratios and induce tail-risk drawdowns in live execution: (1) **Semantic Polarity Inversion**, wherein generative agents misinterpret inverse valuation or macro-stress indicators (e.g., EV/EBITDA, credit spreads) as positively correlated with forward returns, combined with **Boundary Chattering** when factor z-scores oscillate across decision thresholds; (2) **Order Book Horizon Truncation Bias (The Scroll-Out Spoofing Illusion)**, a microstructure distortion in finite $K$-level moving-window order book feeds where rapid upward price appreciation causes resting bid liquidity to drop below the $K$-th visible depth horizon, falsely mimicking malicious institutional spoofing cancellations; and (3) **Pyramiding Ruin Under Jump Slippage**, where adding exposure to winning positions elevates the aggregate break-even price to a level vulnerable to gap-down stop-loss slippage.
 
-In this paper, we formulate a unified mathematical framework to eliminate all three vulnerabilities. First, we introduce **Deterministic Factor Ontology Contracts** coupled with a **Discrete-Time Schmitt-Trigger Hysteresis Operator** featuring a symmetric deadband $[-\delta, +\delta]$ that guarantees zero polarity inversion and suppresses signal chattering under local Brownian noise. Second, we prove that naive depth-disappearance estimators exhibit positive false-positive spoofing bias during momentum breakouts, and we construct a **Scroll-Out Resistant Deep Order Flow Imbalance (OFI) Estimator** utilizing a visible-window boundary invariant ($P_{\text{bid}, K}^{(t)} \le p \le P_{\text{bid}, 1}^{(t)}$), trade-volume subtraction, and sub-second twin-snapshot differentials ($\Delta t = 0.12\text{ s}$). Third, we derive the exact closed-form **Slippage-Proof Pyramiding Boundary Inequality**, establishing the maximum tolerable stop-loss slippage $\delta_{\text{slip}}^{\max}$ under which a pyramided position retains strictly positive worst-case realized profit ($\Pi_{\text{worst}}^{\text{real}} > 0$). We validate the complete architecture through 1,000 property-based formal verification trajectories (Hypothesis/Fuzzing) with zero invariant violations, and demonstrate substantial improvements in profit factor, drawdown containment, and execution fidelity across a 5-year multi-asset empirical evaluation (2021–2026).
+In this paper, we formulate a unified mathematical framework to eliminate all three vulnerabilities. First, we introduce **Deterministic Factor Ontology Contracts** coupled with a **Discrete-Time Schmitt-Trigger Hysteresis Operator** featuring a symmetric deadband $[-\delta, +\delta]$ that guarantees zero polarity inversion and suppresses signal chattering under local Brownian noise. Second, we prove that naive depth-disappearance estimators exhibit positive false-positive spoofing bias during momentum breakouts, and we construct a **Scroll-Out Resistant Deep Order Flow Imbalance (OFI) Estimator** utilizing a visible-window boundary invariant $(P_{\text{bid}, K}^{(t)} \le p \le P_{\text{bid}, 1}^{(t)})$, trade-volume subtraction, and sub-second twin-snapshot differentials ($\Delta t = 0.12\text{ s}$). Third, we derive the exact closed-form **Slippage-Proof Pyramiding Boundary Inequality**, establishing the maximum tolerable stop-loss slippage $\delta_{\text{slip}}^{\max}$ under which a pyramided position retains strictly positive worst-case realized profit $(\Pi_{\text{worst}}^{\text{real}} > 0)$. We validate the complete architecture through 1,000 property-based formal verification trajectories (Hypothesis/Fuzzing) with zero invariant violations, and demonstrate substantial improvements in profit factor, drawdown containment, and execution fidelity across a 5-year multi-asset empirical evaluation (2021–2026).
 
 **Keywords:** Quantitative Finance, Market Microstructure, Limit Order Book, Order Flow Imbalance, Spoofing Detection, Schmitt-Trigger Hysteresis, Multi-Agent LLM Systems, Asymmetric Pyramiding, Formal Verification
 
@@ -26,7 +26,7 @@ First, while LLMs excel at synthesizing unstructured financial disclosures, they
 
 Second, in high-frequency microstructure analysis, practitioners rely on Multi-Level Order Flow Imbalance (Deep OFI, Cont et al., 2014) and cancellation-rate heuristics to detect institutional liquidity absorption and predatory *spoofing* (layering). In production environments, broker gateways (e.g., FIX/FAST, Moomoo OpenD, IBKR TWS) stream a finite moving window of $K$ price levels around the inside market (typically $K \in \lbrace 10, 60\rbrace$). We identify a pervasive, previously unformalized pathology in finite-horizon LOB analytics: during a rapid upward price impulse, the Best Bid $P_{\text{bid}, 1}^{(t)}$ and the $K$-th Bid $P_{\text{bid}, K}^{(t)}$ shift upward by multiple ticks. Consequently, deeper bid prices $p < P_{\text{bid}, K}^{(t)}$ vanish from the $K$-level payload—not because resting orders were cancelled, but because they scrolled out of the visible observation horizon. Naive spoofing detectors interpret this horizon truncation as a $100\%$ liquidity pull on the bid side, generating a false bearish spoofing alert precisely at the onset of a genuine bullish breakout.
 
-Third, dynamic position scaling (*pyramiding* into profitable trends) is widely employed by discretionary and systematic traders to induce positive skewness in trade return distributions. Yet classical Kelly (1956) and Vince (1992) frameworks evaluate position sizing under continuous-time diffusion assumptions, neglecting the discrete jump risk and adverse execution slippage ($\delta_{\text{slip}}$) incurred when a consolidated trailing stop-loss order is triggered during an intraday liquidity vacuum.
+Third, dynamic position scaling (*pyramiding* into profitable trends) is widely employed by discretionary and systematic traders to induce positive skewness in trade return distributions. Yet classical Kelly (1956) and Vince (1992) frameworks evaluate position sizing under continuous-time diffusion assumptions, neglecting the discrete jump risk and adverse execution slippage $(\delta_{\text{slip}})$ incurred when a consolidated trailing stop-loss order is triggered during an intraday liquidity vacuum.
 
 ### Contributions of This Paper
 
@@ -53,7 +53,7 @@ where $\epsilon = 10^{-8}$ prevents division-by-zero degeneracy on constant cros
 
 When continuous canonical scores $z_{i,m}^{\text{can}}(t)$ are mapped into discrete semantic regimes $\mathcal{R} = \lbrace \text{BEARISH}, \text{NEUTRAL}, \text{BULLISH}\rbrace$ represented by $\lbrace -1, 0, +1\rbrace$, a memoryless threshold rule $S(z) = \text{sign}(z)\cdot\mathbb{I}(|z| > \theta)$ exhibits pathological chattering whenever $z(t) = \theta + \eta_t$ with zero-mean microstructure noise $\eta_t \sim \mathcal{N}(0, \sigma_\eta^2)$.
 
-**Definition 1 (Schmitt-Trigger Hysteresis Operator).** Let $\theta_{\text{enter}} > \theta_{\text{exit}} > 0$ define the upper entry and inner exit thresholds, inducing a hysteresis deadband of width $\delta = \theta_{\text{enter}} - \theta_{\text{exit}} > 0$ around each transition boundary. Given previous discrete regime state $S_{i,m}(t-1) \in \lbrace -1, 0, +1\rbrace$ stored in persistent state memory $\mathcal{M}_{t-1}$, the updated regime state $S_{i,m}(t) = \mathcal{H}\big(z_{i,m}^{\text{can}}(t), S_{i,m}(t-1)\big)$ is governed by the state transition law:
+**Definition 1 (Schmitt-Trigger Hysteresis Operator).** Let $\theta_{\text{enter}} > \theta_{\text{exit}} > 0$ define the upper entry and inner exit thresholds, inducing a hysteresis deadband of width $\delta = \theta_{\text{enter}} - \theta_{\text{exit}} > 0$ around each transition boundary. Given previous discrete regime state $S_{i,m}(t-1) \in \lbrace -1, 0, +1\rbrace$ stored in persistent state memory $M_{t-1}$, the updated regime state $S_{i,m}(t) = \mathcal{H}\big(z_{i,m}^{\text{can}}(t), S_{i,m}(t-1)\big)$ is governed by the state transition law:
 
 $\displaystyle S_{i,m}(t) = \begin{cases} +1 & \text{if } z_{i,m}^{\text{can}}(t) \ge \theta_{\text{enter}}, \text{ or } \big(S_{i,m}(t-1) = +1 \text{ and } z_{i,m}^{\text{can}}(t) > \theta_{\text{exit}}\big), \\ -1 & \text{if } z_{i,m}^{\text{can}}(t) \le -\theta_{\text{enter}}, \text{ or } \big(S_{i,m}(t-1) = -1 \text{ and } z_{i,m}^{\text{can}}(t) < -\theta_{\text{exit}}\big), \\ 0 & \text{otherwise.} \end{cases}$
 
@@ -67,7 +67,7 @@ $\displaystyle S_{i,m}(t) = \begin{cases} +1 & \text{if } z_{i,m}^{\text{can}}(t
 
 Consider a limit order book observed at discrete timestamps $t_n$ ($n \in \mathbb{N}$) with visible depth horizon $K \ge 1$. At timestamp $t$, the visible bid and ask ladders are pairs of price and resting size:
 
-$\displaystyle \mathcal{B}_t = \left\lbrace \left(P_{\text{bid}, k}^{(t)}, \, q_{\text{bid}, k}^{(t)}\right) \right\rbrace_{k=1}^{K}, \quad \mathcal{A}_t = \left\lbrace \left(P_{\text{ask}, k}^{(t)}, \, q_{\text{ask}, k}^{(t)}\right) \right\rbrace_{k=1}^{K}$
+$\displaystyle B_t = \left\lbrace \left(P_{\text{bid}, k}^{(t)}, \, q_{\text{bid}, k}^{(t)}\right) \right\rbrace^{k=1 \dots K}, \quad A_t = \left\lbrace \left(P_{\text{ask}, k}^{(t)}, \, q_{\text{ask}, k}^{(t)}\right) \right\rbrace^{k=1 \dots K}$
 
 ordered such that $P_{\text{bid}, 1}^{(t)} > P_{\text{bid}, 2}^{(t)} > \dots > P_{\text{bid}, K}^{(t)} > 0$ and $0 < P_{\text{ask}, 1}^{(t)} < P_{\text{ask}, 2}^{(t)} < \dots < P_{\text{ask}, K}^{(t)}$. Extending Cont et al. (2014) to$K$levels, the level-$k$bid and ask order flow contributions between$t-1$and$t$ are given by:
 
@@ -75,35 +75,35 @@ $\displaystyle e_{\text{bid}, k}^{(t)} = \mathbb{I}(P_{\text{bid}, k}^{(t)} \ge 
 
 $\displaystyle e_{\text{ask}, k}^{(t)} = \mathbb{I}(P_{\text{ask}, k}^{(t)} \le P_{\text{ask}, k}^{(t-1)}) q_{\text{ask}, k}^{(t)} - \mathbb{I}(P_{\text{ask}, k}^{(t)} \ge P_{\text{ask}, k}^{(t-1)}) q_{\text{ask}, k}^{(t-1)}$
 
-Applying exponential depth-decay weights $w_k = \exp(-\lambda (k-1))$ with decay parameter $\lambda = 0.25$ and normalizing by total weighted depth yields the normalized Deep OFI score $\text{OFI}_K^{(t)} \in [-1, +1]$:
+Applying exponential depth-decay weights $w_k = \exp(-\lambda (k-1))$ with decay parameter $\lambda = 0.25$ and normalizing by total weighted depth yields the normalized Deep OFI score $\mathrm{OFI_K}^{(t)} \in [-1, +1]$:
 
-$\displaystyle \text{OFI}_K^{(t)} = \frac{\sum_{k=1}^{K} w_k \left( e_{\text{bid}, k}^{(t)} - e_{\text{ask}, k}^{(t)} \right)}{\sum_{k=1}^{K} w_k \left( q_{\text{bid}, k}^{(t)} + q_{\text{ask}, k}^{(t)} + q_{\text{bid}, k}^{(t-1)} + q_{\text{ask}, k}^{(t-1)} \right) + \epsilon}$
+$\displaystyle \mathrm{OFI_K}^{(t)} = \frac{\sum_{k=1}^{K} w_k \left( e_{\text{bid}, k}^{(t)} - e_{\text{ask}, k}^{(t)} \right)}{\sum_{k=1}^{K} w_k \left( q_{\text{bid}, k}^{(t)} + q_{\text{ask}, k}^{(t)} + q_{\text{bid}, k}^{(t-1)} + q_{\text{ask}, k}^{(t-1)} \right) + \epsilon}$
 
 ### 3.2 Theorem: Order Book Horizon Truncation Bias (The Scroll-Out Spoofing Illusion)
 
-Standard spoofing detection algorithms monitor specific price levels $p \in \mathcal{P}_{\text{bid}}^{(t-1)}$ holding large resting volume $q_{\text{bid}}^{(t-1)}(p) \ge \gamma \bar{q}_{\text{bid}}^{(t-1)}$ (typically $\gamma = 2.5$). If $q_{\text{bid}}^{(t)}(p)$ drops by more than $\theta_{\text{cancel}} = 70\%$ within a short window $\Delta t = t - t_{-1}$ without commensurate trade executions, the event is flagged as a *bid spoof* (artificial support pulled to trap buyers).
+Standard spoofing detection algorithms monitor specific price levels $p \in P_{\text{bid}}^{(t-1)}$ holding large resting volume $q_{\text{bid}}^{(t-1)}(p) \ge \gamma \bar q_{\text{bid}}^{(t-1)}$ (typically $\gamma = 2.5$). If $q_{\text{bid}}^{(t)}(p)$ drops by more than $\theta_{\text{cancel}} = 70\%$ within a short window $\Delta t = t - t_{-1}$ without commensurate trade executions, the event is flagged as a *bid spoof* (artificial support pulled to trap buyers).
 
-However, in any finite-$K$ moving-window feed, the map $p \mapsto q_{\text{bid}}^{(t)}(p)$ is only observable for $p \in \left[P_{\text{bid}, K}^{(t)}, \, P_{\text{bid}, 1}^{(t)}\right]$. For any price $p$ outside this interval, a naive dictionary lookup returns $\hat{q}_{\text{bid}}^{(t)}(p) = 0$.
+However, in any finite-$K$ moving-window feed, the map $p \mapsto q_{\text{bid}}^{(t)}(p)$ is only observable for $p \in \left[P_{\text{bid}, K}^{(t)}, \, P_{\text{bid}, 1}^{(t)}\right]$. For any price $p$ outside this interval, a naive dictionary lookup returns $\hat q_{\text{bid}}^{(t)}(p) = 0$.
 
-**Theorem 1 (Horizon Truncation False-Positive Bias).** *Suppose at time $t-1$, a legitimate institutional bid wall of size $Q_{\text{wall}} \ge \gamma \bar{q}_{\text{bid}}^{(t-1)}$ rests at level $k^* \in \lbrace K - m + 1, \dots, K\rbrace$ with price $p^* = P_{\text{bid}, k^*}^{(t-1)}$. Suppose between $t-1$ and $t$, an aggressive buyer sweeps $m \ge 1$ ask levels, causing the entire bid ladder to shift upward by $m$ ticks such that $P_{\text{bid}, k}^{(t)} = P_{\text{bid}, k}^{(t-1)} + m \Delta p$ while $q_{\text{bid}}^{(t)}(p^*) = Q_{\text{wall}}$ remains completely untouched on the exchange matching engine. Then:*
+**Theorem 1 (Horizon Truncation False-Positive Bias).** *Suppose at time $t-1$, a legitimate institutional bid wall of size $Q_{\text{wall}} \ge \gamma \bar q_{\text{bid}}^{(t-1)}$ rests at level $k^* \in \lbrace K - m + 1, \dots, K\rbrace$ with price $p^* = P_{\text{bid}, k^*}^{(t-1)}$. Suppose between $t-1$ and $t$, an aggressive buyer sweeps $m \ge 1$ ask levels, causing the entire bid ladder to shift upward by $m$ ticks such that $P_{\text{bid}, k}^{(t)} = P_{\text{bid}, k}^{(t-1)} + m \Delta p$ while $q_{\text{bid}}^{(t)}(p^*) = Q_{\text{wall}}$ remains completely untouched on the exchange matching engine. Then:*
 1. *Price $p^*$ satisfies $p^* < P_{\text{bid}, K}^{(t)}$, falling outside the $K$-level observation window at time $t$.*
-2. *A naive finite-window spoofing estimator evaluates $\hat{q}_{\text{bid}}^{(t)}(p^*) = 0$, computing an apparent cancellation ratio $\hat{R}_{\text{cancel}}(p^*) = \frac{Q_{\text{wall}} - 0}{Q_{\text{wall}}} = 1.0 > \theta_{\text{cancel}}$, and deterministically triggers a false-positive Bid Spoofing alert during a genuine upward breakout.*
+2. *A naive finite-window spoofing estimator evaluates $\hat q_{\text{bid}}^{(t)}(p^*) = 0$, computing an apparent cancellation ratio $\hat R_{\text{cancel}}(p^*) = \frac{Q_{\text{wall}} - 0}{Q_{\text{wall}}} = 1.0 > \theta_{\text{cancel}}$, and deterministically triggers a false-positive Bid Spoofing alert during a genuine upward breakout.*
 
-*Proof.* Since the bid ladder is strictly decreasing with minimum tick $\Delta p > 0$, for any $k^* \ge K - m + 1$, we have $p^* = P_{\text{bid}, k^*}^{(t-1)} \le P_{\text{bid}, K - m + 1}^{(t-1)} \le P_{\text{bid}, K}^{(t-1)} + (m - 1)\Delta p < P_{\text{bid}, K}^{(t-1)} + m \Delta p = P_{\text{bid}, K}^{(t)}$. Because the broker API payload $\mathcal{B}_t$ contains only $p \in [P_{\text{bid}, K}^{(t)}, P_{\text{bid}, 1}^{(t)}]$, $p^* \notin \text{dom}(\mathcal{B}_t)$, so $\hat{q}_{\text{bid}}^{(t)}(p^*) = 0$. Even with zero traded volume at $p^*$, the naive disappearance estimator attributes $Q_{\text{wall}}$ entirely to limit order cancellations, yielding $\hat{R}_{\text{cancel}}(p^*) = 1.0 \ge \theta_{\text{cancel}}$. $\blacksquare$
+*Proof.* Since the bid ladder is strictly decreasing with minimum tick $\Delta p > 0$, for any $k^* \ge K - m + 1$, we have $p^* = P_{\text{bid}, k^*}^{(t-1)} \le P_{\text{bid}, K - m + 1}^{(t-1)} \le P_{\text{bid}, K}^{(t-1)} + (m - 1)\Delta p < P_{\text{bid}, K}^{(t-1)} + m \Delta p = P_{\text{bid}, K}^{(t)}$. Because the broker API payload $B_t$ contains only $p \in [P_{\text{bid}, K}^{(t)}, P_{\text{bid}, 1}^{(t)}]$, $p^* \notin \text{dom}(B_t)$, so $\hat q_{\text{bid}}^{(t)}(p^*) = 0$. Even with zero traded volume at $p^*$, the naive disappearance estimator attributes $Q_{\text{wall}}$ entirely to limit order cancellations, yielding $\hat R_{\text{cancel}}(p^*) = 1.0 \ge \theta_{\text{cancel}}$. $\blacksquare$
 
 ### 3.3 The Visible-Window Boundary Guard & Twin-Snapshot Differential
 
 To eliminate Horizon Truncation Bias while preserving sensitivity to genuine spoofing pulls inside the spread, we enforce three formal invariants:
 
-1. **Visible-Window Boundary Invariant:** A resting bid wall at price $p \in \text{dom}(\mathcal{B}_{t-1})$ is eligible for spoofing cancellation evaluation at time $t$ if and only if $p$ remains strictly inside the active $K$-level price bracket at time $t$:
+1. **Visible-Window Boundary Invariant:** A resting bid wall at price $p \in \text{dom}(B_{t-1})$ is eligible for spoofing cancellation evaluation at time $t$ if and only if $p$ remains strictly inside the active $K$-level price bracket at time $t$:
 
-   $\displaystyle \mathcal{V}_{\text{bid}}^{(t)}(p) \iff P_{\text{bid}, K}^{(t)} \le p \le P_{\text{bid}, 1}^{(t)}$
+   $\displaystyle V_{\text{bid}}^{(t)}(p) \iff P_{\text{bid}, K}^{(t)} \le p \le P_{\text{bid}, 1}^{(t)}$
 
-   Symmetrically, an ask wall at price $p \in \text{dom}(\mathcal{A}_{t-1})$ is evaluated if and only if:
+   Symmetrically, an ask wall at price $p \in \text{dom}(A_{t-1})$ is evaluated if and only if:
 
-   $\displaystyle \mathcal{V}_{\text{ask}}^{(t)}(p) \iff P_{\text{ask}, 1}^{(t)} \le p \le P_{\text{ask}, K}^{(t)}$
+   $\displaystyle V_{\text{ask}}^{(t)}(p) \iff P_{\text{ask}, 1}^{(t)} \le p \le P_{\text{ask}, K}^{(t)}$
 
-   Any price level violating $\mathcal{V}_{\text{bid}}^{(t)}(p)$ or $\mathcal{V}_{\text{ask}}^{(t)}(p)$ has either been crossed by the inside market (filled) or scrolled beyond the $K$-th depth horizon, and is excluded from cancellation attribution.
+   Any price level violating $V_{\text{bid}}^{(t)}(p)$ or $V_{\text{ask}}^{(t)}(p)$ has either been crossed by the inside market (filled) or scrolled beyond the $K$-th depth horizon, and is excluded from cancellation attribution.
 
 2. **Trade-Execution Volume Subtraction:** Given cumulative traded volume $\Delta V_{\text{trade}}^{(t-1, t)}$ executed between $t-1$ and $t$, the net non-executed volume reduction at price $p$ is bounded below by:
 
@@ -111,7 +111,7 @@ To eliminate Horizon Truncation Bias while preserving sensitivity to genuine spo
 
    A spoofing alert is triggered only when $\mathcal{V}^{(t)}(p)$ holds and $\Delta q_{\text{cancel}}^{(t)}(p) / q^{(t-1)}(p) \ge 0.70$.
 
-3. **Sub-Second Twin-Snapshot Differential ($\Delta t \le \tau_{\max}$):** In stateless or multi-worker execution architectures, comparing snapshots separated by long polling intervals ($\Delta t > 15\text{ s}$) conflates macro trend drift with high-frequency spoofing. We enforce a strict temporal bound $0 < \Delta t \le \tau_{\max} = 15.0\text{ s}$and implement an atomic twin-snapshot acquisition protocol ($\Delta t = 0.12\text{ s}$) within the broker gateway (`_fetch_moomoo_lv3_order_book`), ensuring exact sub-second differential measurement even on cold worker initialization.
+3. **Sub-Second Twin-Snapshot Differential $(\Delta t \le \tau_{\max})$:** In stateless or multi-worker execution architectures, comparing snapshots separated by long polling intervals ($\Delta t > 15\text{ s}$) conflates macro trend drift with high-frequency spoofing. We enforce a strict temporal bound $0 < \Delta t \le \tau_{\max} = 15.0\text{ s}$and implement an atomic twin-snapshot acquisition protocol ($\Delta t = 0.12\text{ s}$) within the broker gateway (`_fetch_moomoo_lv3_order_book`), ensuring exact sub-second differential measurement even on cold worker initialization.
 
 ---
 
@@ -119,7 +119,7 @@ To eliminate Horizon Truncation Bias while preserving sensitivity to genuine spo
 
 ### 4.1 Closed-Form Slippage-Proof Pyramiding Theorem
 
-Consider an initial long position of size $Q_0 > 0$ entered at price $P_0 > 0$ with initial stop-loss distance $\text{SL}_0 > 0$ ( defining $1\text{R} = Q_0 P_0 \text{SL}_0$). Suppose the asset reaches a Maximum Favorable Excursion $\text{MFE}_t \ge \Delta_{\text{lock}} > 0$ (after a breakeven lock has already been established at $P_{\text{SL}} > P_0$), and the system executes a single scale-in (pyramiding) add-on of size $Q_{\text{add}} = \alpha Q_0$ ($\alpha \in (0, 1)$) at price $P_1 = P_0(1 + \Delta_{\text{lock}})$, while simultaneously raising the unified stop-loss for the total position $Q_{\text{tot}} = (1 + \alpha)Q_0$ to $P_{\text{SL}}^{\text{new}} = P_1(1 - \Delta_{\text{buf}}) \approx P_0(1 + \Delta_{\text{lock}} - \Delta_{\text{buf}})$, where $\Delta_{\text{buf}} > 0$ is the protective stop buffer below $P_1$.
+Consider an initial long position of size $Q_0 > 0$ entered at price $P_0 > 0$ with initial stop-loss distance $\mathrm{SL_0} > 0$ ( defining $1\text{R} = Q_0 P_0 \mathrm{SL_0}$). Suppose the asset reaches a Maximum Favorable Excursion $\mathrm{MFE_t} \ge \Delta_{\text{lock}} > 0$ (after a breakeven lock has already been established at $P_{\text{SL}} > P_0$), and the system executes a single scale-in (pyramiding) add-on of size $Q_{\text{add}} = \alpha Q_0$ $(\alpha \in (0, 1))$ at price $P_1 = P_0(1 + \Delta_{\text{lock}})$, while simultaneously raising the unified stop-loss for the total position $Q_{\text{tot}} = (1 + \alpha)Q_0$ to $P_{\text{SL}}^{\text{new}} = P_1(1 - \Delta_{\text{buf}}) \approx P_0(1 + \Delta_{\text{lock}} - \Delta_{\text{buf}})$, where $\Delta_{\text{buf}} > 0$ is the protective stop buffer below $P_1$.
 
 Suppose immediately following the scale-in execution at $P_1$, an adverse liquidity shock occurs, triggering the unified stop-loss $P_{\text{SL}}^{\text{new}}$ with adverse execution slippage $\delta_{\text{slip}} \ge 0$ such that the actual fill price is $P_{\text{fill}} = P_{\text{SL}}^{\text{new}} - \delta_{\text{slip}} P_0 \approx P_0(1 + \Delta_{\text{lock}} - \Delta_{\text{buf}} - \delta_{\text{slip}})$, and incurring round-trip proportional transaction cost $c \ge 0$ per unit notional.
 
@@ -147,9 +147,9 @@ $\displaystyle \delta_{\text{slip}}^{\max} = \frac{1.0 \times 0.0095 - 0.30 \tim
 
 When routing equity or index signals $s$ (reference entry $P_{\text{ref}}$, stop $P_{\text{SL}}^{\text{ref}}$, target $P_{\text{TP}}^{\text{ref}}$) to high-beta CFD/futures proxies $s^*$ (live execution price $P_{\text{exec}}^*$, contract size $C^*$, minimum lot step $\Delta v^*$, minimum volume $v_{\min}^*$) under a stepped drawdown-dampened risk fraction $f_{\text{eff}}(t) = f_{\text{base}}(E(t)) \cdot \lambda_{\text{DD}}(t)$, exact dollar-risk invariance requires:
 
-$\displaystyle \text{SL}_{\%} = \frac{\left|P_{\text{ref}} - P_{\text{SL}}^{\text{ref}}\right|}{P_{\text{ref}}}, \quad V_{\text{raw}}^* = \frac{E_{\text{USD}}(t) \cdot \big(f_{\text{eff}}(t) / 100\big)}{P_{\text{exec}}^* \cdot \text{SL}_{\%} \cdot C^*}, \quad V^* = \max\left(v_{\min}^*, \, \left\lfloor \frac{V_{\text{raw}}^*}{\Delta v^*} + \frac{1}{2} \right\rfloor \Delta v^* \right)$
+$\displaystyle \mathrm{SL_{\%}} = \frac{\left|P_{\text{ref}} - P_{\text{SL}}^{\text{ref}}\right|}{P_{\text{ref}}}, \quad V_{\text{raw}}^* = \frac{E_{\text{USD}}(t) \cdot \big(f_{\text{eff}}(t) / 100\big)}{P_{\text{exec}}^* \cdot \mathrm{SL_{\%}} \cdot C^*}, \quad V^* = \max\left(v_{\min}^*, \, \left\lfloor \frac{V_{\text{raw}}^*}{\Delta v^*} + \frac{1}{2} \right\rfloor \Delta v^* \right)$
 
-Furthermore, to prevent API rate-limit exhaustion ($R_{\max} = 120\text{ req/min}$) and L2 subscription quota overflow ($K_{\max} = 100$) across an $N = 68$ asset universe, a 3-Tier Pre-Filter Funnel restricts L2 order book queries exclusively to assets passing Tier 1 (Daily ADR $\ge 2.2\%$) and Tier 2 (5-minute VWAP pullback $\left|C_s(t) - \text{VWAP}_s(t)\right| / \text{VWAP}_s(t) \le 0.45\%$), bounding active L2 subscriptions to $K(t) = |\mathcal{Q}_d^{(2)}(t)| + M_{\text{pos}} \le 3 + 4 = 7 \ll 100$.
+Furthermore, to prevent API rate-limit exhaustion $(R_{\max} = 120\text{ req/min})$ and L2 subscription quota overflow $(K_{\max} = 100)$ across an $N = 68$ asset universe, a 3-Tier Pre-Filter Funnel restricts L2 order book queries exclusively to assets passing Tier 1 (Daily ADR $\ge 2.2\%$) and Tier 2 (5-minute VWAP pullback $\left|C_s(t) - \mathrm{VWAP_s}(t)\right| / \mathrm{VWAP_s}(t) \le 0.45\%$), bounding active L2 subscriptions to $K(t) = |Q_d^{(2)}(t)| + M_{\text{pos}} \le 3 + 4 = 7 \ll 100$.
 
 ---
 
@@ -161,7 +161,7 @@ To verify mathematical soundness under adversarial market conditions, the implem
 
 | Verification Stage | Methodology & Scope | Test Trajectories / Targets | Invariant Violations |
 | :--- | :--- | :---: | :---: |
-| **Stage 1: Boundary Fuzzing** | `oss-fuzz` style injection of `NaN`, `+Inf`, `-Inf`, $0$, negative prices, crossed books ($P_{\text{bid}, 1} > P_{\text{ask}, 1}$), penny/ultra-high-priced ticks | 6 core engines, 42 adversarial edge cases | **0 (100% immune)** |
+| **Stage 1: Boundary Fuzzing** | `oss-fuzz` style injection of `NaN`, `+Inf`, `-Inf`, $0$, negative prices, crossed books $(P_{\text{bid}, 1} > P_{\text{ask}, 1})$, penny/ultra-high-priced ticks | 6 core engines, 42 adversarial edge cases | **0 (100% immune)** |
 | **Stage 2: Property-Based Testing** | `Hypothesis` stochastic generation of 60-level L2 trajectories, OHLCV + L2 wall combinations, and TSE/US tick-lot normalizations | **1,000 randomized trajectories** ($350 + 350 + 300$) | **0 (`1,000 / 1,000` passed)** |
 | **Stage 3: AST Structural Audit** | `Semgrep` static abstract syntax tree analysis for division-by-zero, mutable default leaks, and look-ahead bias | 51 Python modules (`core/ai_hedge_fund/`) | **0 findings** |
 | **Stage 4: Static & Security Audit** | `Ruff` (`F821/F823/F601/B006`) + `Bandit` cryptographic & execution vulnerability scan | 51 Python modules (`19,561` LOC) | **0 High/Medium issues** |
@@ -172,8 +172,8 @@ Table 2 summarizes the 5-year out-of-sample comparative performance (March 2021 
 
 | Strategy / Metric | Baseline Architecture (Naive L2 & Fixed Sizing) | Proposed Architecture (v6.6.5 Formal Invariants) | Structural Improvement |
 | :--- | :---: | :---: | :--- |
-| **False-Positive Spoofing Rate (Breakout Bars)** | $38.4\%$| **$0.0\%$** | Eliminated Horizon Truncation Bias ($\mathcal{V}_{\text{bid}}^{(t)}$ guard) |
-| **LLM Factor Polarity Hallucination Rate** | $14.2\%$| **$0.0\%$** | Eliminated via Canonical Ontology ($z_{i,m}^{\text{can}}$) |
+| **False-Positive Spoofing Rate (Breakout Bars)** | $38.4\%$| **$0.0\%$** | Eliminated Horizon Truncation Bias ($V_{\text{bid}}^{(t)}$ guard) |
+| **LLM Factor Polarity Hallucination Rate** | $14.2\%$| **$0.0\%$** | Eliminated via Canonical Ontology $(z_{i,m}^{\text{can}})$ |
 | **Regime Boundary Chattering Turnover** | $2.85\times \text{ baseline}$| **$1.00\times \text{ baseline}$** | $-64.9\%$ unnecessary flips via Schmitt-Trigger $\mathcal{H}$ |
 | **5-Year Cumulative Return ($R$-Multiples, Chamber 4)** | $+128.40\text{R}$ | **$+164.02\text{R}$** | **$+35.62\text{R}$** expansion via Slippage-Proof Pyramiding |
 | **Trailing 1-Year Return ($R$-Multiples, 2025–2026)** | $+61.20\text{R}$ | **$+82.47\text{R}$** | **$+34.8\%$** outperformance in high-volatility regime |
@@ -186,19 +186,19 @@ Table 2 summarizes the 5-year out-of-sample comparative performance (March 2021 
 
 ### 5.3 Statistical Overfitting & Multiple-Testing Audit (WFE, Purged CPCV, and DSR)
 
-To rigorously eliminate selection bias, backtest overfitting, and non-normal return distortion (Bailey & López de Prado, 2014; López de Prado, 2018), we evaluate the out-of-sample return series $\lbrace r_t\rbrace _{t=1}^{T}$ across four institutional statistical estimators:
+To rigorously eliminate selection bias, backtest overfitting, and non-normal return distortion (Bailey & López de Prado, 2014; López de Prado, 2018), we evaluate the out-of-sample return series $\lbrace r_t\rbrace^{t=1 \dots T}$ across four institutional statistical estimators:
 
 1. **Rolling Walk-Forward Efficiency ($\text{WFE}$):** Partitioning the 5-year horizon into rolling 252-day In-Sample ($\text{IS}$) and 126-day Out-of-Sample ($\text{OOS}$) windows, the annualized Walk-Forward Efficiency ratio is defined as:
 
    $\displaystyle \text{WFE} = \frac{R_{\text{OOS}}^{\text{ann}}}{R_{\text{IS}}^{\text{ann}}} = 89.6\% > 50.0\%$
 
-2. **Combinatorial Purged Cross-Validation ($\text{CPCV}$):** Partitioning $T$ into $N = 6$ contiguous blocks and evaluating all $\binom{N}{k} = \binom{6}{3} = 15$ out-of-sample combinations with boundary purging and a $5$-day embargo ($e = 0.01 T$) to prevent serial-correlation leakage yields a median out-of-sample Sharpe ratio of $\text{SR}_{\text{CPCV}}^{\text{med}} = 1.29$ (mean $1.31$) and a Probability of Backtest Overfitting$\text{PBO} = 0.0\%$.
+2. **Combinatorial Purged Cross-Validation ($\text{CPCV}$):** Partitioning $T$ into $N = 6$ contiguous blocks and evaluating all $\binom{N}{k} = \binom{6}{3} = 15$ out-of-sample combinations with boundary purging and a $5$-day embargo ($e = 0.01 T$) to prevent serial-correlation leakage yields a median out-of-sample Sharpe ratio of $\mathrm{SR_{\text{CPCV}}}^{\text{med}} = 1.29$ (mean $1.31$) and a Probability of Backtest Overfitting$\text{PBO} = 0.0\%$.
 
-3. **Deflated Sharpe Ratio ($\text{DSR}$):** Correcting the annualized Sharpe ratio $\widehat{\text{SR}}$ for sample skewness $\hat{\gamma}_3$, sample kurtosis $\hat{\gamma}_4$, sample length $T$, and the expected maximum Sharpe ratio $\widehat{\text{SR}}_0$ across $M$ independent trial configurations via the Euler–Mascheroni extreme-value approximation ($\gamma_{\text{EM}} \approx 0.5772$):
+3. **Deflated Sharpe Ratio ($\text{DSR}$):** Correcting the annualized Sharpe ratio $\widehat{\text{SR}}$ for sample skewness $\hat\gamma_3$, sample kurtosis $\hat\gamma_4$, sample length $T$, and the expected maximum Sharpe ratio $\widehat{\mathrm{SR_0}}$ across $M$ independent trial configurations via the Euler–Mascheroni extreme-value approximation $(\gamma_{\text{EM}} \approx 0.5772)$:
 
-   $\displaystyle \widehat{\text{SR}}_0 = \sqrt{\mathbb{V}[\lbrace \widehat{\text{SR}}_m\rbrace ]} \left( (1 - \gamma_{\text{EM}})\Phi^{-1}\!\left(1 - \frac{1}{M}\right) + \gamma_{\text{EM}}\Phi^{-1}\!\left(1 - \frac{1}{M e}\right) \right)$
+   $\displaystyle \widehat{\mathrm{SR_0}} = \sqrt{\mathbb{V}[\lbrace \widehat{\mathrm{SR_m}}\rbrace ]} \left( (1 - \gamma_{\text{EM}})\Phi^{-1}\!\left(1 - \frac{1}{M}\right) + \gamma_{\text{EM}}\Phi^{-1}\!\left(1 - \frac{1}{M e}\right) \right)$
 
-   $\displaystyle \text{DSR} = \Phi\!\left( \frac{\left(\widehat{\text{SR}} - \widehat{\text{SR}}_0\right)\sqrt{T - 1}}{\sqrt{1 - \hat{\gamma}_3 \widehat{\text{SR}} + \frac{\hat{\gamma}_4 - 1}{4}\widehat{\text{SR}}^2}} \right) = 97.76\% \quad (p = 0.0224 < 0.05)$
+   $\displaystyle \text{DSR} = \Phi\!\left( \frac{\left(\widehat{\text{SR}} - \widehat{\mathrm{SR_0}}\right)\sqrt{T - 1}}{\sqrt{1 - \hat\gamma_3 \widehat{\text{SR}} + \frac{\hat\gamma_4 - 1}{4}\widehat{\text{SR}}^2}} \right) = 97.76\% \quad (p = 0.0224 < 0.05)$
 
 ---
 

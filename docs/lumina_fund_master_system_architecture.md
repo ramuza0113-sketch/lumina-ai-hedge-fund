@@ -123,12 +123,12 @@ During asset examination, each analyst agent operates in total isolation, with z
 ### 3.5 Asynchronous Hayashi-Yoshida Covariance & Higham (2002) PSD Projection (v6.4.6)
 * **Hayashi-Yoshida (2005) Non-Synchronous Estimator (`lead_lag_analyzer.py`)**: Eliminates the Epps effect (underestimated correlation caused by timezone mismatches between US and Japanese exchanges) by accumulating overlapping interval returns:
 
-  $\displaystyle \text{Cov}_{HY}(X, Y) = \sum_{i} \sum_{j} \Delta X(I_i) \Delta Y(J_j) \cdot \mathbb{I}(I_i \cap J_j \neq \emptyset)$
+  $\displaystyle \mathrm{Cov_{HY}}(X, Y) = \sum_{i} \sum_{j} \Delta X(I_i) \Delta Y(J_j) \cdot \mathbb{I}(I_i \cap J_j \neq \emptyset)$
 
 * **Higham (2002) Nearest PSD Projection & Ledoit-Wolf Shrinkage**:
-  Multivariate pairwise non-synchronous correlation matrices $\boldsymbol{\Sigma}_{HY}$ often suffer from negative eigenvalues. Lumina applies Ledoit-Wolf structured shrinkage ($\alpha = 0.10$) and eigenvalue spectrum clipping to mathematically project the matrix onto the nearest Positive Semi-Definite (PSD) space:
+  Multivariate pairwise non-synchronous correlation matrices $\boldsymbol\Sigma_{HY}$ often suffer from negative eigenvalues. Lumina applies Ledoit-Wolf structured shrinkage ($\alpha = 0.10$) and eigenvalue spectrum clipping to mathematically project the matrix onto the nearest Positive Semi-Definite (PSD) space:
 
-  $\displaystyle \boldsymbol{\Sigma}_{\text{PSD}} = \mathbf{V} \max(\boldsymbol{\Lambda}, 10^{-4}) \mathbf{V}^T, \quad \text{diag}(\boldsymbol{\Sigma}_{\text{PSD}}) = \mathbf{I}$
+  $\displaystyle \boldsymbol\Sigma_{\text{PSD}} = \mathbf{V} \max(\boldsymbol{\Lambda}, 10^{-4}) \mathbf{V}^T, \quad \text{diag}(\boldsymbol\Sigma_{\text{PSD}}) = \mathbf{I}$
 
 ---
 
@@ -144,12 +144,12 @@ During asset examination, each analyst agent operates in total isolation, with z
 * **Timeout Fallback Failsafe (`max_timeout_sec`, v6.4.7)**: During illiquid halts or circuit breaker events where traded volume fails to cross $V^*$, bars are forcefully closed when duration exceeds $\Delta t_{\max} = \max(1800\,\text{s}, 4 \times \Delta t_{\text{base}})$ (`is_timeout_bar = True` / Rust `timeout_bars`), preventing stalled signals and stale alpha.
 
 ### 4.2 Continuous Information Flow Velocity (`flow_velocity`)
-* Computes real-time execution speed ($\text{vol\_per\_sec} = V_k / \Delta t_k$) relative to a rolling 20-bar baseline. Identifies institutional whale accumulation ($\text{flow\_velocity} \ge 1.80\times$) without bar quantization delay.
+* Computes real-time execution speed (`vol_per_sec` $= V_k / \Delta t_k$) relative to a rolling 20-bar baseline. Identifies institutional whale accumulation (`flow_velocity` $\ge 1.80\times$) without bar quantization delay.
 
 ### 4.3 Rama Cont (2014) Deep 10-Level Order Flow Imbalance (`deep_ofi_analyzer.py`)
 * Measures supply/demand pressure across 10 levels of the limit order book using exponential decay weights $w_k = e^{-\alpha k}$:
 
-  $\displaystyle \text{OFI}_t = \sum_{k=1}^K e^{-\alpha k} \left[ \Delta Q_{k,t}^B \cdot \mathbb{I}(\Delta P_{k,t}^B \ge 0) - \Delta Q_{k,t}^A \cdot \mathbb{I}(\Delta P_{k,t}^A \le 0) \right]$
+  $\displaystyle \mathrm{OFI_t} = \sum_{k=1}^K e^{-\alpha k} \left[ \Delta Q_{k,t}^B \cdot \mathbb{I}(\Delta P_{k,t}^B \ge 0) - \Delta Q_{k,t}^A \cdot \mathbb{I}(\Delta P_{k,t}^A \le 0) \right]$
 
 * **Spoofing Trap Detection**: Senses rapid cancel-to-fill ratios, placing orders into `DELAY` to prevent buying tops.
 * **Iceberg Stealth Accumulation**: Detects replenishment of bid depth during price drops to execute sniper entries (`SNIPER_STEALTH`).
@@ -157,7 +157,7 @@ During asset examination, each analyst agent operates in total isolation, with z
 ### 4.4 Options Market Turbulence Radar (GEX) (`options_gex_feed.py`)
 * Aggregates Black-Scholes Dealer Gamma Exposure:
 
-  $\displaystyle \text{GEX} = \sum_{i} \Gamma_i \times \text{OI}_i \times S^2 \times 100 \times \text{Sign}_i$
+  $\displaystyle \text{GEX} = \sum_{i} \Gamma_i \times \mathrm{OI_i} \times S^2 \times 100 \times \mathrm{Sign_i}$
 
 * Computes **Call Wall** (overhead institutional selling ceiling), **Put Wall** (downside support floor), and **Gamma Flip** (boundary where dealer hedging shifts from volatility-dampening to volatility-amplifying).
 
@@ -209,7 +209,7 @@ During asset examination, each analyst agent operates in total isolation, with z
 ### 5.3 Dynamic Half-Kelly Allocation ($f^* / 2$)
 * Scales positions based on the Kelly Criterion with an institutional 50% safety factor:
 
-  $\displaystyle f^*_{\text{half}} = \frac{1}{2} \left[ p - \frac{1 - p}{b} \right]$
+  $\displaystyle f_{\mathrm{half}}^* = \frac{1}{2} \left[ p - \frac{1 - p}{b} \right]$
 
 * Cuts portfolio variance by 50% while capturing 75% of maximum theoretical growth, driving gambler's ruin probability to zero.
 
@@ -377,7 +377,7 @@ Evaluated against rigorous quantitative audit standards across walk-forward anal
 | **③ Deflated Sharpe Ratio (DSR) & PBO** | Bailey & López de Prado (2014) multiple testing & skewness correction | • **Deflated Sharpe Ratio ($\text{DSR}$) = `0.9776` (`97.76%` statistical confidence)** *(Criterion $\ge 0.95$)*<br>• **Probability of Backtest Overfitting ($\text{PBO}$) = `20.00%`** *(Well below 50% limit)* | ✅ **PASS** |
 | **④ Parameter Sensitivity Plateau** | $\pm 10\% \sim \pm 20\%$ perturbation across 5 core parameters (25 combinations) | • Maintained **PF `1.45 to 1.86` (CAGR `+11.5% to +20.9%`)** across all 25 variants with zero performance cliffs. Optimal plateau center: `flow_velocity = 0.95x ~ 1.01x`. | ✅ **PASS** |
 | **⑤ Multi-Dimensional Risk & Underwater Duration** | Sortino, Calmar, and maximum recovery duration (Underwater Duration) | • Standard flow velocity (`0.95x`): **CAGR `+22.42%`, Sortino `1.85`, Calmar `1.03`, PF `1.64`, Max Underwater Duration `176 trading days` (Avg `16.0d` $\le 180$d target)**<br>• Strict velocity (`1.12x`): **MaxDD `-18.33%` ($\le 20\%$ target), PF `1.58`** | ✅ **PASS** |
-| **⑥ Almgren-Chriss Market Impact Capacity** | $\Delta P = 0.5 \sigma \sqrt{Q/\text{ADV}_{20}}$ deducted on all fills from ¥10M to ¥3.0B AUM | • **Optimal Capacity Range (¥50M to ¥500M / $350K to $3.5M USD)**: Impact `1.51 to 4.82 bps`, **CAGR `+15.4% to +22.9%`, MaxDD `-18.4%`, PF `1.57 to 1.65`**<br>• **Large-Cap Scaling (¥1.0B to ¥3.0B)**: Impact `6.71 to 11.55 bps`, maintaining **PF `1.54 to 1.64`** | ✅ **PASS** |
+| **⑥ Almgren-Chriss Market Impact Capacity** | $\Delta P = 0.5 \sigma \sqrt{Q/\mathrm{ADV_{20}}}$ deducted on all fills from ¥10M to ¥3.0B AUM | • **Optimal Capacity Range (¥50M to ¥500M / $350K to $3.5M USD)**: Impact `1.51 to 4.82 bps`, **CAGR `+15.4% to +22.9%`, MaxDD `-18.4%`, PF `1.57 to 1.65`**<br>• **Large-Cap Scaling (¥1.0B to ¥3.0B)**: Impact `6.71 to 11.55 bps`, maintaining **PF `1.54 to 1.64`** | ✅ **PASS** |
 | **⑦ Financial Disclosure Lag (Point-in-Time)** | Delayed fundamental deterioration disclosures by `+45d` / `+90d` / `1-Year Blindness` | • **+45 Calendar Days (+32d): `+36.96% (MaxDD -12.80%, PF 1.35)`**<br>• **+90 Calendar Days (+65d): `+40.69% (MaxDD -13.20%, PF 1.45)`**<br>• SMA200, RS rank, and Volume Clocks proactively exited months prior to official disclosure, confirming zero lookahead bias. | ✅ **PASS** |
 
 ### 8.8 Tier-1 Hedge Fund Adversarial Stress Audits: 6 Institutional Gauntlet Tests (v6.4.8)
@@ -462,12 +462,12 @@ flowchart LR
 * **Deep Order Flow Imbalance (Rama Cont et al., 2014)**:
   Quantifies limit order book supply/demand pressure across $K=10$ levels with exponential weights $w_k = e^{-\alpha k}$:
 
-  $\displaystyle \text{OFI}_t = \sum_{k=1}^K e^{-\alpha k} \left[ \Delta Q_{k,t}^B \cdot \mathbb{I}(\Delta P_{k,t}^B \ge 0) - \Delta Q_{k,t}^A \cdot \mathbb{I}(\Delta P_{k,t}^A \le 0) \right]$
+  $\displaystyle \mathrm{OFI_t} = \sum_{k=1}^K e^{-\alpha k} \left[ \Delta Q_{k,t}^B \cdot \mathbb{I}(\Delta P_{k,t}^B \ge 0) - \Delta Q_{k,t}^A \cdot \mathbb{I}(\Delta P_{k,t}^A \le 0) \right]$
 
   Detects spoofing cancellations to delay orders, and senses iceberg buying to execute sniper limit fills.
 * **Amihud (2002) Illiquidity Measure**:
 
-  $\displaystyle \text{ILLIQ}_t = \frac{|R_t|}{\text{Volume}_t \times P_t}$
+  $\displaystyle \mathrm{ILLIQ_t} = \frac{|R_t|}{\mathrm{Volume_t} \times P_t}$
 
   Filters illiquid traps where minor execution causes excessive price displacement.
 
@@ -475,12 +475,12 @@ flowchart LR
 * **Hayashi-Yoshida (2005) Covariance Estimator**:
   Resolves the Epps effect across non-synchronous US and Tokyo market hours by summing products of overlapping returns:
 
-  $\displaystyle \text{Cov}_{HY}(X, Y) = \sum_{i} \sum_{j} \Delta X(I_i) \Delta Y(J_j) \cdot \mathbb{I}(I_i \cap J_j \neq \emptyset)$
+  $\displaystyle \mathrm{Cov_{HY}}(X, Y) = \sum_{i} \sum_{j} \Delta X(I_i) \Delta Y(J_j) \cdot \mathbb{I}(I_i \cap J_j \neq \emptyset)$
 
 * **Nearest Positive Semi-Definite Matrix Projection (Nick Higham, 2002)**:
   Repairs negative eigenvalues in multivariate asynchronous correlation matrices via Ledoit-Wolf shrinkage ($\alpha=0.10$) and spectral clipping:
 
-  $\displaystyle \boldsymbol{\Sigma}_{\text{PSD}} = \mathbf{V} \max(\boldsymbol{\Lambda}, 10^{-4}) \mathbf{V}^T, \quad \text{diag}(\boldsymbol{\Sigma}_{\text{PSD}}) = \mathbf{I}$
+  $\displaystyle \boldsymbol\Sigma_{\text{PSD}} = \mathbf{V} \max(\boldsymbol{\Lambda}, 10^{-4}) \mathbf{V}^T, \quad \text{diag}(\boldsymbol\Sigma_{\text{PSD}}) = \mathbf{I}$
 
 * **Granger Causality Testing**:
   F-tests determine statistically significant lag days from benchmark series (^SOX, USD/JPY, ^TNX, CL=F) to target equity price formations.
@@ -489,7 +489,7 @@ flowchart LR
 * **Half-Kelly Criterion (J.L. Kelly Jr., 1956)**:
   Maximizes geometric growth while capping drawdown risk with a 50% safety factor:
 
-  $\displaystyle f^*_{\text{half}} = \frac{1}{2} \left[ p - \frac{1 - p}{b} \right]$
+  $\displaystyle f_{\mathrm{half}}^* = \frac{1}{2} \left[ p - \frac{1 - p}{b} \right]$
 
 * **Hierarchical Risk Parity (HRP, López de Prado, 2016)**:
   Applies machine learning single-linkage hierarchical clustering to correlation distance metrics $d_{i,j} = \sqrt{2(1 - \rho_{i,j})}$, allocating weights via inverse-variance parity without matrix inversion.
@@ -498,7 +498,7 @@ flowchart LR
 * **Black-Scholes-Merton Gamma Exposure (GEX)**:
   Measures aggregate dealer second-order hedging commitments:
 
-  $\displaystyle \text{GEX} = \sum_{i} \Gamma_i \times \text{OI}_i \times S^2 \times 100 \times \text{Sign}_i$
+  $\displaystyle \text{GEX} = \sum_{i} \Gamma_i \times \mathrm{OI_i} \times S^2 \times 100 \times \mathrm{Sign_i}$
 
   Identifies overhead resistance (**Call Wall**), downside support (**Put Wall**), and volatility transition points (**Gamma Flip**).
 
@@ -511,22 +511,22 @@ flowchart LR
   Restricts long entries strictly to Stage 2 advancing phases ($\text{Price} \ge 0.98 \times \text{SMA200}$).
 
 ### 10.7 Machine Learning Memory Aging & Regime Adaptation
-* **Exponential Time-Decay Aging Formulation ($T_{1/2} = 30\text{d}$)**:
+* **Exponential Time-Decay Aging Formulation $(T_{1/2} = 30\text{d})$**:
   Post-mortem Reflexion lessons are weighted inversely with their age $\Delta d$ (in days) using a 30-day half-life:
 
   $\displaystyle \lambda = \frac{\ln(2)}{T_{1/2}} \approx 0.0231 \quad [\text{day}^{-1}]$
 
   $\displaystyle w(\Delta d) = \exp(-\lambda \cdot \Delta d)$
 
-  $\displaystyle \text{Composite Score} = \text{Score}_{\text{BM25}} \times w(\Delta d)$
+  $\displaystyle \text{Composite Score} = \mathrm{Score_{\text{BM25}}} \times w(\Delta d)$
 
   Prevents historical stop-out trauma from obsolete macro regimes from over-constraining optimal alpha execution under current market conditions.
 
 ### 10.8 Scroll-Out Resistant Deep OFI (Theorem 1) & Slippage-Proof Pyramiding Bound (Theorem 2, v6.6.5 / CERN DOI: `10.5281/zenodo.23935930`)
 * **Visible-Window Boundary Invariant for Finite-$K$ Order Books (Hashimoto, 2026 - Theorem 1)**:
-  Eliminates Order Book Horizon Truncation Bias (where upward breakouts shift resting bid walls below the $K$-th visible level $P_{\text{bid}, K}^{(t)}$, mimicking 100% spoofing cancellations) by enforcing $\mathcal{V}_{\text{bid}}^{(t)}(p) \iff P_{\text{bid}, K}^{(t)} \le p \le P_{\text{bid}, 1}^{(t)}$ and subtracting executed trade volume $\Delta V_{\text{trade}}^{(t-1, t)}$ (`core/ai_hedge_fund/deep_ofi_analyzer.py`).
+  Eliminates Order Book Horizon Truncation Bias (where upward breakouts shift resting bid walls below the $K$-th visible level $P_{\text{bid}, K}^{(t)}$, mimicking 100% spoofing cancellations) by enforcing $V_{\text{bid}}^{(t)}(p) \iff P_{\text{bid}, K}^{(t)} \le p \le P_{\text{bid}, 1}^{(t)}$ and subtracting executed trade volume $\Delta V_{\text{trade}}^{(t-1, t)}$ (`core/ai_hedge_fund/deep_ofi_analyzer.py`).
 * **Closed-Form Slippage-Proof Pyramiding Boundary Inequality (Hashimoto, 2026 - Theorem 2)**:
-  Guarantees strictly positive worst-case realized profit ($\Pi_{\text{worst}}^{\text{real}} > 0$) upon scaling into a winning position under stop-loss jump slippage $\delta_{\text{slip}}$ and round-trip cost $c$:
+  Guarantees strictly positive worst-case realized profit $(\Pi_{\text{worst}}^{\text{real}} > 0)$ upon scaling into a winning position under stop-loss jump slippage $\delta_{\text{slip}}$ and round-trip cost $c$:
 
   $\displaystyle \delta_{\text{slip}} < \delta_{\text{slip}}^{\max} \equiv \frac{\Delta_{\text{lock}}^{\text{net}} - \alpha \Delta_{\text{buf}} - (1 + \alpha)c}{1 + \alpha} \approx 0.5385\%$
 

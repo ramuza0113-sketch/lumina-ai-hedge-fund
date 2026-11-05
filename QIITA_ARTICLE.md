@@ -236,7 +236,7 @@ $\displaystyle P(t) = B(\tau(t)), \quad d\tau(t) = \nu(t) dt$
 ### 2. ラマ・コン (Rama Cont 2014) 深層板流動性不均衡（Deep OFI）
 最良気配（Best Bid/Ask）だけでなく、板情報（Order Book）の複数気配深度 $k = 1, \dots, K$ を加重統合した **Multi-Level Order Flow Imbalance** を算出します：
 
-$\displaystyle \text{OFI}_t = \sum_{k=1}^{K} w_k \cdot \text{OFI}_t^{(k)}$
+$\displaystyle \mathrm{OFI_t} = \sum_{k=1}^{K} w_k \cdot \mathrm{OFI_t}^{(k)}$
 
 大口投資家によるステルス指値注文や見せ板の圧力を検知し、数分先の価格ドリフトを先回り予測します。
 
@@ -244,7 +244,7 @@ $\displaystyle \text{OFI}_t = \sum_{k=1}^{K} w_k \cdot \text{OFI}_t^{(k)}$
 板が薄い小型株で大口買い注文を入れると、スリッページによって大きな損失を被ります。
 価格変化率とドル出来高の比率から非流動性を定量化します：
 
-$\displaystyle \text{ILLIQ}_t = \frac{1}{D} \sum_{d=1}^{D} \frac{|R_d|}{\text{Volume}_d \times P_d}$
+$\displaystyle \mathrm{ILLIQ_t} = \frac{1}{D} \sum_{d=1}^{D} \frac{|R_d|}{\mathrm{Volume_d} \times P_d}$
 
 非流動性が閾値を超えている銘柄は、AIがいくら強気判断を下してもポジションサイズを自動で大幅縮小します。
 
@@ -252,7 +252,7 @@ $\displaystyle \text{ILLIQ}_t = \frac{1}{D} \sum_{d=1}^{D} \frac{|R_d|}{\text{Vo
 取引頻度が異なる銘柄や日米市場間のデータを等間隔でサンプリングすると、見かけ上の相関がゼロに近づく**Epps効果（Epps 1979）** が生じます。
 林・吉田推定量は、観測時刻インターバルが重なる刻み同士のリターン積を直接積分します：
 
-$\displaystyle \hat{\Sigma}_{XY}^{HY} = \sum_{i} \sum_{j} \Delta X_i \Delta Y_j \cdot \mathbb{I}((t_{i-1}, t_i] \cap (s_{j-1}, s_j] \neq \emptyset)$
+$\displaystyle \hat\Sigma_{XY}^{HY} = \sum_{i} \sum_{j} \Delta X_i \Delta Y_j \cdot \mathbb{I}((t_{i-1}, t_i] \cap (s_{j-1}, s_j] \neq \emptyset)$
 
 非同期データから推定された共分散行列は非正定値（負の固有値を含む）になるリスクがあるため、**Higham (2002) の最近傍半正定値行列射影（Nearest Positive Semi-Definite Projection）** を適用して固有値を $\lambda_i \leftarrow \max(\lambda_i, 10^{-6})$ でクリップし、ポートフォリオ最適化の特異行列クラッシュを数学的に防止しています。
 
@@ -267,7 +267,7 @@ $\displaystyle f^* = \frac{1}{2} \left( \frac{b \cdot p - (1 - p)}{b} \right)$
 ### 6. ブラック・ショールズ GEX（ガンマ・エクスポージャー）とオプション壁
 オプションマーケットメイカー（ディーラー）はデルタ中立を維持するため、原資産の変動に応じて機械的にヘッジ売買を行います。
 
-$\displaystyle \text{GEX}_i = \text{OI}_i \times 100 \times S^2 \times \Gamma_i \times \text{Multiplier}_i$
+$\displaystyle \mathrm{GEX_i} = \mathrm{OI_i} \times 100 \times S^2 \times \Gamma_i \times \mathrm{Multiplier_i}$
 
 - **Positive GEX（+GEX）**: ディーラーは「逆張り（下がれば買い、上がれば売り）」を行うため、ボラティリティが抑制されレンジ相場になる。
 - **Negative GEX（-GEX）**: ディーラーは「順張り（下がれば売り、上がれば買い）」を行うため、下落が下落を呼ぶボラティリティ爆発が起きる。

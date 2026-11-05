@@ -362,7 +362,7 @@ Lumina Capital は、世界トップレベルのクオンツおよび分散シ�
 | **③ 収縮シャープレシオ (DSR) ＆ PBO** | 多重試行バイアス・歪度・尖度補正（Bailey & López de Prado 2014） | ・**収縮シャープレシオ ($\text{DSR}$) = `0.9776`（有意確率 `97.76%`）** *(基準 $\ge 0.95$)*<br>・**過学習確率 ($\text{PBO}$) = `20.00%`** *(失格基準 $50\%$ を大幅下回る)* | ✅ **PASS** |
 | **④ パラメータ高原感応度 (Plateau)** | 主要5パラメータ（損切り・利確・流速・タイムバリア・SMA200）を $\pm 10\% \sim \pm 20\%$ 摂動（全25通り） | ・全25パターンすべてで **PF `1.45 〜 1.86`（CAGR `+11.5% 〜 +20.9%`）** を維持し、急落する「崖（Cliff）」が皆無であることを確認。 | ✅ **PASS** |
 | **⑤ 多面的リスク指標 ＆ 水面下日数** | ソルティノ・カルマー・最高値奪還までの最大低迷期間（Underwater Duration） | ・標準流速(`0.95x`)：**CAGR `+22.42%`、Sortino `1.85`、Calmar `1.03`、PF `1.64`、最大水面下低迷期間 `176営業日`（平均 `16.0日` $\le 180$ 日基準）**<br>・厳格流速(`1.12x`)：**MaxDD `-18.33%`（ $\le 20\%$ 基準）、PF `1.58`** | ✅ **PASS** |
-| **⑥ Almgren-Chriss 市場インパクト容量** | $\Delta P = 0.5 \sigma \sqrt{Q/\text{ADV}_{20}}$ を全注文に控除し元本1,000万円〜30億円で検証 | ・**黄金容量帯（5,000万円〜5億円）**：インパクト `1.51〜4.82 bps`、**CAGR `+15.4%〜+22.9%`、MaxDD `-18.4%`、PF `1.57〜1.65`**<br>・**10億円〜30億円**：インパクト `6.71〜11.55 bps` で **PF `1.54〜1.64`** 維持（TWAP分割推奨域） | ✅ **PASS** |
+| **⑥ Almgren-Chriss 市場インパクト容量** | $\Delta P = 0.5 \sigma \sqrt{Q/\mathrm{ADV_{20}}}$ を全注文に控除し元本1,000万円〜30億円で検証 | ・**黄金容量帯（5,000万円〜5億円）**：インパクト `1.51〜4.82 bps`、**CAGR `+15.4%〜+22.9%`、MaxDD `-18.4%`、PF `1.57〜1.65`**<br>・**10億円〜30億円**：インパクト `6.71〜11.55 bps` で **PF `1.54〜1.64`** 維持（TWAP分割推奨域） | ✅ **PASS** |
 | **⑦ 財務開示ラグ (Point-in-Time)** | 決算悪化開示を `+45暦日` / `+90暦日` / `1年間盲目` に遅延注入 | ・**+45日遅延：`+36.96% (DD -12.80%, PF 1.35)`**<br>・**+90日遅延：`+40.69% (DD -13.20%, PF 1.45)`**<br>・決算公表の数ヶ月前に `SMA200`・`RS順位`・`出来高流速` が先行遮断し先読みバイアス皆無を実証。 | ✅ **PASS** |
 
 ### 8.8 ティア1ヘッジファンド最終意地悪監査6選：為替逆風・主役株追放・モンテカルロ10,000回・発注遅延・下ヒゲストップ狩り・10万Tickファジング耐久（v6.4.8）
@@ -452,12 +452,12 @@ flowchart LR
 * **深層オーダーフロー・インバランス（Deep Order Flow Imbalance, Rama Cont et al. 2014）**:
   * **数理定式化**: 最良気配だけでなく、1〜10本目までの板の厚み変化に指数減衰重み $w_k = e^{-\alpha k}$ を掛けて累積板圧力を算出：
 
-    $\displaystyle \text{OFI}_t = \sum_{k=1}^K e^{-\alpha k} \left[ \Delta Q_{k,t}^B \cdot \mathbb{I}(\Delta P_{k,t}^B \ge 0) - \Delta Q_{k,t}^A \cdot \mathbb{I}(\Delta P_{k,t}^A \le 0) \right]$
+    $\displaystyle \mathrm{OFI_t} = \sum_{k=1}^K e^{-\alpha k} \left[ \Delta Q_{k,t}^B \cdot \mathbb{I}(\Delta P_{k,t}^B \ge 0) - \Delta Q_{k,t}^A \cdot \mathbb{I}(\Delta P_{k,t}^A \le 0) \right]$
 
   * **実装**: `core/ai_hedge_fund/deep_ofi_analyzer.py`
   * **実務効果**: 大口の直前キャンセル（見せ板トラップ）を検知して買いを自動待機（保留）し、板奥のアイスバーグ買い支え（氷山注文）を検知して最安値でステルス約定。
 * **アミフド非流動性尺度（Amihud 2002 Illiquidity Measure）**:
-  * **数理**: $\text{ILLIQ}_t = \frac{|R_t|}{\text{Volume}_t \times P_t}$
+  * **数理**: $\mathrm{ILLIQ_t} = \frac{|R_t|}{\mathrm{Volume_t} \times P_t}$
   * **実務効果**: わずかな売買代金で株価が飛んでしまう流動性枯渇トラップ銘柄をスクリーニングで事前排除。
 
 ### 10.3 非同期計量経済学・多変量解析（日米市場のズレを直す数理）
@@ -465,12 +465,12 @@ flowchart LR
   * **課題**: 日米市場間（米国株 ⇄ 東証株）など、観測時間帯が重ならない資産ペアをピアソン相関で測ると、観測ズレによって相関がゼロに近づいて過小評価される「エpps効果（Epps Effect）」が発生する。
   * **数理定式化**: 観測区間が重なるティック・リターンの積を合算：
 
-    $\displaystyle \text{Cov}_{HY}(X, Y) = \sum_{i} \sum_{j} \Delta X(I_i) \Delta Y(J_j) \cdot \mathbb{I}(I_i \cap J_j \neq \emptyset)$
+    $\displaystyle \mathrm{Cov_{HY}}(X, Y) = \sum_{i} \sum_{j} \Delta X(I_i) \Delta Y(J_j) \cdot \mathbb{I}(I_i \cap J_j \neq \emptyset)$
 
   * **実装**: `core/ai_hedge_fund/lead_lag_analyzer.py`
 * **ハイアム最近傍半正定値（PSD）行列射影（Higham 2002） ＆ ルドワ・ウルフ収縮**:
-  * **課題**: 3銘柄以上の非同期ペアワイズ相関行列 $\boldsymbol{\Sigma}_{HY}$ は、負の固有値（数学的に存在し得ない相関関係）を持つ「非半正定値」になりやすい。
-  * **数理**: Ledoit-Wolf収縮推定量 ($\alpha=0.10$) でノイズを圧縮し、固有値分解 $\boldsymbol{\Sigma} = \mathbf{V} \boldsymbol{\Lambda} \mathbf{V}^T$ から負の固有値をクリッピング ($\tilde{\lambda}_i = \max(\lambda_i, 10^{-4})$) して対角成分を1に再正規化。
+  * **課題**: 3銘柄以上の非同期ペアワイズ相関行列 $\boldsymbol\Sigma_{HY}$ は、負の固有値（数学的に存在し得ない相関関係）を持つ「非半正定値」になりやすい。
+  * **数理**: Ledoit-Wolf収縮推定量 ($\alpha=0.10$) でノイズを圧縮し、固有値分解 $\boldsymbol{\Sigma} = \mathbf{V} \boldsymbol{\Lambda} \mathbf{V}^T$ から負の固有値をクリッピング $(\tilde\lambda_i = \max(\lambda_i, 10^{-4}))$ して対角成分を1に再正規化。
   * **実装**: `LeadLagAnalyzer.project_to_nearest_psd()` (v6.4.6)
 * **グレンジャー因果性検定（Granger Causality Test）**:
   * 米SOX半導体指数、ドル円為替、米10年債利回り、WTI原油が東証株に対して統計的に「何営業日遅れて有意に波及するか」をF検定で確率計算。
@@ -479,7 +479,7 @@ flowchart LR
 * **ハーフ・ケリー基準（Half-Kelly Criterion, J.L. Kelly 1956）**:
   * **数理定式化**: 勝率 $p$ 、損益オッズ比 $b$ から最適投資比率 $f^* = \frac{bp - (1-p)}{b}$ を計算し、実務安全係数として $\frac{1}{2} f^*$ を採用：
 
-    $\displaystyle f^*_{\text{half}} = \frac{1}{2} \left[ p - \frac{1 - p}{b} \right]$
+    $\displaystyle f_{\mathrm{half}}^* = \frac{1}{2} \left[ p - \frac{1 - p}{b} \right]$
 
   * **実装**: `core/ai_hedge_fund/auto_trader.py`
   * **金融工学的効果**: フルケリーに比べて期待リターンを75%維持したままボラティリティを50%削り、数学的な破産確率（Gambler's Ruin）を物理的にゼロ化。
@@ -490,7 +490,7 @@ flowchart LR
 * **ブラック・ショールズ方程式 ＆ ディーラー・ガンマ・エクスポージャー（GEX）**:
   * **数理定式化**: オプション・マーケットメイカーの二次微分デルタヘッジ義務を集計：
 
-    $\displaystyle \text{GEX} = \sum_{i} \Gamma_i \times \text{OI}_i \times S^2 \times 100 \times \text{Sign}_i$
+    $\displaystyle \text{GEX} = \sum_{i} \Gamma_i \times \mathrm{OI_i} \times S^2 \times 100 \times \mathrm{Sign_i}$
 
   * **実戦応用**:
     * **Call Wall（大口売りヘッジ集中ライン）**: 株価の上値を押さえつける絶対抵抗帯。
@@ -513,14 +513,14 @@ flowchart LR
 
     $\displaystyle w(\Delta d) = \exp(-\lambda \cdot \Delta d)$
 
-    $\displaystyle \text{Composite Score} = \text{Score}_{\text{BM25}} \times w(\Delta d)$
+    $\displaystyle \text{Composite Score} = \mathrm{Score_{\text{BM25}}} \times w(\Delta d)$
 
   * **実装**: `core/ai_hedge_fund/broker_client.py`, `reflexion_engine.py`
   * **実務効果**: 過去の相場環境（高ボラティリティ、金融引き締め期など）における損切り教訓が現在の相場レジームに過剰適合（AIトラウマ）して特Aシグナルを萎縮見送りすることを数理的に防止。
 
 ### 10.8 可視板ウィンドウ境界不変条件（Theorem 1）＆ 耐スリッページ非対称ピラミッディング境界不等式（Theorem 2, v6.6.5 / CERN DOI: `10.5281/zenodo.23935930`）
 * **Order Book Horizon Truncation Bias（スクロールアウト偽見せ板幻想）の排除（Hashimoto, 2026 - Theorem 1）**:
-  * **数理定式化**: 有限 $K$ 段の移動窓板配信において、急騰時に下位買い板が第 $K$ 段の下限外 ($p < P_{\text{bid}, K}^{(t)}$) へスクロールアウトすることでキャンセル率 $100\%$ の見せ板と誤判定されるバイアスを防ぐため、可視板ウィンドウ境界不変条件 $\mathcal{V}_{\text{bid}}^{(t)}(p) \iff P_{\text{bid}, K}^{(t)} \le p \le P_{\text{bid}, 1}^{(t)}$ および約定出来高控除 $\Delta q_{\text{cancel}}^{(t)}(p) = \max(0, q^{(t-1)}(p) - q^{(t)}(p) - \Delta V_{\text{trade}}^{(t-1, t)})$ を強制（`core/ai_hedge_fund/deep_ofi_analyzer.py`）。
+  * **数理定式化**: 有限 $K$ 段の移動窓板配信において、急騰時に下位買い板が第 $K$ 段の下限外 $(p < P_{\text{bid}, K}^{(t)})$ へスクロールアウトすることでキャンセル率 $100\%$ の見せ板と誤判定されるバイアスを防ぐため、可視板ウィンドウ境界不変条件 $V_{\text{bid}}^{(t)}(p) \iff P_{\text{bid}, K}^{(t)} \le p \le P_{\text{bid}, 1}^{(t)}$ および約定出来高控除 $\Delta q_{\text{cancel}}^{(t)}(p) = \max(0, q^{(t-1)}(p) - q^{(t)}(p) - \Delta V_{\text{trade}}^{(t-1, t)})$ を強制（`core/ai_hedge_fund/deep_ofi_analyzer.py`）。
 * **耐スリッページ非対称ピラミッディング境界不等式（Hashimoto, 2026 - Theorem 2）**:
   * **数理定式化**: 増し玉倍率 $\alpha$ 、純利益ロック幅 $\Delta_{\text{lock}}^{\text{net}}$ 、逆指値バッファ $\Delta_{\text{buf}}$ 、往復取引コスト $c$ の下で、追撃直後の逆指値スリッページ $\delta_{\text{slip}}$ に対しても合算確定損益 $\Pi_{\text{worst}}^{\text{real}} > 0$ を保証する限界許容スリッページ率：
 
