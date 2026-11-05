@@ -88,4 +88,3 @@ Wilson Freitas 氏が主宰する、GitHub上で世界一有名なクアント�
    Actions実行時にGitHub API制限に引っかかった際も、Wilson 氏はクールダウン時間（13:42 UTC）を正確に特定し、自らコミットをプッシュ。
 4. **正式マージ（🟣 Merged）完了**:
    Trading & Backtesting 部門に、世界の一流クアントツール（Backtrader, Zipline, Qlib等）と並んで『Lumina Capital』が公式に永久掲載される。
-
