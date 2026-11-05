@@ -441,13 +441,9 @@ flowchart LR
   * **課題**: 従来の壁掛け時計（1分足・5分足・日足）による等時間サンプリングは、昼休みや夜間の取引閑散期のノイズを拡大し、決算発表時の情報集中を過小評価するため、リターン分布に極端なファットテール（尖度 Kurtosis 35〜123）を生じさせる。
   * **数理定式化（タイムアウト・フォールバック安全弁付）**: 物理的時間 $t$ ではなく、経済活動量（出来高 $V$ や売買代金 $D$ ）を内在時間（Intrinsic Time $\tau$ ）とする確率過程 $P(\tau)$ へ変換。さらに閑散流動性停滞を排除する最大許容時間 $\Delta t_{\max}$ を複合：
 
-    $$
-    \tau_k = \inf \left\lbrace t > \tau_{k-1} \;\middle|\; \left( \sum_{i=\tau_{k-1}+1}^t v_i \ge V^* \right) \lor \left( t - \tau_{k-1} \ge \Delta t_{\max} \right) \right\rbrace
-    $$
+    $\displaystyle \tau_k = \inf \left\lbrace t > \tau_{k-1} \;\mid\; \left( \sum_{i=\tau_{k-1}+1}^t v_i \ge V^* \right) \lor \left( t - \tau_{k-1} \ge \Delta t_{\max} \right) \right\rbrace$
 
-    $$
-    \Delta t_{\max} = \max(1800\,\text{sec},\; 4 \times \Delta t_{\text{base}})
-    $$
+    $\displaystyle \Delta t_{\max} = \max(1800\,\text{sec},\; 4 \times \Delta t_{\text{base}})$
 
   * **実装**: `core/ai_hedge_fund/volume_clock_sampler.py`（Cache-Resident SoA 高速集約）
   * **実務効果**: リターンの尖度（肥大した裾野）を **58%〜87% 削減** し、正規ガウス分布へ収束させることで統計モデルの誤認を排除。突発的取引停止時もシグナル凍結をゼロ化。
@@ -456,9 +452,7 @@ flowchart LR
 * **深層オーダーフロー・インバランス（Deep Order Flow Imbalance, Rama Cont et al. 2014）**:
   * **数理定式化**: 最良気配だけでなく、1〜10本目までの板の厚み変化に指数減衰重み $w_k = e^{-\alpha k}$ を掛けて累積板圧力を算出：
 
-    $$
-    \text{OFI}_t = \sum_{k=1}^K e^{-\alpha k} \left[ \Delta Q_{k,t}^B \cdot \mathbb{I}_{\lbrace \Delta P_{k,t}^B \ge 0\rbrace } - \Delta Q_{k,t}^A \cdot \mathbb{I}_{\lbrace \Delta P_{k,t}^A \le 0\rbrace } \right]
-    $$
+    $\displaystyle \text{OFI}_t = \sum_{k=1}^K e^{-\alpha k} \left[ \Delta Q_{k,t}^B \cdot \mathbb{I}(\Delta P_{k,t}^B \ge 0) - \Delta Q_{k,t}^A \cdot \mathbb{I}(\Delta P_{k,t}^A \le 0) \right]$
 
   * **実装**: `core/ai_hedge_fund/deep_ofi_analyzer.py`
   * **実務効果**: 大口の直前キャンセル（見せ板トラップ）を検知して買いを自動待機（保留）し、板奥のアイスバーグ買い支え（氷山注文）を検知して最安値でステルス約定。
@@ -471,9 +465,7 @@ flowchart LR
   * **課題**: 日米市場間（米国株 ⇄ 東証株）など、観測時間帯が重ならない資産ペアをピアソン相関で測ると、観測ズレによって相関がゼロに近づいて過小評価される「エpps効果（Epps Effect）」が発生する。
   * **数理定式化**: 観測区間が重なるティック・リターンの積を合算：
 
-    $$
-    \text{Cov}_{HY}(X, Y) = \sum_{i} \sum_{j} \Delta X(I_i) \Delta Y(J_j) \cdot \mathbb{I}_{\lbrace I_i \cap J_j \neq \emptyset\rbrace }
-    $$
+    $\displaystyle \text{Cov}_{HY}(X, Y) = \sum_{i} \sum_{j} \Delta X(I_i) \Delta Y(J_j) \cdot \mathbb{I}(I_i \cap J_j \neq \emptyset)$
 
   * **実装**: `core/ai_hedge_fund/lead_lag_analyzer.py`
 * **ハイアム最近傍半正定値（PSD）行列射影（Higham 2002） ＆ ルドワ・ウルフ収縮**:
@@ -487,9 +479,7 @@ flowchart LR
 * **ハーフ・ケリー基準（Half-Kelly Criterion, J.L. Kelly 1956）**:
   * **数理定式化**: 勝率 $p$ 、損益オッズ比 $b$ から最適投資比率 $f^* = \frac{bp - (1-p)}{b}$ を計算し、実務安全係数として $\frac{1}{2} f^*$ を採用：
 
-    $$
-    f^*_{\text{half}} = \frac{1}{2} \left[ p - \frac{1 - p}{b} \right]
-    $$
+    $\displaystyle f^*_{\text{half}} = \frac{1}{2} \left[ p - \frac{1 - p}{b} \right]$
 
   * **実装**: `core/ai_hedge_fund/auto_trader.py`
   * **金融工学的効果**: フルケリーに比べて期待リターンを75%維持したままボラティリティを50%削り、数学的な破産確率（Gambler's Ruin）を物理的にゼロ化。
@@ -500,9 +490,7 @@ flowchart LR
 * **ブラック・ショールズ方程式 ＆ ディーラー・ガンマ・エクスポージャー（GEX）**:
   * **数理定式化**: オプション・マーケットメイカーの二次微分デルタヘッジ義務を集計：
 
-    $$
-    \text{GEX} = \sum_{i} \Gamma_i \times \text{OI}_i \times S^2 \times 100 \times \text{Sign}_i
-    $$
+    $\displaystyle \text{GEX} = \sum_{i} \Gamma_i \times \text{OI}_i \times S^2 \times 100 \times \text{Sign}_i$
 
   * **実戦応用**:
     * **Call Wall（大口売りヘッジ集中ライン）**: 株価の上値を押さえつける絶対抵抗帯。
@@ -521,17 +509,11 @@ flowchart LR
 * **半減期指数時間減衰モデル（Exponential Time-Decay Aging, $T_{1/2}=30\text{d}$ ）**:
   * **数理定式化**: 決済からの経過日数 $\Delta d$ に対し、半減期 $T_{1/2} = 30$ 日で情報価値が半減する指数減衰重み $w(\Delta d)$ を乗算：
 
-    $$
-    \lambda = \frac{\ln(2)}{T_{1/2}} \approx 0.0231 \quad [\text{day}^{-1}]
-    $$
+    $\displaystyle \lambda = \frac{\ln(2)}{T_{1/2}} \approx 0.0231 \quad [\text{day}^{-1}]$
 
-    $$
-    w(\Delta d) = \exp(-\lambda \cdot \Delta d)
-    $$
+    $\displaystyle w(\Delta d) = \exp(-\lambda \cdot \Delta d)$
 
-    $$
-    \text{Composite Score} = \text{Score}_{\text{BM25}} \times w(\Delta d)
-    $$
+    $\displaystyle \text{Composite Score} = \text{Score}_{\text{BM25}} \times w(\Delta d)$
 
   * **実装**: `core/ai_hedge_fund/broker_client.py`, `reflexion_engine.py`
   * **実務効果**: 過去の相場環境（高ボラティリティ、金融引き締め期など）における損切り教訓が現在の相場レジームに過剰適合（AIトラウマ）して特Aシグナルを萎縮見送りすることを数理的に防止。
@@ -542,9 +524,7 @@ flowchart LR
 * **耐スリッページ非対称ピラミッディング境界不等式（Hashimoto, 2026 - Theorem 2）**:
   * **数理定式化**: 増し玉倍率 $\alpha$ 、純利益ロック幅 $\Delta_{\text{lock}}^{\text{net}}$ 、逆指値バッファ $\Delta_{\text{buf}}$ 、往復取引コスト $c$ の下で、追撃直後の逆指値スリッページ $\delta_{\text{slip}}$ に対しても合算確定損益 $\Pi_{\text{worst}}^{\text{real}} > 0$ を保証する限界許容スリッページ率：
 
-    $$
-    \delta_{\text{slip}}^{\max} = \frac{\Delta_{\text{lock}}^{\text{net}} - \alpha \Delta_{\text{buf}} - (1 + \alpha)c}{1 + \alpha} \approx 0.5385\%
-    $$
+    $\displaystyle \delta_{\text{slip}}^{\max} = \frac{\Delta_{\text{lock}}^{\text{net}} - \alpha \Delta_{\text{buf}} - (1 + \alpha)c}{1 + \alpha} \approx 0.5385\%$
 
   * **実装・形式検証**: `DeterministicMetrics.evaluate_slippage_proof_pyramiding_bound()`（`core/ai_hedge_fund/deterministic_metrics.py`）。`Hypothesis` 1,000通りのプロパティベース検証および `oss-fuzz` 境界値ファジングで違反0件を実証。
 

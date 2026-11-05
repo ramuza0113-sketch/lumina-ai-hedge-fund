@@ -123,16 +123,12 @@ During asset examination, each analyst agent operates in total isolation, with z
 ### 3.5 Asynchronous Hayashi-Yoshida Covariance & Higham (2002) PSD Projection (v6.4.6)
 * **Hayashi-Yoshida (2005) Non-Synchronous Estimator (`lead_lag_analyzer.py`)**: Eliminates the Epps effect (underestimated correlation caused by timezone mismatches between US and Japanese exchanges) by accumulating overlapping interval returns:
 
-  $$
-  \text{Cov}_{HY}(X, Y) = \sum_{i} \sum_{j} \Delta X(I_i) \Delta Y(J_j) \cdot \mathbb{I}_{\lbrace I_i \cap J_j \neq \emptyset\rbrace }
-  $$
+  $\displaystyle \text{Cov}_{HY}(X, Y) = \sum_{i} \sum_{j} \Delta X(I_i) \Delta Y(J_j) \cdot \mathbb{I}(I_i \cap J_j \neq \emptyset)$
 
 * **Higham (2002) Nearest PSD Projection & Ledoit-Wolf Shrinkage**:
   Multivariate pairwise non-synchronous correlation matrices $\boldsymbol{\Sigma}_{HY}$ often suffer from negative eigenvalues. Lumina applies Ledoit-Wolf structured shrinkage ($\alpha = 0.10$) and eigenvalue spectrum clipping to mathematically project the matrix onto the nearest Positive Semi-Definite (PSD) space:
 
-  $$
-  \boldsymbol{\Sigma}_{\text{PSD}} = \mathbf{V} \max(\boldsymbol{\Lambda}, 10^{-4}) \mathbf{V}^T, \quad \text{diag}(\boldsymbol{\Sigma}_{\text{PSD}}) = \mathbf{I}
-  $$
+  $\displaystyle \boldsymbol{\Sigma}_{\text{PSD}} = \mathbf{V} \max(\boldsymbol{\Lambda}, 10^{-4}) \mathbf{V}^T, \quad \text{diag}(\boldsymbol{\Sigma}_{\text{PSD}}) = \mathbf{I}$
 
 ---
 
@@ -141,9 +137,7 @@ During asset examination, each analyst agent operates in total isolation, with z
 ### 4.1 Subordinated Stochastic Volume Clocks (`volume_clock_sampler.py`)
 * **Elimination of Wall-Clock Distortions**: Equal-time sampling (1m, 5m, 1h) compresses volatile events and inflates noise during lunch hours. Following Clark (1973) and Marcos López de Prado (2018), Lumina samples bars based on traded volume quanta ($V^*$):
 
-  $$
-  \tau_k = \inf \left\lbrace t > \tau_{k-1} \;\middle|\; \sum_{i=\tau_{k-1}+1}^t v_i \ge V^* \right\rbrace
-  $$
+  $\displaystyle \tau_k = \inf \left\lbrace t > \tau_{k-1} \;\mid\; \sum_{i=\tau_{k-1}+1}^t v_i \ge V^* \right\rbrace$
 
 * **Fat-Tail Reduction**: Excess kurtosis of returns drops by **58% to 87%**, converging returns toward Gaussian normality.
 * **Cache-Resident Vectorized Aggregation**: Compresses 60 days of 5-minute ticks (4,680 bars) into volume bars in **14 milliseconds**.
@@ -155,9 +149,7 @@ During asset examination, each analyst agent operates in total isolation, with z
 ### 4.3 Rama Cont (2014) Deep 10-Level Order Flow Imbalance (`deep_ofi_analyzer.py`)
 * Measures supply/demand pressure across 10 levels of the limit order book using exponential decay weights $w_k = e^{-\alpha k}$:
 
-  $$
-  \text{OFI}_t = \sum_{k=1}^K e^{-\alpha k} \left[ \Delta Q_{k,t}^B \cdot \mathbb{I}_{\lbrace \Delta P_{k,t}^B \ge 0\rbrace } - \Delta Q_{k,t}^A \cdot \mathbb{I}_{\lbrace \Delta P_{k,t}^A \le 0\rbrace } \right]
-  $$
+  $\displaystyle \text{OFI}_t = \sum_{k=1}^K e^{-\alpha k} \left[ \Delta Q_{k,t}^B \cdot \mathbb{I}(\Delta P_{k,t}^B \ge 0) - \Delta Q_{k,t}^A \cdot \mathbb{I}(\Delta P_{k,t}^A \le 0) \right]$
 
 * **Spoofing Trap Detection**: Senses rapid cancel-to-fill ratios, placing orders into `DELAY` to prevent buying tops.
 * **Iceberg Stealth Accumulation**: Detects replenishment of bid depth during price drops to execute sniper entries (`SNIPER_STEALTH`).
@@ -165,9 +157,7 @@ During asset examination, each analyst agent operates in total isolation, with z
 ### 4.4 Options Market Turbulence Radar (GEX) (`options_gex_feed.py`)
 * Aggregates Black-Scholes Dealer Gamma Exposure:
 
-  $$
-  \text{GEX} = \sum_{i} \Gamma_i \times \text{OI}_i \times S^2 \times 100 \times \text{Sign}_i
-  $$
+  $\displaystyle \text{GEX} = \sum_{i} \Gamma_i \times \text{OI}_i \times S^2 \times 100 \times \text{Sign}_i$
 
 * Computes **Call Wall** (overhead institutional selling ceiling), **Put Wall** (downside support floor), and **Gamma Flip** (boundary where dealer hedging shifts from volatility-dampening to volatility-amplifying).
 
@@ -219,9 +209,7 @@ During asset examination, each analyst agent operates in total isolation, with z
 ### 5.3 Dynamic Half-Kelly Allocation ($f^* / 2$)
 * Scales positions based on the Kelly Criterion with an institutional 50% safety factor:
 
-  $$
-  f^*_{\text{half}} = \frac{1}{2} \left[ p - \frac{1 - p}{b} \right]
-  $$
+  $\displaystyle f^*_{\text{half}} = \frac{1}{2} \left[ p - \frac{1 - p}{b} \right]$
 
 * Cuts portfolio variance by 50% while capturing 75% of maximum theoretical growth, driving gambler's ruin probability to zero.
 
@@ -464,13 +452,9 @@ flowchart LR
 * **Subordinated Stochastic Process (Peter K. Clark, 1973) & Information-Driven Bars (Marcos López de Prado, 2018)**:
   Equal-time sampling generates severe fat tails due to variable information arrival rates. Lumina maps physical time $t$ to intrinsic volume time $\tau$, augmented with a deterministic timeout fallback $\Delta t_{\max}$:
 
-  $$
-  \tau_k = \inf \left\lbrace t > \tau_{k-1} \;\middle|\; \left( \sum_{i=\tau_{k-1}+1}^t v_i \ge V^* \right) \lor \left( t - \tau_{k-1} \ge \Delta t_{\max} \right) \right\rbrace
-  $$
+  $\displaystyle \tau_k = \inf \left\lbrace t > \tau_{k-1} \;\mid\; \left( \sum_{i=\tau_{k-1}+1}^t v_i \ge V^* \right) \lor \left( t - \tau_{k-1} \ge \Delta t_{\max} \right) \right\rbrace$
 
-  $$
-  \Delta t_{\max} = \max(1800\,\text{s},\; 4 \times \Delta t_{\text{base}})
-  $$
+  $\displaystyle \Delta t_{\max} = \max(1800\,\text{s},\; 4 \times \Delta t_{\text{base}})$
 
   This reduces return excess kurtosis by **58% to 87%**, converging returns toward Gaussian normality while preventing frozen signals during liquidity droughts.
 
@@ -478,16 +462,12 @@ flowchart LR
 * **Deep Order Flow Imbalance (Rama Cont et al., 2014)**:
   Quantifies limit order book supply/demand pressure across $K=10$ levels with exponential weights $w_k = e^{-\alpha k}$:
 
-  $$
-  \text{OFI}_t = \sum_{k=1}^K e^{-\alpha k} \left[ \Delta Q_{k,t}^B \cdot \mathbb{I}_{\lbrace \Delta P_{k,t}^B \ge 0\rbrace } - \Delta Q_{k,t}^A \cdot \mathbb{I}_{\lbrace \Delta P_{k,t}^A \le 0\rbrace } \right]
-  $$
+  $\displaystyle \text{OFI}_t = \sum_{k=1}^K e^{-\alpha k} \left[ \Delta Q_{k,t}^B \cdot \mathbb{I}(\Delta P_{k,t}^B \ge 0) - \Delta Q_{k,t}^A \cdot \mathbb{I}(\Delta P_{k,t}^A \le 0) \right]$
 
   Detects spoofing cancellations to delay orders, and senses iceberg buying to execute sniper limit fills.
 * **Amihud (2002) Illiquidity Measure**:
 
-  $$
-  \text{ILLIQ}_t = \frac{|R_t|}{\text{Volume}_t \times P_t}
-  $$
+  $\displaystyle \text{ILLIQ}_t = \frac{|R_t|}{\text{Volume}_t \times P_t}$
 
   Filters illiquid traps where minor execution causes excessive price displacement.
 
@@ -495,16 +475,12 @@ flowchart LR
 * **Hayashi-Yoshida (2005) Covariance Estimator**:
   Resolves the Epps effect across non-synchronous US and Tokyo market hours by summing products of overlapping returns:
 
-  $$
-  \text{Cov}_{HY}(X, Y) = \sum_{i} \sum_{j} \Delta X(I_i) \Delta Y(J_j) \cdot \mathbb{I}_{\lbrace I_i \cap J_j \neq \emptyset\rbrace }
-  $$
+  $\displaystyle \text{Cov}_{HY}(X, Y) = \sum_{i} \sum_{j} \Delta X(I_i) \Delta Y(J_j) \cdot \mathbb{I}(I_i \cap J_j \neq \emptyset)$
 
 * **Nearest Positive Semi-Definite Matrix Projection (Nick Higham, 2002)**:
   Repairs negative eigenvalues in multivariate asynchronous correlation matrices via Ledoit-Wolf shrinkage ($\alpha=0.10$) and spectral clipping:
 
-  $$
-  \boldsymbol{\Sigma}_{\text{PSD}} = \mathbf{V} \max(\boldsymbol{\Lambda}, 10^{-4}) \mathbf{V}^T, \quad \text{diag}(\boldsymbol{\Sigma}_{\text{PSD}}) = \mathbf{I}
-  $$
+  $\displaystyle \boldsymbol{\Sigma}_{\text{PSD}} = \mathbf{V} \max(\boldsymbol{\Lambda}, 10^{-4}) \mathbf{V}^T, \quad \text{diag}(\boldsymbol{\Sigma}_{\text{PSD}}) = \mathbf{I}$
 
 * **Granger Causality Testing**:
   F-tests determine statistically significant lag days from benchmark series (^SOX, USD/JPY, ^TNX, CL=F) to target equity price formations.
@@ -513,9 +489,7 @@ flowchart LR
 * **Half-Kelly Criterion (J.L. Kelly Jr., 1956)**:
   Maximizes geometric growth while capping drawdown risk with a 50% safety factor:
 
-  $$
-  f^*_{\text{half}} = \frac{1}{2} \left[ p - \frac{1 - p}{b} \right]
-  $$
+  $\displaystyle f^*_{\text{half}} = \frac{1}{2} \left[ p - \frac{1 - p}{b} \right]$
 
 * **Hierarchical Risk Parity (HRP, López de Prado, 2016)**:
   Applies machine learning single-linkage hierarchical clustering to correlation distance metrics $d_{i,j} = \sqrt{2(1 - \rho_{i,j})}$, allocating weights via inverse-variance parity without matrix inversion.
@@ -524,9 +498,7 @@ flowchart LR
 * **Black-Scholes-Merton Gamma Exposure (GEX)**:
   Measures aggregate dealer second-order hedging commitments:
 
-  $$
-  \text{GEX} = \sum_{i} \Gamma_i \times \text{OI}_i \times S^2 \times 100 \times \text{Sign}_i
-  $$
+  $\displaystyle \text{GEX} = \sum_{i} \Gamma_i \times \text{OI}_i \times S^2 \times 100 \times \text{Sign}_i$
 
   Identifies overhead resistance (**Call Wall**), downside support (**Put Wall**), and volatility transition points (**Gamma Flip**).
 
@@ -542,17 +514,11 @@ flowchart LR
 * **Exponential Time-Decay Aging Formulation ($T_{1/2} = 30\text{d}$)**:
   Post-mortem Reflexion lessons are weighted inversely with their age $\Delta d$ (in days) using a 30-day half-life:
 
-  $$
-  \lambda = \frac{\ln(2)}{T_{1/2}} \approx 0.0231 \quad [\text{day}^{-1}]
-  $$
+  $\displaystyle \lambda = \frac{\ln(2)}{T_{1/2}} \approx 0.0231 \quad [\text{day}^{-1}]$
 
-  $$
-  w(\Delta d) = \exp(-\lambda \cdot \Delta d)
-  $$
+  $\displaystyle w(\Delta d) = \exp(-\lambda \cdot \Delta d)$
 
-  $$
-  \text{Composite Score} = \text{Score}_{\text{BM25}} \times w(\Delta d)
-  $$
+  $\displaystyle \text{Composite Score} = \text{Score}_{\text{BM25}} \times w(\Delta d)$
 
   Prevents historical stop-out trauma from obsolete macro regimes from over-constraining optimal alpha execution under current market conditions.
 
@@ -562,9 +528,7 @@ flowchart LR
 * **Closed-Form Slippage-Proof Pyramiding Boundary Inequality (Hashimoto, 2026 - Theorem 2)**:
   Guarantees strictly positive worst-case realized profit ($\Pi_{\text{worst}}^{\text{real}} > 0$) upon scaling into a winning position under stop-loss jump slippage $\delta_{\text{slip}}$ and round-trip cost $c$:
 
-  $$
-  \delta_{\text{slip}} < \delta_{\text{slip}}^{\max} \equiv \frac{\Delta_{\text{lock}}^{\text{net}} - \alpha \Delta_{\text{buf}} - (1 + \alpha)c}{1 + \alpha} \approx 0.5385\%
-  $$
+  $\displaystyle \delta_{\text{slip}} < \delta_{\text{slip}}^{\max} \equiv \frac{\Delta_{\text{lock}}^{\text{net}} - \alpha \Delta_{\text{buf}} - (1 + \alpha)c}{1 + \alpha} \approx 0.5385\%$
 
   Implemented in `DeterministicMetrics.evaluate_slippage_proof_pyramiding_bound()` and formally verified across 1,000 `Hypothesis` property-based trajectories with zero invariant violations.
 
