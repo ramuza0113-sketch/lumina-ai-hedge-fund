@@ -15,7 +15,7 @@
 [![ORCID](https://img.shields.io/badge/ORCID-0009--0009--8292--5085-A6CE39.svg?logo=orcid&logoColor=white)](https://orcid.org/0009-0009-8292-5085)
 [![Google Scholar](https://img.shields.io/badge/Google%20Scholar-Katsutoshi%20Hashimoto-4285F4.svg?logo=google-scholar&logoColor=white)](https://scholar.google.com/citations?user=yhTWOKIAAAAJ)
 [![PyPI version](https://img.shields.io/pypi/v/lumina-quant.svg?logo=pypi&logoColor=white)](https://pypi.org/project/lumina-quant/)
-[![PyPI Downloads](https://static.pepy.tech/badge/lumina-quant)](https://pepy.tech/projects/lumina-quant)
+[![pip install](https://img.shields.io/badge/pip%20install-lumina--quant-3775A9.svg?logo=pypi&logoColor=white)](https://pypi.org/project/lumina-quant/)
 [![OSF DOI](https://img.shields.io/badge/OSF%20DOI-10.17605%2FOSF.IO%2F76PF3-38B2AC.svg)](https://doi.org/10.17605/OSF.IO/76PF3)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Featured in awesome-quant](https://awesome.re/mentioned-badge.svg)](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting)
