@@ -25,7 +25,7 @@ bibliography: paper.bib
 
 # Statement of need
 
-Recent open-source financial machine learning and agent frameworks have catalyzed empirical research into automated market decision-making, yet researchers investigating hybrid LLM-microstructure systems encounter three fundamental theoretical and methodological gaps [@hashimoto2026whitepaper]:
+Recent open-source financial machine learning and agent frameworks have catalyzed empirical research into automated market decision-making, yet researchers investigating hybrid LLM-microstructure systems encounter three fundamental theoretical and methodological gaps [@hashimoto2026whitepaper; @hashimoto2026sycophancy]:
 
 1. **Semantic Polarity Inversion and Boundary Chattering:** Generative agents frequently misinterpret inverse valuation or distress metrics (such as $\text{EV/EBITDA}$ or debt-to-equity ratios) as positively correlated with forward returns, while memoryless threshold rules oscillate rapidly when factor $z$-scores hover near regime boundaries.
 2. **Order Book Horizon Truncation Bias (The Scroll-Out Spoofing Illusion):** In finite $K$-level limit order book streams ($K \in \lbrace 10, 60\rbrace$), a rapid upward price impulse shifts the visible depth window upward, causing resting bid walls at deeper price levels $p < P_{\text{bid}, K}^{(t)}$ to scroll out of the observation payload. Naive cancellation estimators misclassify this window truncation as a $100\%$ liquidity pull (bearish spoofing) at the exact onset of a genuine breakout.
