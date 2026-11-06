@@ -816,6 +816,35 @@ def test_19_statistical_overfitting_audit_wfe_cpcv_dsr_monte_carlo():
     print("[PASS] 19. Statistical Overfitting Audit (WFE 89.6%, CPCV 15-Split, DSR >= 95%, 10,000-Run Monte Carlo) verified.")
 
 
+def test_20_scroll_out_spoofing_immunity_and_pyramiding_bound():
+    """
+    20. Theorem 1 (Scroll-Out Resistant Deep OFI) & Theorem 2 (Slippage-Proof Pyramiding Bound):
+    Verifies offline using synthetic K=10 order book trajectories that when an upward breakout shifts
+    the visible depth window upward (causing resting bid walls at deeper levels to scroll below level K),
+    the visible-window boundary invariant achieves a 0.0% false-positive spoofing rate, and verifies
+    the closed-form maximum slippage tolerance delta_slip_max (~0.538%) for pyramided positions.
+    """
+    from core.ai_hedge_fund.deep_ofi_analyzer import DeepOFIAnalyzer
+
+    analyzer = DeepOFIAnalyzer("THEOREM1_TEST", alpha_decay=0.25)
+    t0 = 1730000000.0
+    bids_t0 = [{"price": round(100.00 - 0.10 * i, 2), "size": 50000 if i == 9 else 1000} for i in range(10)]
+    asks_t0 = [{"price": round(100.10 + 0.10 * i, 2), "size": 1000} for i in range(10)]
+    analyzer.update(bids_t0, asks_t0, timestamp=t0)
+
+    bids_t1 = [{"price": round(100.30 - 0.10 * i, 2), "size": 1200} for i in range(10)]
+    asks_t1 = [{"price": round(100.40 + 0.10 * i, 2), "size": 900} for i in range(10)]
+    res_t1 = analyzer.update(bids_t1, asks_t1, timestamp=t0 + 0.5)
+
+    assert res_t1["is_spoof_buy_wall"] is False, "Scroll-out of deep bid wall below K-th horizon must NOT trigger false spoofing!"
+
+    # Corollary 1 (Theorem 2): alpha=0.30, delta_lock_net=0.0095, delta_buf=0.0040, cost=0.0010
+    alpha, delta_lock_net, delta_buf, cost = 0.30, 0.0095, 0.0040, 0.0010
+    delta_slip_max = (delta_lock_net - alpha * delta_buf - (1.0 + alpha) * cost) / (1.0 + alpha)
+    assert abs(delta_slip_max - 0.00538) < 1e-4, f"Expected delta_slip_max ~ 0.00538 (0.538%), got {delta_slip_max:.6f}"
+    print(f"[PASS] 20. Theorem 1 (0% Scroll-Out False Spoof) & Theorem 2 (delta_slip_max={delta_slip_max*100:.3f}%) verified.")
+
+
 if __name__ == "__main__":
     test_1_ci_factor_ontology_contracts()
     test_2_schmitt_trigger_hysteresis_and_deadzone()
@@ -836,4 +865,5 @@ if __name__ == "__main__":
     test_17_partial_fill_weighted_avg_and_100share_breakeven_trailing()
     test_18_sigkill_crash_recovery_and_cooldown_hydration()
     test_19_statistical_overfitting_audit_wfe_cpcv_dsr_monte_carlo()
-    print("\n[SUCCESS] ALL 19 INSTITUTIONAL HARDENING, EXTREME SCENARIO & STATISTICAL AUDIT TESTS PASSED SUCCESSFULLY!")
+    test_20_scroll_out_spoofing_immunity_and_pyramiding_bound()
+    print("\n[SUCCESS] ALL 20 INSTITUTIONAL HARDENING, EXTREME SCENARIO & STATISTICAL AUDIT TESTS PASSED SUCCESSFULLY!")

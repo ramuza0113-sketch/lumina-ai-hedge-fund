@@ -1,4 +1,4 @@
-name: CI
+name: CI & Formal Verification Suite
 
 on:
   push:
@@ -23,11 +23,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
 
-      - name: Install Validation Tools
+      - name: Install Package (`pip install -e .[test]`)
         run: |
           python -m pip install --upgrade pip
-          pip install flake8 numpy pandas scipy yfinance
-
+          pip install -e ".[test]"
 
       - name: Compile and Validate Python Syntax
         run: |
@@ -37,7 +36,6 @@ jobs:
         run: |
           flake8 app.py core ui --count --select=E9,F63,F7,F82 --show-source --statistics
 
-      - name: Factor Ontology Contract Guard & Institutional Hardening Suite
+      - name: Offline Pytest Suite (20 Institutional Hardening + 1,000 Hypothesis Fuzzing Trajectories)
         run: |
-          python tests/test_institutional_hardening.py
-
+          pytest tests/

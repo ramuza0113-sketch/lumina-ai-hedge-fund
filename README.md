@@ -176,7 +176,42 @@ To meet the rigorous quantitative due-diligence standards of institutional alloc
 > [!TIP]
 > ⭐️ **Please consider starring this repository** if you're cloning or testing it locally! Your star supports active research, continuous maintenance of quantitative factor models, and future agent enhancements.
 
-### 🐳 Option A: 1-Click Launch with Docker Compose (Recommended)
+### 📦 Option A: Standalone Python Research Library (`lumina-quant` — Zero API Keys Required)
+For quantitative researchers, financial economists, and JOSS reviewers, the core mathematical modules (**Scroll-Out Resistant Deep OFI**, **Schmitt-Trigger Factor Ontology**, **Volume Clock**, **Hayashi-Yoshida Nearest-PSD Covariance**, and **WFE / Purged CPCV / DSR Audits**) can be installed as a standalone scientific Python package (`numpy`, `pandas`, `scipy` only—**no LLM API keys or brokerage accounts required**):
+
+```bash
+git clone https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund.git
+cd lumina-ai-hedge-fund
+pip install -e ".[test]"
+
+# Run the complete offline formal verification & unit test suite (20 Hardening Tests + 1,000 Hypothesis Fuzzing Runs)
+pytest tests/
+```
+
+```python
+from core.ai_hedge_fund import (
+    DeepOFIAnalyzer,
+    FactorOntology,
+    VolumeClockSampler,
+    LeadLagAnalyzer,
+    DeterministicMetrics,
+)
+
+# 1. Scroll-Out Resistant 10-Level Order Flow Imbalance (Theorem 1: 0% false spoofing on window shift)
+ofi = DeepOFIAnalyzer(symbol="NVDA", alpha_decay=0.25)
+ofi.update(bids=[{"price": 100.0 - 0.1 * i, "size": 5000} for i in range(10)],
+           asks=[{"price": 100.1 + 0.1 * i, "size": 1000} for i in range(10)], timestamp=1000.0)
+metrics = ofi.update(bids=[{"price": 100.3 - 0.1 * i, "size": 1500} for i in range(10)],
+                     asks=[{"price": 100.4 + 0.1 * i, "size": 900} for i in range(10)], timestamp=1000.5)
+assert metrics["is_spoof_buy_wall"] is False
+
+# 2. Schmitt-Trigger Factor Ontology with Deadband Hysteresis
+sig = FactorOntology.interpret_value("alpha158_z_score", 0.82, symbol="NVDA")
+```
+
+---
+
+### 🐳 Option B: 1-Click Full Studio Launch with Docker Compose
 Zero environment setup required. Launches both the Autonomous Studio and the 3D Causal Knowledge Graph (Neo4j) in a single command:
 ```bash
 git clone https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund.git
@@ -188,7 +223,7 @@ Open your browser at `http://localhost:8501`. *(To run in the background, use `d
 
 ---
 
-### 🐍 Option B: Native Python Setup
+### 🐍 Option C: Native Python Full Studio Setup
 If you prefer running directly on your host machine:
 
 #### 1. Install Dependencies

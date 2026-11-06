@@ -1,0 +1,83 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lumina-quant"
+version = "6.6.5"
+description = "Scroll-Out Resistant Deep OFI, Schmitt-Trigger Factor Ontologies, Slippage-Proof Pyramiding, and Statistical Overfitting Audits for Quantitative Finance"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Katsutoshi Hashimoto", email = "lumina-quant@users.noreply.github.com" }
+]
+keywords = [
+    "quantitative-finance",
+    "market-microstructure",
+    "order-flow-imbalance",
+    "limit-order-book",
+    "schmitt-trigger",
+    "deflated-sharpe-ratio",
+    "combinatorial-purged-cross-validation",
+    "multi-agent-systems",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+dependencies = [
+    "numpy>=1.26.0",
+    "pandas>=2.1.0",
+    "scipy>=1.11.0",
+    "yfinance>=0.2.38",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0.0",
+    "hypothesis>=6.98.0",
+    "flake8>=7.0.0",
+]
+agents = [
+    "google-genai>=0.3.0",
+    "langgraph>=0.2.0",
+    "langchain-core>=0.3.0",
+    "pydantic>=2.5.0",
+    "python-dotenv>=1.0.0",
+]
+dashboard = [
+    "streamlit>=1.32.0",
+    "plotly>=5.18.0",
+    "beautifulsoup4>=4.12.0",
+    "requests>=2.31.0",
+]
+broker = [
+    "ib_insync>=0.9.86",
+    "neo4j>=5.15.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund"
+Repository = "https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund.git"
+Documentation = "https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/tree/main/docs"
+Paper = "https://doi.org/10.5281/zenodo.23935930"
+Issues = "https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["core*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v"
