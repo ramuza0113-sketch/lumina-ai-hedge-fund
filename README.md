@@ -11,6 +11,7 @@
 [![Figshare DOI](https://img.shields.io/badge/Figshare%20DOI-10.6084%2Fm9.figshare.34923813-5773FF.svg)](https://doi.org/10.6084/m9.figshare.34923813)
 [![ORCID](https://img.shields.io/badge/ORCID-0009--0009--8292--5085-A6CE39.svg?logo=orcid&logoColor=white)](https://orcid.org/0009-0009-8292-5085)
 [![Google Scholar](https://img.shields.io/badge/Google%20Scholar-Katsutoshi%20Hashimoto-4285F4.svg?logo=google-scholar&logoColor=white)](https://scholar.google.com/citations?user=yhTWOKIAAAAJ)
+[![PyPI version](https://img.shields.io/pypi/v/lumina-quant.svg?logo=pypi&logoColor=white)](https://pypi.org/project/lumina-quant/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Featured in awesome-quant](https://awesome.re/mentioned-badge.svg)](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting)
 [![CI](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/actions/workflows/ci.yml/badge.svg)](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/actions/workflows/ci.yml)
