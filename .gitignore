@@ -29,3 +29,7 @@ medium_article.html
 # OS specific
 .DS_Store
 Thumbs.db
+
+*.egg-info/
+build/
+dist/
