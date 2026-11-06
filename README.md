@@ -7,12 +7,16 @@
 <br>
 🏆 **Officially Featured in [awesome-quant](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting) & [Awesome_AI4Finance](https://github.com/AI4Finance-Foundation/Awesome_AI4Finance)**
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23935930.svg)](https://doi.org/10.5281/zenodo.23935930)
+[![DOI Paper 1](https://zenodo.org/badge/DOI/10.5281/zenodo.23935930.svg)](https://doi.org/10.5281/zenodo.23935930)
+[![DOI Paper 2](https://zenodo.org/badge/DOI/10.5281/zenodo.23997654.svg)](https://doi.org/10.5281/zenodo.23997654)
+[![MPRA RePEc](https://img.shields.io/badge/MPRA%20RePEc-Paper%20%23131780-8B0000.svg)](https://mpra.ub.uni-muenchen.de/131780/)
 [![Figshare DOI](https://img.shields.io/badge/Figshare%20DOI-10.6084%2Fm9.figshare.34923813-5773FF.svg)](https://doi.org/10.6084/m9.figshare.34923813)
 [![ORCID](https://img.shields.io/badge/ORCID-0009--0009--8292--5085-A6CE39.svg?logo=orcid&logoColor=white)](https://orcid.org/0009-0009-8292-5085)
 [![Google Scholar](https://img.shields.io/badge/Google%20Scholar-Katsutoshi%20Hashimoto-4285F4.svg?logo=google-scholar&logoColor=white)](https://scholar.google.com/citations?user=yhTWOKIAAAAJ)
-[![PyPI version](https://img.shields.io/pypi/v/lumina-quant.svg?logo=pypi&logoColor=white)](https://pypi.org/project/lumina-quant/)
-[![PyPI Downloads](https://static.pepy.tech/badge/lumina-quant)](https://pepy.tech/projects/lumina-quant)
+[![PyPI version](https://img.shields.io/pypi/v/lumina-quant.svg?logo=pypi&logoColor=white)](https://pypi.org/project/lumina-quant/)
+
+[![PyPI Downloads](https://static.pepy.tech/badge/lumina-quant)](https://pepy.tech/projects/lumina-quant)
+
 [![OSF DOI](https://img.shields.io/badge/OSF%20DOI-10.17605%2FOSF.IO%2F76PF3-38B2AC.svg)](https://doi.org/10.17605/OSF.IO/76PF3)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Featured in awesome-quant](https://awesome.re/mentioned-badge.svg)](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting)
@@ -40,7 +44,7 @@
 > ⭐️ **Found this project inspiring? Give it a Star!**  
 > If you find Lumina Capital helpful or educational, please consider hitting the **⭐️ Star** button on the top right. It helps support active open-source research and continuous development of new factor models!
 
-[English](#-overview) | [📄 Academic Whitepaper (PDF / CERN DOI)](docs/whitepaper/Hashimoto_2026_Lumina_Quantitative_Microstructure_Whitepaper.pdf) | [📖 Master Architecture & Math Specification](docs/lumina_fund_master_system_architecture.md) | [コミュニティ・公式リンク](#-connect-with-the-author--community) | [日本語ドキュメント](#-日本語概要-japanese-summary) ([🇯🇵 完全仕様書](docs/lumina_fund_master_system_architecture.ja.md))
+[English](#-overview) | [📄 Paper #1: Microstructure & OFI (PDF)](docs/whitepaper/Hashimoto_2026_Lumina_Quantitative_Microstructure_Whitepaper.pdf) | [📄 Paper #2: Anti-Sycophancy & Memory (PDF)](docs/whitepaper/Hashimoto_2026b_Lumina_Anti_Sycophancy_Episodic_Memory_Whitepaper.pdf) | [📖 Master Architecture & Math Specification](docs/lumina_fund_master_system_architecture.md) | [コミュニティ・公式リンク](#-connect-with-the-author--community) | [日本語ドキュメント](#-日本語概要-japanese-summary) ([🇯🇵 完全仕様書](docs/lumina_fund_master_system_architecture.ja.md))
 
 <br><br>
 
