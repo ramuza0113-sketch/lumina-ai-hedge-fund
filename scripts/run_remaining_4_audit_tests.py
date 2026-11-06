@@ -10,6 +10,7 @@ Lumina Capital v6.4.8 - Complete Institutional Audit Suite (Remaining 4 Pillars)
 import os
 import sys
 import math
+import time
 import itertools
 from typing import Dict, Any, List, Tuple
 import numpy as np
@@ -102,8 +103,10 @@ def load_5year_data(symbols: List[str]) -> Tuple[Dict[str, pd.DataFrame], List[p
 
         # Sequential fallback if concurrent yf.download(threads=True) rate-limited a TSE (.T) ticker
         if df is None or len(df) <= 120:
-            for _attempt in range(3):
+            for _attempt in range(12):
                 try:
+                    if _attempt > 0:
+                        time.sleep(0.35 * min(_attempt, 4))
                     t_hist = yf.Ticker(sym).history(start=start_date, end=end_date, interval="1d", auto_adjust=True)
                     if t_hist is not None and not t_hist.empty:
                         if t_hist.index.tz is not None:
