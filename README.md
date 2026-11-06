@@ -15,9 +15,7 @@
 [![ORCID](https://img.shields.io/badge/ORCID-0009--0009--8292--5085-A6CE39.svg?logo=orcid&logoColor=white)](https://orcid.org/0009-0009-8292-5085)
 [![Google Scholar](https://img.shields.io/badge/Google%20Scholar-Katsutoshi%20Hashimoto-4285F4.svg?logo=google-scholar&logoColor=white)](https://scholar.google.com/citations?user=yhTWOKIAAAAJ)
 [![PyPI version](https://img.shields.io/pypi/v/lumina-quant.svg?logo=pypi&logoColor=white)](https://pypi.org/project/lumina-quant/)
-
 [![PyPI Downloads](https://static.pepy.tech/badge/lumina-quant)](https://pepy.tech/projects/lumina-quant)
-
 [![OSF DOI](https://img.shields.io/badge/OSF%20DOI-10.17605%2FOSF.IO%2F76PF3-38B2AC.svg)](https://doi.org/10.17605/OSF.IO/76PF3)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Featured in awesome-quant](https://awesome.re/mentioned-badge.svg)](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting)
@@ -29,7 +27,7 @@
 [![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph-orange.svg)](https://github.com/langchain-ai/langgraph)
 [![TimesFM](https://img.shields.io/badge/Forecasting-Google%20TimesFM-red.svg)](https://github.com/google-research/timesfm)
 [![GitHub stars](https://img.shields.io/github/stars/ramuza0113-sketch/lumina-ai-hedge-fund?style=social)](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund)
-[![GitHub forks](https://img.shields.io/github/forks/ramuza0113-sketch/lumina-ai-hedge-fund/network/members?style=social)](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/network/members)
+[![GitHub forks](https://img.shields.io/github/forks/ramuza0113-sketch/lumina-ai-hedge-fund?style=social)](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/network/members)
 <br>
 [![X Follow](https://img.shields.io/badge/X-@prompter__note-000000.svg?logo=x&logoColor=white)](https://x.com/prompter_note)
 [![Qiita](https://img.shields.io/badge/Qiita-ramuza0113-55C500.svg?logo=qiita&logoColor=white)](https://qiita.com/ramuza0113/items/434af1b23fa220590f017)
@@ -45,7 +43,7 @@
 > ⭐️ **Found this project inspiring? Give it a Star!**  
 > If you find Lumina Capital helpful or educational, please consider hitting the **⭐️ Star** button on the top right. It helps support active open-source research and continuous development of new factor models!
 
-[English](#-overview) | [📄 Paper #1: Microstructure & OFI (PDF)](docs/whitepaper/Hashimoto_2026_Lumina_Quantitative_Microstructure_Whitepaper.pdf) | [📄 Paper #2: Anti-Sycophancy & Memory (PDF)](docs/whitepaper/Hashimoto_2026b_Lumina_Anti_Sycophancy_Episodic_Memory_Whitepaper.pdf) | [📖 Master Architecture & Math Specification](docs/lumina_fund_master_system_architecture.md) | [コミュニティ・公式リンク](#-connect-with-the-author--community) | [日本語ドキュメント](#-日本語概要-japanese-summary) ([🇯🇵 完全仕様書](docs/lumina_fund_master_system_architecture.ja.md))
+[English](#-overview) | [📄 Paper #1: Microstructure & OFI (PDF)](docs/whitepaper/Hashimoto_2026_Lumina_Quantitative_Microstructure_Whitepaper.pdf) | [📄 Paper #2: Anti-Sycophancy & Memory (PDF)](docs/whitepaper/Hashimoto_2026b_Lumina_Anti_Sycophancy_Episodic_Memory_Whitepaper.pdf) | [📄 Paper #3: Volume Clock & Async Covariance (PDF)](docs/whitepaper/Hashimoto_2026c_Lumina_Asynchronous_Econometrics_Volume_Clock_Whitepaper.pdf) | [📖 Master Architecture & Math Specification](docs/lumina_fund_master_system_architecture.md) | [コミュニティ・公式リンク](#-connect-with-the-author--community) | [日本語ドキュメント](#-日本語概要-japanese-summary) ([🇯🇵 完全仕様書](docs/lumina_fund_master_system_architecture.ja.md))
 
 <br><br>
 
