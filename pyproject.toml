@@ -75,7 +75,7 @@ Issues = "https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["core*"]
+include = ["lumina_quant*", "core*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

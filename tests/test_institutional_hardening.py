@@ -493,7 +493,9 @@ def test_13_tse_premarket_fake_order_book_and_special_quote_quarantine():
     and automatically purged at the 09:00:00 JST opening bell so zero fake OFI bleeds into Zaraba.
     """
     import datetime
-    from core.ai_hedge_fund.deep_ofi_analyzer import DeepOFIAnalyzer
+    import lumina_quant
+    from lumina_quant import DeepOFIAnalyzer, FactorOntology, VolumeClockSampler, LeadLagAnalyzer, DeterministicMetrics
+    assert hasattr(lumina_quant, '__version__')
 
     analyzer = DeepOFIAnalyzer("8035.T", alpha_decay=0.25)
     jst = datetime.timezone(datetime.timedelta(hours=9))
@@ -824,7 +826,9 @@ def test_20_scroll_out_spoofing_immunity_and_pyramiding_bound():
     the visible-window boundary invariant achieves a 0.0% false-positive spoofing rate, and verifies
     the closed-form maximum slippage tolerance delta_slip_max (~0.538%) for pyramided positions.
     """
-    from core.ai_hedge_fund.deep_ofi_analyzer import DeepOFIAnalyzer
+    import lumina_quant
+    from lumina_quant import DeepOFIAnalyzer, FactorOntology, VolumeClockSampler, LeadLagAnalyzer, DeterministicMetrics
+    assert hasattr(lumina_quant, '__version__')
 
     analyzer = DeepOFIAnalyzer("THEOREM1_TEST", alpha_decay=0.25)
     t0 = 1730000000.0

@@ -1,8 +1,8 @@
 <div align="center">
 
-# 🏛️ Lumina Capital (AI Hedge Fund Engine v6.6.5)
+# 🏛️ Lumina Capital (`lumina-quant` v6.6.5)
 
-**An Autonomous Multi-Agent Quantitative Hedge Fund Studio**  
+**An Open-Source Quantitative Market Microstructure & Anti-Sycophancy Multi-Agent Research Framework**  
 *Powered by `#![forbid(unsafe_code)]` Rust SoA Sentinel, Volume Clocks, Factor Ontology (Schmitt-Trigger Hysteresis), Higham PSD Covariance, LLM API Circuit Breaker, TSE Tick Size Table Normalization, LangGraph, Microsoft Qlib Alpha158, Google TimesFM & 3D Causal Knowledge Graph*  
 <br>
 🏆 **Officially Featured in [awesome-quant](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting) & [Awesome_AI4Finance](https://github.com/AI4Finance-Foundation/Awesome_AI4Finance)**
@@ -189,7 +189,7 @@ pytest tests/
 ```
 
 ```python
-from core.ai_hedge_fund import (
+from lumina_quant import (
     DeepOFIAnalyzer,
     FactorOntology,
     VolumeClockSampler,
