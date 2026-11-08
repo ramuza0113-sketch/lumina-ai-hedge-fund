@@ -25,8 +25,9 @@ from core.ai_hedge_fund.broker_client import (
     round_price_to_exchange_tick,
     normalize_exchange_lot_size,
 )
+from core.ai_hedge_fund.cis_flow_sniper import CisFlowSniper
 
-__version__ = "6.6.5"
+__version__ = "6.6.9"
 
 __all__ = [
     "DeepOFIAnalyzer",
@@ -37,6 +38,7 @@ __all__ = [
     "VolumeClockSampler",
     "LeadLagAnalyzer",
     "DeterministicMetrics",
+    "CisFlowSniper",
     "round_price_to_exchange_tick",
     "normalize_exchange_lot_size",
 ]

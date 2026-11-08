@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lumina-quant"
-version = "6.6.5"
-description = "Scroll-Out Resistant Deep OFI, Schmitt-Trigger Factor Ontologies, Slippage-Proof Pyramiding, and Statistical Overfitting Audits for Quantitative Finance"
+version = "6.6.9"
+description = "Scroll-Out Resistant Deep OFI, Z3 SMT Formal Verification, Friday Cross-Asset Exit Divergence, Schmitt-Trigger Factor Ontologies, and Statistical Overfitting Audits for Quantitative Finance"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -76,7 +76,7 @@ Issues = "https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["lumina_quant*", "core*"]
+include = ["lumina_quant*", "core*", "scripts*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
