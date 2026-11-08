@@ -1,12 +1,13 @@
 <div align="center">
 
-# 🏛️ Lumina Capital (`lumina-quant` v6.6.5)
+# 🏛️ Lumina Capital (`lumina-quant` v6.6.9)
 
 **An Open-Source Quantitative Market Microstructure & Anti-Sycophancy Multi-Agent Research Framework**  
 *Powered by `#![forbid(unsafe_code)]` Rust SoA Sentinel, Volume Clocks, Factor Ontology (Schmitt-Trigger Hysteresis), Higham PSD Covariance, LLM API Circuit Breaker, TSE Tick Size Table Normalization, LangGraph, Microsoft Qlib Alpha158, Google TimesFM & 3D Causal Knowledge Graph*  
 <br>
 🏆 **Officially Featured in [awesome-quant](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting) & [Awesome_AI4Finance](https://github.com/AI4Finance-Foundation/Awesome_AI4Finance)**
 
+[![status](https://joss.theoj.org/papers/847b6dcd03e96c215f8344b48cee5f34/status.svg)](https://joss.theoj.org/papers/847b6dcd03e96c215f8344b48cee5f34)
 [![DOI Paper 1](https://zenodo.org/badge/DOI/10.5281/zenodo.23935930.svg)](https://doi.org/10.5281/zenodo.23935930)
 [![DOI Paper 2](https://zenodo.org/badge/DOI/10.5281/zenodo.23997654.svg)](https://doi.org/10.5281/zenodo.23997654)
 [![DOI Paper 3](https://zenodo.org/badge/DOI/10.5281/zenodo.24002731.svg)](https://doi.org/10.5281/zenodo.24002731)
