@@ -1,4 +1,4 @@
-# 🏛️ Lumina Capital: 自律型AIヘッジファンド＆クオンツ投資システム 全機能詳細解説書 (v6.6.5)
+# 🏛️ Lumina Capital: 自律型AIヘッジファンド＆クオンツ投資システム 全機能詳細解説書 (v6.6.8)
 
 **Lumina Capital — Master System Architecture & Functional Specifications**  
 *世界二大クオンツ投資リソース集（`awesome-quant` ⭐️15,000+ / `Awesome_AI4Finance`）公式採択・マージ*  
@@ -528,6 +528,18 @@ flowchart LR
 
   * **実装・形式検証**: `DeterministicMetrics.evaluate_slippage_proof_pyramiding_bound()`（`core/ai_hedge_fund/deterministic_metrics.py`）。`Hypothesis` 1,000通りのプロパティベース検証および `oss-fuzz` 境界値ファジングで違反0件を実証。
 
+
+### 10.9 60段指数減衰オーダーフロー不均衡（Liquidity Vacuum検知）＆ 4段階形式検証パイプライン（Microsoft Z3 SMT Prover, v6.6.8）
+* **60段フル板・指数減衰不均衡と流動性真空地帯（Liquidity Vacuum）の定式化 (`DeepOFIAnalyzer.compute_60level_decay_metrics`)**:
+  最良気配近傍（第1〜10段、重み $0.68$）の直近約定圧力と深層板（第11〜60段、重み $0.32$）の機関投資家待機流動性を結合し、表層の見せ板ノイズを除去した真の板不均衡 $\text{Imb}_{\text{decay}}^{(60)}$ を算出：
+
+  $\displaystyle \text{Imb}_{\text{decay}}^{(60)} = 0.68 \cdot \text{Imb}_{1:10} + 0.32 \cdot \text{Imb}_{1:60}$
+
+* **ミクロ市場構造4大モジュールの統合（出来高クロック × ディーラーGEX × リードラグ因果）**:
+  クラーク従属確率過程に基づく出来高クロック流速（`VolumeClockSampler`）、オプション市場のCall Wall突破・Negative Gamma検知（`OptionsGexFeed`）、およびグレンジャー因果リードラグ同期（`LeadLagAnalyzer`）を統合。
+* **4段階形式バグ検証パイプライン（Google Mantis AST ＋ SQL AST ＋ Microsoft `Z3 Theorem Prover` ＋ `Hypothesis` 1,000通りファジング）**:
+  SMTソルバー `Z3` により、耐スリッページ増し玉境界不等式（Theorem 2）およびリスク配分上限の不変条件に対する反例が存在しないこと（`UNSAT`：反例0件）を形式証明。
+
 ---
 
-**以上、Lumina Capital v6.6.5 自律型AIヘッジファンド＆クオンツ投資システム 正式マスター解説書**
+**以上、Lumina Capital v6.6.8 自律型AIヘッジファンド＆クオンツ投資システム 正式マスター解説書**

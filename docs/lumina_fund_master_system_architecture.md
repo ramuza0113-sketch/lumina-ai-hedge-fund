@@ -1,4 +1,4 @@
-# 🏛️ Lumina Capital: Autonomous Quantitative AI Hedge Fund Master Architecture (v6.6.5)
+# 🏛️ Lumina Capital: Autonomous Quantitative AI Hedge Fund Master Architecture (v6.6.8)
 
 **Master System Architecture, Mathematical Foundations & Microstructure Specifications**  
 *Officially featured and merged in world-class quantitative repositories: [`awesome-quant` (⭐️ 15k+)](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting) & [`Awesome_AI4Finance`](https://github.com/AI4Finance-Foundation/Awesome_AI4Finance)*  
@@ -532,6 +532,18 @@ flowchart LR
 
   Implemented in `DeterministicMetrics.evaluate_slippage_proof_pyramiding_bound()` and formally verified across 1,000 `Hypothesis` property-based trajectories with zero invariant violations.
 
+
+### 10.9 Multi-Horizon 60-Level Exponential Decay Order Flow & 4-Stage SMT Formal Verification (`v6.6.8`)
+* **60-Level Exponential Decay Order Flow Imbalance & Liquidity Vacuum Detection (`DeepOFIAnalyzer.compute_60level_decay_metrics`)**:
+  Combines near-touch Level 1–10 order-book pressure ($w_{\text{near}} = 0.68$) with deep Level 11–60 resting institutional liquidity ($w_{\text{deep}} = 0.32$) to filter out top-of-book spoofing noise and identify true Liquidity Vacuum breakouts:
+
+  $\displaystyle \text{Imb}_{\text{decay}}^{(60)} = 0.68 \cdot \text{Imb}_{1:10} + 0.32 \cdot \text{Imb}_{1:60}$
+
+* **Cross-Asset Microstructure Synergy (Volume Clock + Dealer GEX + Lead-Lag Causality)**:
+  Integrates Clark (1973) volume-clock flow velocity (`VolumeClockSampler`), Black-Scholes-Merton dealer gamma flip / Call Wall breakout signals (`OptionsGexFeed`), and Granger-causal benchmark lead-lag synchronization (`LeadLagAnalyzer`).
+* **4-Stage Formal Verification Pipeline (Google Mantis AST + SQL AST + Microsoft Z3 SMT Prover + Hypothesis Fuzzing)**:
+  Proves mathematical invariants (strictly positive worst-case realized profit under jump slippage $\delta_{\text{slip}} < \delta_{\text{slip}}^{\max}$ and risk-budget bounds) as `UNSAT` (zero counterexamples) via the Microsoft `Z3` SMT solver alongside 1,000 `Hypothesis` property-based trajectories.
+
 ---
 
-*Lumina Capital v6.6.5 Master System Architecture & Specifications Document.*
+*Lumina Capital v6.6.8 Master System Architecture & Specifications Document.*

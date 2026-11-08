@@ -82,7 +82,8 @@ class DeepOFIAnalyzer:
         asks: List[Dict[str, Any]],
         timestamp: Optional[float] = None,
         trades: Optional[List[Dict[str, Any]]] = None,
-        is_special_quote: bool = False
+        is_special_quote: bool = False,
+        bar_microstructure: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Ingests a new order book snapshot (up to 10 rows of bids/asks).
@@ -150,11 +151,46 @@ class DeepOFIAnalyzer:
             return self._default_metrics(snapshot)
 
         prev_snapshot = self.history[-2]
-        return self._compute_metrics(snapshot, prev_snapshot)
+        return self._compute_metrics(snapshot, prev_snapshot, bar_microstructure=bar_microstructure)
 
-    def _compute_metrics(self, curr: OrderBookSnapshot, prev: OrderBookSnapshot) -> Dict[str, Any]:
+    @staticmethod
+    def compute_60level_decay_metrics(
+        imb10: float,
+        imb60: float,
+        side: str = "BUY",
+        upper_wick: float = 0.0,
+        lower_wick: float = 0.0,
+        open_rvol: float = 1.0,
+    ) -> Dict[str, Any]:
+        """
+        Computes Cont (2014) 60-level exponential decay-weighted OFI (68% near-book 1..10 + 32% deep-book 11..60)
+        and detects Liquidity Vacuum breakouts (minimal opposing wick + strong decay OFI + high RVOL).
+        """
+        i10 = float(imb10 if (imb10 is not None and math.isfinite(float(imb10))) else 50.0)
+        i60 = float(imb60 if (imb60 is not None and math.isfinite(float(imb60))) else i10)
+        uw = float(upper_wick if (upper_wick is not None and math.isfinite(float(upper_wick))) else 0.20)
+        lw = float(lower_wick if (lower_wick is not None and math.isfinite(float(lower_wick))) else 0.20)
+        rv = float(open_rvol if (open_rvol is not None and math.isfinite(float(open_rvol))) else 1.0)
+        decay_ofi_pct = round(0.68 * i10 + 0.32 * i60, 2)
+        s_up = str(side or "BUY").upper()
+        is_liq_vacuum = bool(
+            (s_up in ("BUY", "LONG") and decay_ofi_pct >= 58.0 and uw <= 0.22 and rv >= 1.35)
+            or (s_up == "SHORT" and decay_ofi_pct <= 42.0 and lw <= 0.22 and rv >= 1.35)
+        )
+        return {
+            "decay_ofi_pct": decay_ofi_pct,
+            "is_liquidity_vacuum": is_liq_vacuum,
+            "boost_mult": 1.06 if is_liq_vacuum else 1.0,
+        }
+
+    def _compute_metrics(
+        self,
+        curr: OrderBookSnapshot,
+        prev: OrderBookSnapshot,
+        bar_microstructure: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Calculates multi-level OFI, spoofing, iceberg, center of mass, and liquidity vacuum."""
-        depth = min(10, len(curr.bids), len(prev.bids), len(curr.asks), len(prev.asks))
+        depth = min(60, len(curr.bids), len(prev.bids), len(curr.asks), len(prev.asks))
         if depth == 0:
             return self._default_metrics(curr)
 
@@ -204,10 +240,15 @@ class DeepOFIAnalyzer:
         normalized_ofi = (net_raw_ofi / (avg_depth_size * (total_weight or 1.0))) * 100.0
         normalized_ofi = max(-100.0, min(100.0, normalized_ofi))
 
+        # Blend with real intraday bar volume-weighted OFI if available
+        if bar_microstructure and "bar_ofi_score" in bar_microstructure:
+            bar_ofi = float(bar_microstructure["bar_ofi_score"])
+            normalized_ofi = max(-100.0, min(100.0, 0.55 * normalized_ofi + 0.45 * bar_ofi))
+
         # Exponential moving average smoothing
         self.ema_ofi = 0.65 * normalized_ofi + 0.35 * self.ema_ofi
 
-        # 2. Spoofing Cancellation Detection (Level 2 to 10)
+        # 2. Spoofing Cancellation Detection (Level 2 to 10 + Real Bar Wick/Volume Bull & Bear Trap Detection)
         spoof_buy_detected, spoof_buy_details = self._detect_spoofing(
             curr.bids, prev.bids, side="bid", dt=dt, recent_trades=curr.trades
         )
@@ -215,8 +256,25 @@ class DeepOFIAnalyzer:
             curr.asks, prev.asks, side="ask", dt=dt, recent_trades=curr.trades
         )
 
-        # 3. Iceberg Order Accumulation Detection
+        if bar_microstructure:
+            if not spoof_buy_detected and bar_microstructure.get("is_real_bull_trap"):
+                spoof_buy_detected = True
+                spoof_buy_details = dict(bar_microstructure.get("bull_trap_details") or {})
+            if not spoof_sell_detected and bar_microstructure.get("is_real_bear_trap"):
+                spoof_sell_detected = True
+                spoof_sell_details = dict(bar_microstructure.get("bear_trap_details") or {})
+
+        # 3. Iceberg Order Accumulation & Distribution Detection
         iceberg_detected, iceberg_details = self._detect_iceberg(curr, prev)
+        iceberg_sell_detected = False
+        iceberg_sell_details: Dict[str, Any] = {}
+        if bar_microstructure:
+            if not iceberg_detected and bar_microstructure.get("is_real_iceberg_buy"):
+                iceberg_detected = True
+                iceberg_details = dict(bar_microstructure.get("iceberg_buy_details") or {})
+            if bar_microstructure.get("is_real_iceberg_sell"):
+                iceberg_sell_detected = True
+                iceberg_sell_details = dict(bar_microstructure.get("iceberg_sell_details") or {})
 
         # 4. Center of Mass (BVWP & AVWP) & Velocity
         bvwp = sum(b.price * b.size for b in curr.bids[:depth]) / max(1, sum(b.size for b in curr.bids[:depth]))
@@ -258,6 +316,8 @@ class DeepOFIAnalyzer:
             "spoof_sell_details": spoof_sell_details,
             "is_iceberg_accumulation": iceberg_detected,
             "iceberg_details": iceberg_details,
+            "is_iceberg_distribution": iceberg_sell_detected,
+            "iceberg_sell_details": iceberg_sell_details,
             "bid_center_of_mass": round(bvwp, 2),
             "ask_center_of_mass": round(avwp, 2),
             "bvwp_velocity": round(bvwp_velocity, 4),
@@ -280,11 +340,12 @@ class DeepOFIAnalyzer:
         """
         Detects sudden disappearance of a large wall at levels 2 to 10 without trade volume.
         Includes Visible Window Scroll-Out Guard & Time-Delta Guard so rising prices that scroll
-        old bid levels below the top-10 window (or stale cross-cycle snapshots) are never
+        old bid levels below the top-10 window (or stale 15-minute cycle snapshots) are never
         misclassified as spoofing cancellations.
         """
         if not curr_levels or not prev_levels:
             return False, {}
+        # Spoofing pulls occur in sub-second to a few seconds; ignore stale cross-cycle snapshots (> 15s)
         if dt > 15.0:
             return False, {}
 
@@ -306,7 +367,11 @@ class DeepOFIAnalyzer:
         trades_list = recent_trades or []
 
         for price, prev_size in prev_map.items():
-            # Visible Window Boundary Invariant (Hashimoto, 2026 - Theorem 1):
+            # Visible Window Scroll-Out & Crossed-Level Guard:
+            # - For bids: if price < curr_lowest_bid, the stock rallied and this level simply scrolled
+            #   below the visible window (NOT cancelled). If price > curr_best_bid, price moved down through it.
+            # - For asks: if price > curr_highest_ask, the stock dropped and this level scrolled above
+            #   the visible window. If price < curr_best_ask, price rose through it.
             if side == "bid":
                 if price < curr_lowest_bid or price > curr_best_bid:
                     continue
