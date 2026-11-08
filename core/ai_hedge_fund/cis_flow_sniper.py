@@ -347,3 +347,104 @@ class CisFlowSniper:
             "ofi_analysis": ofi_analysis,
             "deep_ofi_score": ofi_analysis.get("deep_ofi_score", 0.0)
         }
+
+    # ------------------------------------------------------------------
+    # Hashimoto (2026d) WP-2026-04: Cross-Sectional ORB Chop Gate &
+    # Friday Afternoon (11:00 ET+) Cross-Asset Exit Divergence
+    # ------------------------------------------------------------------
+    _morning_or_cache: Dict[str, Any] = {"date": "", "ts": 0.0, "median_pct": 1.0}
+    BENCHMARK_12_LEADERS: List[str] = [
+        "NVDA", "TSLA", "AAPL", "MSFT", "AMZN", "META",
+        "AMD", "GOOGL", "AVGO", "NFLX", "PLTR", "COIN"
+    ]
+
+    @classmethod
+    def compute_30m_orb_width_pct(cls, df_5m: pd.DataFrame) -> Optional[float]:
+        """
+        Compute the 30-minute Opening Range width (09:30–10:00 ET, first 6 five-minute bars)
+        as a percentage of the 09:30 ET open price:
+            ORB_{i, 30m} = (max_{t in [09:30, 10:00]} H_i(t) - min_{t in [09:30, 10:00]} L_i(t)) / O_i(09:30) * 100
+        Returns None if fewer than 6 bars (incomplete pre-10:00 ET window).
+        """
+        df = cls._normalize_df(df_5m)
+        if df is None or len(df) < 6:
+            return None
+        first6 = df.iloc[:6]
+        open_p = float(first6["open"].iloc[0])
+        if open_p <= 0:
+            return None
+        high_30m = float(first6["high"].max())
+        low_30m = float(first6["low"].min())
+        if high_30m < low_30m:
+            return None
+        return float((high_30m - low_30m) / open_p * 100.0)
+
+    @classmethod
+    def evaluate_opening_range_compression_gate(
+        cls,
+        orb_widths_pct: List[float],
+        is_orb_breakout: bool,
+        rvol_open: float,
+        et_hour: int,
+        et_minute: int = 0,
+        compression_threshold_pct: float = 0.75,
+        min_breakout_rvol: float = 1.50,
+    ) -> Dict[str, Any]:
+        """
+        Proposition 1 (Hashimoto 2026d, WP-2026-04):
+        Cross-Sectional Opening Range Compression Gate & Pre-10:00 ET Completeness Guard.
+        - Before 10:00 ET (et_hour < 10), the 30-minute ORB is incomplete; do not classify as compressed.
+        - For 10:00 <= t_ET < 11:30, if Median(ORB_{30m}) < 0.75%, allow entry iff
+          (is_orb_breakout and rvol_open >= 1.50).
+        """
+        in_window = (et_hour == 10) or (et_hour == 11 and et_minute < 30)
+        valid_widths = [float(w) for w in orb_widths_pct if w is not None and not math.isnan(float(w)) and float(w) >= 0.0]
+        if not in_window or len(valid_widths) == 0:
+            return {
+                "allow_entry": True,
+                "is_compressed_chop": False,
+                "median_orb_pct": float(np.median(valid_widths)) if valid_widths else 1.0,
+                "reason": "OUTSIDE_WINDOW_OR_NO_DATA"
+            }
+
+        median_orb_pct = float(np.median(valid_widths))
+        is_compressed = median_orb_pct < compression_threshold_pct
+        if not is_compressed:
+            return {
+                "allow_entry": True,
+                "is_compressed_chop": False,
+                "median_orb_pct": round(median_orb_pct, 4),
+                "reason": "NORMAL_EXPANSION_REGIME"
+            }
+
+        allow = bool(is_orb_breakout and float(rvol_open) >= min_breakout_rvol)
+        return {
+            "allow_entry": allow,
+            "is_compressed_chop": True,
+            "median_orb_pct": round(median_orb_pct, 4),
+            "reason": "BREAKOUT_RVOL_CONFIRMED" if allow else "REJECTED_INTERIOR_ORB_CHOP"
+        }
+
+    @staticmethod
+    def compute_friday_afternoon_trail_multiplier(
+        asset_class: str,
+        weekday: int,
+        et_hour: int,
+        unrealized_pnl: float,
+    ) -> float:
+        """
+        Theorem 2 (Hashimoto 2026d, WP-2026-04):
+        Friday Afternoon (11:00 ET+) Cross-Asset Exit Divergence.
+        - US Equities (asset_class == 'EQUITY'): tighten trailing stop multiplier to 0.75x
+          on Fridays (weekday == 4) at or after 11:00 ET when unrealized_pnl > 0, harvesting gains
+          ahead of institutional T+1 pre-weekend balance-sheet de-risking (+0.41R).
+        - Precious Metals / XAUUSD (asset_class == 'METAL'): preserve full 1.00x trailing stop
+          multiplier to capture Friday afternoon geopolitical safe-haven accumulation (+1.08R preservation;
+          1.49R total cross-asset divergence).
+        """
+        if int(weekday) == 4 and int(et_hour) >= 11 and float(unrealized_pnl) > 0.0:
+            if str(asset_class).upper() in ("EQUITY", "US_EQUITY", "STOCK"):
+                return 0.75
+            return 1.00
+        return 1.00
+
