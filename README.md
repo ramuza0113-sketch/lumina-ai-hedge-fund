@@ -10,6 +10,7 @@
 [![DOI Paper 1](https://zenodo.org/badge/DOI/10.5281/zenodo.23935930.svg)](https://doi.org/10.5281/zenodo.23935930)
 [![DOI Paper 2](https://zenodo.org/badge/DOI/10.5281/zenodo.23997654.svg)](https://doi.org/10.5281/zenodo.23997654)
 [![DOI Paper 3](https://zenodo.org/badge/DOI/10.5281/zenodo.24002731.svg)](https://doi.org/10.5281/zenodo.24002731)
+[![DOI Paper 4](https://zenodo.org/badge/DOI/10.5281/zenodo.24050440.svg)](https://doi.org/10.5281/zenodo.24050440)
 [![MPRA RePEc](https://img.shields.io/badge/MPRA%20RePEc-Paper%20%23131780-8B0000.svg)](https://mpra.ub.uni-muenchen.de/131780/)
 [![Figshare DOI](https://img.shields.io/badge/Figshare%20DOI-10.6084%2Fm9.figshare.34923813-5773FF.svg)](https://doi.org/10.6084/m9.figshare.34923813)
 [![ORCID](https://img.shields.io/badge/ORCID-0009--0009--8292--5085-A6CE39.svg?logo=orcid&logoColor=white)](https://orcid.org/0009-0009-8292-5085)
@@ -43,7 +44,7 @@
 > ⭐️ **Found this project inspiring? Give it a Star!**  
 > If you find Lumina Capital helpful or educational, please consider hitting the **⭐️ Star** button on the top right. It helps support active open-source research and continuous development of new factor models!
 
-[English](#-overview) | [📄 Paper #1: Microstructure & OFI (PDF)](docs/whitepaper/Hashimoto_2026_Lumina_Quantitative_Microstructure_Whitepaper.pdf) | [📄 Paper #2: Anti-Sycophancy & Memory (PDF)](docs/whitepaper/Hashimoto_2026b_Lumina_Anti_Sycophancy_Episodic_Memory_Whitepaper.pdf) | [📄 Paper #3: Volume Clock & Async Covariance (PDF)](docs/whitepaper/Hashimoto_2026c_Lumina_Asynchronous_Econometrics_Volume_Clock_Whitepaper.pdf) | [📖 Master Architecture & Math Specification](docs/lumina_fund_master_system_architecture.md) | [コミュニティ・公式リンク](#-connect-with-the-author--community) | [日本語ドキュメント](#-日本語概要-japanese-summary) ([🇯🇵 完全仕様書](docs/lumina_fund_master_system_architecture.ja.md))
+[English](#-overview) | [📄 Paper #1: Microstructure & OFI (PDF)](docs/whitepaper/Hashimoto_2026_Lumina_Quantitative_Microstructure_Whitepaper.pdf) | [📄 Paper #2: Anti-Sycophancy & Memory (PDF)](docs/whitepaper/Hashimoto_2026b_Lumina_Anti_Sycophancy_Episodic_Memory_Whitepaper.pdf) | [📄 Paper #3: Volume Clock & Async Covariance (PDF)](docs/whitepaper/Hashimoto_2026c_Lumina_Asynchronous_Econometrics_Volume_Clock_Whitepaper.pdf) | [📄 Paper #4: Z3 SMT Verification & Cross-Asset Asymmetry (PDF)](docs/whitepaper/Hashimoto_2026d_Lumina_Formal_Verification_Z3_Cross_Asset_Asymmetry_Whitepaper.pdf) | [📖 Master Architecture & Math Specification](docs/lumina_fund_master_system_architecture.md) | [コミュニティ・公式リンク](#-connect-with-the-author--community) | [日本語ドキュメント](#-日本語概要-japanese-summary) ([🇯🇵 完全仕様書](docs/lumina_fund_master_system_architecture.ja.md))
 
 <br><br>
 
