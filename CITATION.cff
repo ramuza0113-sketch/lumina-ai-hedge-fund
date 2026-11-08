@@ -8,9 +8,9 @@ authors:
     orcid: "https://orcid.org/0009-0009-8292-5085"
     affiliation: "Lumina Capital AI Research"
     website: "https://prompter-note.com"
-version: 6.6.5
+version: 6.6.9
 doi: "10.5281/zenodo.23935930"
-date-released: 2026-11-04
+date-released: 2026-11-08
 url: "https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund"
 repository-code: "https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund"
 preferred-citation:
