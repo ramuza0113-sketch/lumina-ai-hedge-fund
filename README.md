@@ -7,7 +7,6 @@
 <br>
 🏆 **Officially Featured in [awesome-quant](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting) & [Awesome_AI4Finance](https://github.com/AI4Finance-Foundation/Awesome_AI4Finance)**
 
-[![status](https://joss.theoj.org/papers/847b6dcd03e96c215f8344b48cee5f34/status.svg)](https://joss.theoj.org/papers/847b6dcd03e96c215f8344b48cee5f34)
 [![DOI Paper 1](https://zenodo.org/badge/DOI/10.5281/zenodo.23935930.svg)](https://doi.org/10.5281/zenodo.23935930)
 [![DOI Paper 2](https://zenodo.org/badge/DOI/10.5281/zenodo.23997654.svg)](https://doi.org/10.5281/zenodo.23997654)
 [![DOI Paper 3](https://zenodo.org/badge/DOI/10.5281/zenodo.24002731.svg)](https://doi.org/10.5281/zenodo.24002731)
@@ -185,7 +184,7 @@ To meet the rigorous quantitative due-diligence standards of institutional alloc
 > ⭐️ **Please consider starring this repository** if you're cloning or testing it locally! Your star supports active research, continuous maintenance of quantitative factor models, and future agent enhancements.
 
 ### 📦 Option A: Standalone Python Research Library (`lumina-quant` — Zero API Keys Required)
-For quantitative researchers, financial economists, and JOSS reviewers, the core mathematical modules (**Scroll-Out Resistant Deep OFI**, **Schmitt-Trigger Factor Ontology**, **Volume Clock**, **Hayashi-Yoshida Nearest-PSD Covariance**, and **WFE / Purged CPCV / DSR Audits**) can be installed as a standalone scientific Python package (`numpy`, `pandas`, `scipy` only—**no LLM API keys or brokerage accounts required**):
+For quantitative researchers, financial economists, and peer reviewers, the core mathematical modules (**Scroll-Out Resistant Deep OFI**, **Schmitt-Trigger Factor Ontology**, **Volume Clock**, **Hayashi-Yoshida Nearest-PSD Covariance**, and **WFE / Purged CPCV / DSR Audits**) can be installed as a standalone scientific Python package (`numpy`, `pandas`, `scipy` only—**no LLM API keys or brokerage accounts required**):
 
 ```bash
 git clone https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund.git
