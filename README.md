@@ -158,6 +158,12 @@ Replaces noisy wall-clock timers (1m/5m/1h bars) with market-activity-driven clo
 ### 5. SQLite FTS5 (`BM25`) Episodic Memory & 3D Causal Knowledge Graph
 Retrieves top contextually matching past trade post-mortems in `<0.5ms` via SQLite FTS5 (`bm25()`) (`core/ai_hedge_fund/reflexion_engine.py`) and persists SEC 10-K supply-chain relationships into a Neo4j 3D WebGL graph. Upstream bottlenecks (e.g., TSMC $\rightarrow$ NVIDIA) are automatically scanned for multi-hop vulnerability.
 
+### 6. Reproducible Probabilistic Forecasting (Pinned TimesFM 2.5, Normalized Quantile Skew & Purged Calibration)
+Extends *"Models reason, software calculates"* directly to the time-series foundation forecasting layer (`core/ai_hedge_fund/timesfm_forecaster.py`, `core/ai_hedge_fund/lightgbm_gatekeeper.py`):
+- **Pinned TimesFM 2.5 Configuration & Zero-GPU Fallback**: Pins `google/timesfm-2.5-200m-pytorch` (`max_context=1024`, `use_continuous_quantile_head=True`, `fix_quantile_crossing=True`, `infer_is_positive=False` for log-returns or `True` for price levels via `LUMINA_USE_NATIVE_TIMESFM=1`), while defaulting to a lightweight zero-GPU log-return/volatility estimator out of the box.
+- **Scale-Invariant Normalized Quantile Features**: Rather than feeding raw price quantiles to LightGBM or LLM personas, software deterministically extracts `expected_move = q50 / last_price - 1`, `relative_uncertainty = (q90 - q10) / last_price`, and `quantile_skew = ((q90 - q50) - (q50 - q10)) / (q90 - q10)`.
+- **Standalone Purged Calibration & TreeSHAP Ablation**: Run `python scripts/benchmark_timesfm_standalone.py` (`--live` for post-cutoff equities) to evaluate non-overlapping purged/embargoed `q10–q90` interval coverage (~80% target across Calm vs. High-Vol regimes), Pinball Loss against Random Walk / Rolling Quantiles / GARCH(1,1)-EWMA baselines, and LightGBM TreeSHAP (`pred_contrib=True`) ablation against Alpha158 factors.
+
 ---
 
 ## 🛡️ Institutional Hardening, Adversarial Stress Audits & Chaos Engineering (100% Pass / 24 Scenarios)

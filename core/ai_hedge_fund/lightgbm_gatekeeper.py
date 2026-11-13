@@ -51,11 +51,18 @@ class LightGBMGatekeeper:
             # 11: insider_boost
 
             # キャリブレーション用データセット（金融工学統計に基づく重み付け合成ブースティング）
+            # 拡張正規化特徴量:
+            # 12: tfm_expected_move        (q50 / last_price - 1)
+            # 13: tfm_relative_uncertainty ((q90 - q10) / last_price)
+            # 14: tfm_quantile_skew        (((q90 - q50) - (q50 - q10)) / (q90 - q10))
             np.random.seed(42)
             n_samples = 1200
-            X = np.random.randn(n_samples, 12)
+            X = np.random.randn(n_samples, 15)
+            X[:, 12] = X[:, 0] * 0.02
+            X[:, 13] = np.abs(X[:, 13]) * 0.06 + 0.03
+            X[:, 14] = np.clip(X[:, 14] * 0.35, -1.0, 1.0)
             # 現実的な金融相関分布の生成
-            # tfm_ret (0), chr_ret (2), consensus (4), lead_lag (5), gex (7) が強い寄与
+            # tfm_ret (0), chr_ret (2), consensus (4), lead_lag (5), gex (7) + 正規化歪度・不確実性が寄与
             logits = (
                 X[:, 0] * 1.8 +
                 (30.0 - X[:, 1]) * 0.05 +
@@ -67,7 +74,9 @@ class LightGBMGatekeeper:
                 X[:, 7] * 0.8 +
                 (X[:, 9] - 10.0) * 0.04 +
                 X[:, 10] * 0.9 +
-                X[:, 11] * 0.3 - 0.5
+                X[:, 11] * 0.3 +
+                X[:, 14] * 1.1 -
+                X[:, 13] * 2.5 - 0.5
             )
             probs = 1.0 / (1.0 + np.exp(-logits))
             y = (probs >= 0.55).astype(int)
@@ -145,6 +154,21 @@ class LightGBMGatekeeper:
         macro_code = 0.5 if "SUNNY" in str(context_data.get("macro_liquidity", {})) else 0.0
         insider_boost = float(context_data.get("insider_trading", {}).get("score_boost", 0))
 
+        # 正規化分位点特徴量 (Expected Move / Relative Uncertainty / Quantile Skew)
+        norm_f = tfm.get("normalized_features")
+        if not isinstance(norm_f, dict):
+            from core.ai_hedge_fund.timesfm_forecaster import TimesFMForecaster
+            curr_px = float(tfm.get("current_price") or dual_quantum.get("current_price") or 0.0)
+            norm_f = TimesFMForecaster.compute_normalized_quantile_features(
+                last_price=curr_px,
+                q10=float(tfm.get("lower_bound_80") or curr_px),
+                q50=float(tfm.get("median_price") or curr_px),
+                q90=float(tfm.get("upper_bound_80") or curr_px),
+            )
+        tfm_exp_move = float(norm_f.get("expected_move", tfm_ret / 100.0))
+        tfm_rel_unc = float(norm_f.get("relative_uncertainty", 0.05))
+        tfm_q_skew = float(norm_f.get("quantile_skew", 0.0))
+
         # 2. 特徴量ベクトルの構築
         features = np.array([[
             tfm_ret,
@@ -158,7 +182,10 @@ class LightGBMGatekeeper:
             pe_val,
             roe_val,
             macro_code,
-            insider_boost
+            insider_boost,
+            tfm_exp_move,
+            tfm_rel_unc,
+            tfm_q_skew,
         ]], dtype=np.float32)
 
         model = cls._init_model()
@@ -227,7 +254,83 @@ class LightGBMGatekeeper:
                 "lead_lag_signal": ll_sig,
                 "timesfm_ret": tfm_ret,
                 "chronos_ret": chr_ret,
-                "roe": roe_val
+                "roe": roe_val,
+                "tfm_expected_move": tfm_exp_move,
+                "tfm_relative_uncertainty": tfm_rel_unc,
+                "tfm_quantile_skew": tfm_q_skew,
             },
             "summary_text": summary_text
+        }
+
+    @classmethod
+    def run_alpha158_ablation(
+        cls,
+        X_alpha: np.ndarray,
+        X_tsfm_norm: np.ndarray,
+        y_labels: np.ndarray,
+        tsfm_feature_names: Optional[List[str]] = None,
+        embargo_samples: int = 5,
+    ) -> Dict[str, Any]:
+        """
+        Purged & Embargoed Walk-Forward Ablation Study:
+        Compares `Alpha158-only` vs `Alpha158 + Normalized TSFM Quantile Features`
+        and computes exact TreeSHAP (`pred_contrib=True`) marginal attribution.
+        """
+        X_a = np.asarray(X_alpha, dtype=np.float32)
+        X_t = np.asarray(X_tsfm_norm, dtype=np.float32)
+        y = np.asarray(y_labels, dtype=np.int32)
+        n = len(y)
+        split_idx = int(n * 0.70)
+        test_start = min(n - 10, split_idx + max(0, int(embargo_samples)))
+        if n < 60 or test_start >= n - 5:
+            return {"status": "INSUFFICIENT_SAMPLES"}
+
+        f_names_t = tsfm_feature_names or ["expected_move", "relative_uncertainty", "quantile_skew"]
+        X_joint = np.hstack([X_a, X_t])
+
+        def _logloss(yt: np.ndarray, yp: np.ndarray) -> float:
+            p = np.clip(yp, 1e-6, 1.0 - 1e-6)
+            return float(-np.mean(yt * np.log(p) + (1.0 - yt) * np.log(1.0 - p)))
+
+        if HAS_LGBM:
+            params = {
+                "objective": "binary",
+                "metric": "binary_logloss",
+                "boosting_type": "gbdt",
+                "num_leaves": 15,
+                "learning_rate": 0.06,
+                "verbose": -1,
+                "seed": 42,
+            }
+            m_base = lgb.train(params, lgb.Dataset(X_a[:split_idx], label=y[:split_idx]), num_boost_round=40)
+            m_joint = lgb.train(params, lgb.Dataset(X_joint[:split_idx], label=y[:split_idx]), num_boost_round=40)
+            p_base = m_base.predict(X_a[test_start:])
+            p_joint = m_joint.predict(X_joint[test_start:])
+            # Exact TreeSHAP values (`pred_contrib=True`), last column is bias term
+            shap_vals = m_joint.predict(X_joint[test_start:], pred_contrib=True)[:, :-1]
+            mean_abs_shap = np.mean(np.abs(shap_vals), axis=0)
+        else:
+            # Ridge/logistic linear fallback when lightgbm is absent
+            w_b = np.linalg.lstsq(X_a[:split_idx], y[:split_idx] - 0.5, rcond=None)[0]
+            w_j = np.linalg.lstsq(X_joint[:split_idx], y[:split_idx] - 0.5, rcond=None)[0]
+            p_base = 1.0 / (1.0 + np.exp(-(X_a[test_start:] @ w_b)))
+            p_joint = 1.0 / (1.0 + np.exp(-(X_joint[test_start:] @ w_j)))
+            mean_abs_shap = np.abs(w_j) * np.std(X_joint[test_start:], axis=0)
+
+        total_shap = float(np.sum(mean_abs_shap)) or 1.0
+        tsfm_shap = {
+            f_names_t[i]: round(float(mean_abs_shap[X_a.shape[1] + i] / total_shap * 100.0), 2)
+            for i in range(X_t.shape[1])
+        }
+        ll_base = _logloss(y[test_start:], p_base)
+        ll_joint = _logloss(y[test_start:], p_joint)
+        return {
+            "status": "OK",
+            "n_train": split_idx,
+            "embargo_purged_samples": test_start - split_idx,
+            "n_test_oos": n - test_start,
+            "alpha158_only_logloss": round(ll_base, 5),
+            "alpha158_plus_tsfm_logloss": round(ll_joint, 5),
+            "logloss_improvement": round(ll_base - ll_joint, 5),
+            "tsfm_shap_share_pct": tsfm_shap,
         }
