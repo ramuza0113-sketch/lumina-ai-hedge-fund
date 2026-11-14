@@ -11,6 +11,10 @@
 [![DOI Paper 2](https://zenodo.org/badge/DOI/10.5281/zenodo.23997654.svg)](https://doi.org/10.5281/zenodo.23997654)
 [![DOI Paper 3](https://zenodo.org/badge/DOI/10.5281/zenodo.24002731.svg)](https://doi.org/10.5281/zenodo.24002731)
 [![DOI Paper 4](https://zenodo.org/badge/DOI/10.5281/zenodo.24050440.svg)](https://doi.org/10.5281/zenodo.24050440)
+[![SSRN Paper 1](https://img.shields.io/badge/SSRN-Paper%20%237684736-003366.svg?logo=elsevier&logoColor=white)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7684736)
+[![SSRN Paper 2](https://img.shields.io/badge/SSRN-Paper%20%237684807-003366.svg?logo=elsevier&logoColor=white)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7684807)
+[![SSRN Paper 3](https://img.shields.io/badge/SSRN-Paper%20%237684918-003366.svg?logo=elsevier&logoColor=white)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7684918)
+[![SSRN Paper 4](https://img.shields.io/badge/SSRN-Paper%20%237684998-003366.svg?logo=elsevier&logoColor=white)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7684998)
 [![MPRA RePEc](https://img.shields.io/badge/MPRA%20RePEc-Paper%20%23131780-8B0000.svg)](https://mpra.ub.uni-muenchen.de/131780/)
 [![Figshare DOI](https://img.shields.io/badge/Figshare%20DOI-10.6084%2Fm9.figshare.34923813-5773FF.svg)](https://doi.org/10.6084/m9.figshare.34923813)
 [![ORCID](https://img.shields.io/badge/ORCID-0009--0009--8292--5085-A6CE39.svg?logo=orcid&logoColor=white)](https://orcid.org/0009-0009-8292-5085)
@@ -294,11 +298,26 @@ This project is built upon and inspired by the incredible open-source research a
 
 ---
 
-## 📄 Academic Citation (CERN Zenodo DOI)
+## 📄 Academic Citation & Research Papers
 
-If you use **Lumina Capital**, its **Schmitt-Trigger Factor Ontology**, **Scroll-Out Resistant Deep OFI (Theorem 1)**, or **Slippage-Proof Pyramiding Bound (Theorem 2)** in your research, please cite the official working paper ([**Download PDF**](docs/whitepaper/Hashimoto_2026_Lumina_Quantitative_Microstructure_Whitepaper.pdf) | [**CERN Zenodo Record**](https://doi.org/10.5281/zenodo.23935930) | [**Google Scholar**](https://scholar.google.com/citations?user=yhTWOKIAAAAJ) | [**ORCID**](https://orcid.org/0009-0009-8292-5085)):
+If you use **Lumina Capital**, its **Schmitt-Trigger Factor Ontology**, **Scroll-Out Resistant Deep OFI (Theorem 1)**, **Slippage-Proof Pyramiding Bound (Theorem 2)**, **Asynchronous Covariance Subordinated Volume Clocks**, or **Z3 Formal SMT Verification** in your research, please cite our official preprints published on **Elsevier SSRN** and **CERN Zenodo** ([**Google Scholar**](https://scholar.google.com/citations?user=yhTWOKIAAAAJ) | [**ORCID: 0009-0009-8292-5085**](https://orcid.org/0009-0009-8292-5085)):
 
-> **Hashimoto, K. (2026).** *Eliminating Polarity Hallucinations and Order Book Horizon Truncation Bias in Autonomous Multi-Agent Quantitative Systems: Schmitt-Trigger Factor Ontologies, Scroll-Out Resistant Deep OFI, and Slippage-Proof Pyramiding.* Zenodo (CERN). https://doi.org/10.5281/zenodo.23935930
+### Official Preprints (Elsevier SSRN & CERN Zenodo)
+1. **Paper #1 (Microstructure, Deep OFI & Pyramiding)**:  
+   **Hashimoto, K. (2026).** *Eliminating Polarity Hallucinations and Order Book Horizon Truncation Bias in Autonomous Multi-Agent Quantitative Systems: Schmitt-Trigger Factor Ontologies, Scroll-Out Resistant Deep OFI, and Slippage-Proof Pyramiding.*  
+   [![SSRN Paper #7684736](https://img.shields.io/badge/SSRN-Paper%20%237684736-003366.svg?logo=elsevier&logoColor=white)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7684736) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23935930.svg)](https://doi.org/10.5281/zenodo.23935930) | [Download PDF](docs/whitepaper/Hashimoto_2026_Lumina_Quantitative_Microstructure_Whitepaper.pdf)
+
+2. **Paper #2 (Anti-Sycophancy & Episodic Memory)**:  
+   **Hashimoto, K. (2026).** *Suppressing Sycophancy Cascades and Trauma Lock-In in Autonomous Financial Multi-Agent LLMs: Bounded Adversarial Deliberation, Exponential Time-Decay Episodic Memory, and Foundation Model OOD Veto.*  
+   [![SSRN Paper #7684807](https://img.shields.io/badge/SSRN-Paper%20%237684807-003366.svg?logo=elsevier&logoColor=white)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7684807) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23997654.svg)](https://doi.org/10.5281/zenodo.23997654) | [Download PDF](docs/whitepaper/Hashimoto_2026b_Lumina_Anti_Sycophancy_Episodic_Memory_Whitepaper.pdf)
+
+3. **Paper #3 (Volume Clocks & Asynchronous Econometrics)**:  
+   **Hashimoto, K. (2026).** *Resolving Illiquidity Liveness Deadlocks and Spectral Indefiniteness in Asynchronous Cross-Market Quantitative Systems: Timeout-Bounded Subordinated Volume Clocks, Higham-Projected Hayashi-Yoshida Covariance, and Discrete Exchange Lot Quantization.*  
+   [![SSRN Paper #7684918](https://img.shields.io/badge/SSRN-Paper%20%237684918-003366.svg?logo=elsevier&logoColor=white)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7684918) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24002731.svg)](https://doi.org/10.5281/zenodo.24002731) | [Download PDF](docs/whitepaper/Hashimoto_2026c_Lumina_Asynchronous_Econometrics_Volume_Clock_Whitepaper.pdf)
+
+4. **Paper #4 (SMT Verification & Cross-Asset Asymmetry)**:  
+   **Hashimoto, K. (2026).** *SMT Formal Verification of Quantitative Execution Invariants and the Friday Afternoon Cross-Asset Exit Divergence: Microsoft Z3 Theorem Proving, Opening Range Compression Gates, and Pre-Weekend Equity vs. Safe-Haven Gold Asymmetry.*  
+   [![SSRN Paper #7684998](https://img.shields.io/badge/SSRN-Paper%20%237684998-003366.svg?logo=elsevier&logoColor=white)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7684998) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24050440.svg)](https://doi.org/10.5281/zenodo.24050440) | [Download PDF](docs/whitepaper/Hashimoto_2026d_Lumina_Formal_Verification_Z3_Cross_Asset_Asymmetry_Whitepaper.pdf)
 
 ```bibtex
 @article{hashimoto2026eliminating,
@@ -306,9 +325,10 @@ If you use **Lumina Capital**, its **Schmitt-Trigger Factor Ontology**, **Scroll
   title     = {Eliminating Polarity Hallucinations and Order Book Horizon Truncation Bias in Autonomous Multi-Agent Quantitative Systems: Schmitt-Trigger Factor Ontologies, Scroll-Out Resistant Deep OFI, and Slippage-Proof Pyramiding},
   year      = {2026},
   month     = {11},
-  publisher = {Zenodo (CERN)},
+  journal   = {SSRN Electronic Journal},
+  number    = {7684736},
   doi       = {10.5281/zenodo.23935930},
-  url       = {https://doi.org/10.5281/zenodo.23935930}
+  url       = {https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7684736}
 }
 ```
 
