@@ -33,14 +33,6 @@
 [![TimesFM](https://img.shields.io/badge/Forecasting-Google%20TimesFM-red.svg)](https://github.com/google-research/timesfm)
 [![GitHub stars](https://img.shields.io/github/stars/ramuza0113-sketch/lumina-ai-hedge-fund?style=social)](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund)
 [![GitHub forks](https://img.shields.io/github/forks/ramuza0113-sketch/lumina-ai-hedge-fund?style=social)](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/network/members)
-<br>
-[![X Follow](https://img.shields.io/badge/X-@prompter__note-000000.svg?logo=x&logoColor=white)](https://x.com/prompter_note)
-[![Qiita](https://img.shields.io/badge/Qiita-ramuza0113-55C500.svg?logo=qiita&logoColor=white)](https://qiita.com/ramuza0113/items/434af1b23fa220590f017)
-[![Blog](https://img.shields.io/badge/Blog-prompter--note.com-2563eb.svg)](https://prompter-note.com)
-[![note](https://img.shields.io/badge/note-prompter__note-41C9B4.svg)](https://note.com/prompter_note)
-[![LINE](https://img.shields.io/badge/LINE-@396geimu-06C755.svg?logo=line&logoColor=white)](https://lin.ee/U4TKsUN)
-<br><br>
-<a href="https://www.producthunt.com/posts/lumina-capital" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=lumina-capital&theme=dark" alt="Lumina Capital - Autonomous Multi-Agent AI Hedge Fund Studio | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
 
 <br><br>
 
@@ -48,7 +40,7 @@
 > ⭐️ **Found this project inspiring? Give it a Star!**  
 > If you find Lumina Capital helpful or educational, please consider hitting the **⭐️ Star** button on the top right. It helps support active open-source research and continuous development of new factor models!
 
-[English](#-overview) | [📄 Paper #1: Microstructure & OFI (PDF)](docs/whitepaper/Hashimoto_2026_Lumina_Quantitative_Microstructure_Whitepaper.pdf) | [📄 Paper #2: Anti-Sycophancy & Memory (PDF)](docs/whitepaper/Hashimoto_2026b_Lumina_Anti_Sycophancy_Episodic_Memory_Whitepaper.pdf) | [📄 Paper #3: Volume Clock & Async Covariance (PDF)](docs/whitepaper/Hashimoto_2026c_Lumina_Asynchronous_Econometrics_Volume_Clock_Whitepaper.pdf) | [📄 Paper #4: Z3 SMT Verification & Cross-Asset Asymmetry (PDF)](docs/whitepaper/Hashimoto_2026d_Lumina_Formal_Verification_Z3_Cross_Asset_Asymmetry_Whitepaper.pdf) | [📖 Master Architecture & Math Specification](docs/lumina_fund_master_system_architecture.md) | [コミュニティ・公式リンク](#-connect-with-the-author--community) | [日本語ドキュメント](#-日本語概要-japanese-summary) ([🇯🇵 完全仕様書](docs/lumina_fund_master_system_architecture.ja.md))
+[English](#-overview) | [📄 Paper #1: Microstructure & OFI (PDF)](docs/whitepaper/Hashimoto_2026_Lumina_Quantitative_Microstructure_Whitepaper.pdf) | [📄 Paper #2: Anti-Sycophancy & Memory (PDF)](docs/whitepaper/Hashimoto_2026b_Lumina_Anti_Sycophancy_Episodic_Memory_Whitepaper.pdf) | [📄 Paper #3: Volume Clock & Async Covariance (PDF)](docs/whitepaper/Hashimoto_2026c_Lumina_Asynchronous_Econometrics_Volume_Clock_Whitepaper.pdf) | [📄 Paper #4: Z3 SMT Verification & Cross-Asset Asymmetry (PDF)](docs/whitepaper/Hashimoto_2026d_Lumina_Formal_Verification_Z3_Cross_Asset_Asymmetry_Whitepaper.pdf) | [📖 Master Architecture & Math Specification](docs/lumina_fund_master_system_architecture.md) | [Author & Academic Contacts](#-author--academic-contacts) | [日本語ドキュメント](#-日本語概要-japanese-summary) ([🇯🇵 完全仕様書](docs/lumina_fund_master_system_architecture.ja.md))
 
 <br><br>
 
@@ -75,7 +67,7 @@ Most LLM-based autonomous trading bots in the open-source community remain **con
 
 How Lumina Capital compares against leading open-source financial agent frameworks:
 
-| Feature / Architecture | virattt/ai-hedge-fund (63k★) | Tauric TradingAgents (44k★) | 🌟 **Lumina Capital (v6.6.5)** |
+| Feature / Architecture | virattt/ai-hedge-fund (63k★) | Tauric TradingAgents (44k★) | 🌟 **Lumina Capital (v6.6.9)** |
 | :--- | :---: | :---: | :---: |
 | **Multi-Agent Deliberation** | Sequential Chat | LangGraph DAG | **LangGraph + Anti-Sycophancy Cross-Debate** |
 | **Investor Personas** | 6 Personas | Internal Analyst Roles | **7 Legendary Personas + CRO Absolute Veto** |
@@ -174,7 +166,7 @@ Extends *"Models reason, software calculates"* directly to the time-series found
 
 Most quantitative algorithms look stellar on retrospective in-sample backtests, yet disintegrate in live markets due to **lookahead bias, friction underestimation, non-synchronous execution slippage, and overnight gap risk**. 
 
-To meet the rigorous quantitative due-diligence standards of institutional allocators and tier-1 hedge fund investment committees, Lumina Capital v6.4.8 was subjected to an **unforgiving 24-point adversarial stress & chaos engineering audit across 5 full years (2021–2026) and 18 automated CI unit tests**:
+To meet the rigorous quantitative due-diligence standards of institutional allocators and tier-1 hedge fund investment committees, Lumina Capital v6.6.9 was subjected to an **unforgiving 24-point adversarial stress & chaos engineering audit across 5 full years (2021–2026) and 20 automated CI unit tests**:
 
 | Institutional Audit Pillar | Core Attack Scenarios & Stress Parameters | Empirical Resilience Metric | Verdict |
 | :--- | :--- | :--- | :---: |
@@ -182,7 +174,7 @@ To meet the rigorous quantitative due-diligence standards of institutional alloc
 | **2. Overfitting & Capacity Diagnostics** *(7 Audits)* | • Rolling Walk-Forward Analysis (IS 360d ➔ OOS 160d × 7 windows)<br>• Combinatorial Purged Cross-Validation (CPCV: 15 combinatorial splits)<br>• Deflated Sharpe Ratio (DSR) & Probability of Overfitting (PBO)<br>• 5-parameter 2D sensitivity surface perturbation ($\pm 10\% \sim \pm 20\%$)<br>• Multi-dimensional Sortino, Calmar, and Underwater Duration<br>• Almgren-Chriss square-root market impact capacity (¥10M to ¥3.0B AUM)<br>• Point-in-Time financial statement reporting lag (+45d, +90d, 1-year) | • Walk-Forward Efficiency: **89.5% (±1–2 pp, snapshot-dependent)**<br>• CPCV OOS Median Sharpe: **1.30 (Mean 1.36)**<br>• Negative OOS paths: **0.0% (0/15)**<br>• DSR: **98.11% (75/75 full universe; 97.76% ref)**<br>• PBO: **46.67% strict IS-argmax (7/15) / 26.67% baseline (4/15) / 20% ref**<br>• Optimal capacity: **¥50M–¥500M**<br>• Max underwater duration: **176 days**<br>• +90d Point-in-Time lag: **+40.69%** | ✅ **100% PASS**<br>*(7/7 Pass)* |
 | **3. Tier-1 Hedge Fund Adversarial Gauntlets** *(6 Tests)* | • FX regime inversion (Severe Yen appreciation crash: `161 ➔ 103 JPY`)<br>• Hero-Stock dependency ablation (Banishing Top-1 to Top-10 winners)<br>• 10,000-run Monte Carlo order shuffle + Day-1 6-loss streak injection<br>• Signal execution latency & alpha decay (`+1d`, `+2d`, `+3d`, `+5d` delay)<br>• Flash-crash `-13.5%` whipsaw lower-wick stop-hunt attacks<br>• 100,000-tick high-frequency fuzzing (`NaN`, `±Inf`, negative vol spikes) | • FX Crash (`161➔103`): **+109.91%**<br>• Top-1 winner banished: **+120.41%**<br>• 10k Monte Carlo ruin prob: **0.0000%**<br>• Day-1 6-loss recovery: **+281.76%**<br>• +5d delay alpha retention: **99.8%**<br>• Wick defense: **63 false stops blocked**<br>• 100k ticks: **28,059 ops/s (0 leaks)** | ✅ **100% PASS**<br>*(6/6 Pass)* |
 | **4. Production Chaos Engineering CI Suite** *(`test_15`–`test_18`)* | • Socket ACK timeout & orphaned order double-execution retry guard<br>• In-flight Corporate Action (`1:5` stock split) auto-scaling adjustment<br>• Multi-leg Partial Fill weighted average & 100-share TSE breakeven/trailing<br>• Process crash (`kill -9` / `SIGKILL`) SQLite 14-day cooldown state hydration | • Duplicate retry: **100% blocked**<br>• `1:5` Split: **Auto-scaled (`100➔500` sh)**<br>• 100-sh odd-lot error: **0 (Breakeven locked)**<br>• `SIGKILL` state recovery: **100% hydrated** | ✅ **100% PASS**<br>*(18/18 CI Pass)* |
-| **5. Survivorship Bias Ablation** *(15 Chronic Crashes)* | 5 years exclusively on 15 severe losing equities (Peloton `-96%`, PayPal `-75%`, Zoom `-73%`, M3 `-80%`, Nidec `-73%`, Nissan `-48%`) | • Buy & Hold benchmark: **-56.09%**<br>• Lumina v6.4.8: **-1.30% (DD -3.17%)**<br>• **98.7% capital preserved (0 ruin)** | ✅ **100% PASS** |
+| **5. Survivorship Bias Ablation** *(15 Chronic Crashes)* | 5 years exclusively on 15 severe losing equities (Peloton `-96%`, PayPal `-75%`, Zoom `-73%`, M3 `-80%`, Nidec `-73%`, Nissan `-48%`) | • Buy & Hold benchmark: **-56.09%**<br>• Lumina v6.6.9: **-1.30% (DD -3.17%)**<br>• **98.7% capital preserved (0 ruin)** | ✅ **100% PASS** |
 
 > 📖 *For complete mathematical formulas, individual trade logs, and econometric derivation tables, see the [📖 Master Architecture & Math Specification (docs/lumina_fund_master_system_architecture.md)](docs/lumina_fund_master_system_architecture.md) and [🇯🇵 完全仕様書 (docs/lumina_fund_master_system_architecture.ja.md)](docs/lumina_fund_master_system_architecture.ja.md).*
 
@@ -257,7 +249,7 @@ cp .env.example .env
 > [!NOTE]
 > - **Free Tier Friendly**: You can run the entire 7-agent council using a 100% free API key from [Google AI Studio](https://aistudio.google.com/) (`GEMINI_API_KEY`). No expensive paid subscriptions or OpenAI credits are required.
 > - **No GPU Required**: Runs smoothly on standard laptops, Mac (Apple Silicon M1/M2/M3/M4), Windows, and Linux on pure CPU.
-> - **100% Safe Local Simulation**: Social publishing (X/Twitter, note) and broker order execution operate in **local draft / simulation mode** by default. Zero external network posts or real orders are ever executed without your explicit credentials.
+> - **100% Safe Local Simulation**: Broker order execution operates in **local paper simulation mode** by default. Zero real brokerage orders are ever transmitted without your explicit paper/live credentials.
 
 #### 3. Launch Dashboard
 ```bash
@@ -369,26 +361,22 @@ We'd love to hear your thoughts and experiences! Drop a comment in our pinned co
 
 ---
 
-## 🌐 Connect with the Author & Community
+## 🌐 Author & Academic Contacts
 
-Join our growing community of quantitative researchers, AI developers, and algorithmic traders:
+For academic correspondence, replication inquiries, and open-source engineering discussions:
 
-- 🐦 **X (Twitter)**: [@prompter_note](https://x.com/prompter_note)  
-  *Daily algorithmic trading logs, AI agent architecture breakdowns, and live market sentiment.*
-- ✍️ **Official Blog**: [prompter-note.com](https://prompter-note.com)  
-  *In-depth engineering write-ups, quant research articles, and machine learning tutorials.*
-- 📰 **note Publication**: [note.com/prompter_note](https://note.com/prompter_note)  
-  *Weekly quantitative tear sheets, factor rankings, and full investment council reports.*
-- 📖 **Qiita Technical Article**: [@ramuza0113](https://qiita.com/ramuza0113/items/434af1b23fa220590f017)  
-  *Deep-dive breakdown on anti-sycophancy multi-agent design, TimesFM forecasting, and Qlib Alpha158 factor vectorization.*
-- 💬 **Official LINE**: [@396geimu](https://lin.ee/U4TKsUN)  
-  *Free AI Prompt Catalog (20 curated frameworks) & immediate fund event notifications.*
+- 🎓 **ORCID**: [0009-0009-8292-5085](https://orcid.org/0009-0009-8292-5085)
+- 📚 **Google Scholar**: [Katsutoshi Hashimoto](https://scholar.google.com/citations?user=yhTWOKIAAAAJ)
+- 🏛️ **Research Website**: [prompter-note.com](https://prompter-note.com)  
+  *Quantitative microstructure research notes, mathematical derivations, and reproducible engineering benchmarks.*
+- 📖 **Technical Architecture Write-Up (Japanese)**: [Qiita (@ramuza0113)](https://qiita.com/ramuza0113/items/434af1b23fa220590f017)
+- 💬 **GitHub Discussions**: [lumina-ai-hedge-fund/discussions](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/discussions/3)
 
 ---
 
 ## 🇯🇵 日本語概要 (Japanese Summary)
 
-**Lumina Capital (v6.6.5)** は、`#![forbid(unsafe_code)]` のPure RustによるL1/L2キャッシュ常駐（SoA）番犬センチネル（1ポジション `3.63ナノ秒` 判定）、出来高クロック（Volume Clock / 30分タイムアウト救済）、深層10本板情報OFI（Order Flow Imbalance / 可視板ウィンドウ境界ガード Theorem 1）、耐スリッページ非対称ピラミッディング境界不等式（Theorem 2 / CERN Zenodo DOI: `10.5281/zenodo.23935930`）、数理ファクター・オントロジー辞書（Factor Ontology Schema: シュミットトリガー・ヒステリシス ＆ 境界不感帯）、SQLite FTS5 (`BM25`) 半減期30日指数時間減衰エージング反省記憶検索＋シングルライター・バッチキュー、林・吉田（Hayashi-Yoshida）非同期共分散推定＋Higham (2002) 最近傍PSD射影、LLM APIレート制限（HTTP 429）即時サーキットブレーカー＆縮退防衛モード、東証呼値テーブル（1/5/10/50/100/1000円刻み）正規化＆100株単元強制、LangGraphによるマルチエージェント合議、Microsoft QlibのAlpha158数理クオンツ、Google TimesFM × Chronos による時系列予測、そしてNeo4j 3Dナレッジグラフを単一のパイプラインに統合した機関投資家グレードの自律型AIヘッジファンドエンジンです。
+**Lumina Capital (v6.6.9)** は、`#![forbid(unsafe_code)]` のPure RustによるL1/L2キャッシュ常駐（SoA）番犬センチネル（1ポジション `3.63ナノ秒` 判定）、出来高クロック（Volume Clock / 30分タイムアウト救済）、深層10本板情報OFI（Order Flow Imbalance / 可視板ウィンドウ境界ガード Theorem 1）、耐スリッページ非対称ピラミッディング境界不等式（Theorem 2 / CERN Zenodo DOI: `10.5281/zenodo.23935930`）、数理ファクター・オントロジー辞書（Factor Ontology Schema: シュミットトリガー・ヒステリシス ＆ 境界不感帯）、SQLite FTS5 (`BM25`) 半減期30日指数時間減衰エージング反省記憶検索＋シングルライター・バッチキュー、林・吉田（Hayashi-Yoshida）非同期共分散推定＋Higham (2002) 最近傍PSD射影、LLM APIレート制限（HTTP 429）即時サーキットブレーカー＆縮退防衛モード、東証呼値テーブル（1/5/10/50/100/1000円刻み）正規化＆100株単元強制、LangGraphによるマルチエージェント合議、Microsoft QlibのAlpha158数理クオンツ、Google TimesFM × Chronos による時系列予測、そしてNeo4j 3Dナレッジグラフを単一のパイプラインに統合した機関投資家グレードの自律型AIヘッジファンドエンジンです。
 
 - 🏆 **世界最大のクオンツ投資リソース集公式採択**: [awesome-quant (⭐️ 15,000+)](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting) の「Trading & Backtesting」部門に正式採択・マージされました。
 - 📖 **Qiita技術解説記事（400+ Views）**: [LangGraphとQlib Alpha158、Google TimesFMで作る「自律型AIヘッジファンド」をOSS公開した話](https://qiita.com/ramuza0113/items/434af1b23fa220590f017)
@@ -418,7 +406,7 @@ docker compose up
 
 > [!NOTE]
 > - **高価なGPUは不要**: 通常のノートPC、Mac（M1/M2/M3/M4 Apple Silicon）、Windows、Linux環境のCPUのみで軽快に動作します。
-> - **安全設計（勝手に外部投稿されません）**: X（Twitter）やnoteの自動投稿機能はデフォルトで完全な「ローカルプレビュー／下書きモード」です。ご自身のAPIキーを明示的に設定しない限り、外部へ勝手に送信されることは一切ありません。
+> - **安全設計（ローカルシミュレーション標準）**: ブローカー発注機能はデフォルトで完全な「ローカルペーパートレード（仮想約定）モード」です。ご自身のブローカー認証情報を明示的に設定しない限り、外部へ実注文が送信されることは一切ありません。
 > - **Neo4jは完全オプショナル**: 全機能は内蔵SQLiteでそのまま動作します。3D因果グラフを試したい場合のみ、上記のDockerコマンド1行を実行するだけで自動接続されます。
 
 ### ⚠️ 免責事項・法的留意事項 (Financial & Legal Disclaimer)
