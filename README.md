@@ -39,6 +39,9 @@
 > [!TIP]
 > ⭐️ **Found this project inspiring? Give it a Star!**  
 > If you find Lumina Capital helpful or educational, please consider hitting the **⭐️ Star** button on the top right. It helps support active open-source research and continuous development of new factor models!
+>
+> 🔌 **NEW — Use Lumina's Live 60-Level L2 Order Book & Risk Engine inside Claude Code / Cursor / Claude Desktop!**  
+> Check out **[`lumina-orderbook-mcp`](https://github.com/ramuza0113-sketch/lumina-orderbook-mcp)** — a zero-API-key MCP server + interactive candlestick & order-book terminal built on the Lumina microstructure framework, and support ongoing Pro development via **[GitHub Sponsors (`♡ Sponsor`)](https://github.com/sponsors/ramuza0113-sketch)**.
 
 <div align="center">
 
