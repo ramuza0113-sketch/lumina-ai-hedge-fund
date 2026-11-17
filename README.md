@@ -7,10 +7,10 @@
 <br>
 🏆 **Officially Featured in [awesome-quant](https://github.com/wilsonfreitas/awesome-quant#trading--backtesting) & [Awesome_AI4Finance](https://github.com/AI4Finance-Foundation/Awesome_AI4Finance)**
 
-[![DOI Paper 1](https://zenodo.org/badge/DOI/10.5281/zenodo.23935930.svg)](https://doi.org/10.5281/zenodo.23935930)
-[![DOI Paper 2](https://zenodo.org/badge/DOI/10.5281/zenodo.23997654.svg)](https://doi.org/10.5281/zenodo.23997654)
-[![DOI Paper 3](https://zenodo.org/badge/DOI/10.5281/zenodo.24002731.svg)](https://doi.org/10.5281/zenodo.24002731)
-[![DOI Paper 4](https://zenodo.org/badge/DOI/10.5281/zenodo.24050440.svg)](https://doi.org/10.5281/zenodo.24050440)
+[![DOI Paper 1](https://img.shields.io/badge/Zenodo%20DOI-10.5281%2Fzenodo.23935930-007EC6.svg?logo=zenodo&logoColor=white)](https://doi.org/10.5281/zenodo.23935930)
+[![DOI Paper 2](https://img.shields.io/badge/Zenodo%20DOI-10.5281%2Fzenodo.23997654-007EC6.svg?logo=zenodo&logoColor=white)](https://doi.org/10.5281/zenodo.23997654)
+[![DOI Paper 3](https://img.shields.io/badge/Zenodo%20DOI-10.5281%2Fzenodo.24002731-007EC6.svg?logo=zenodo&logoColor=white)](https://doi.org/10.5281/zenodo.24002731)
+[![DOI Paper 4](https://img.shields.io/badge/Zenodo%20DOI-10.5281%2Fzenodo.24050440-007EC6.svg?logo=zenodo&logoColor=white)](https://doi.org/10.5281/zenodo.24050440)
 [![SSRN Paper 1](https://img.shields.io/badge/SSRN-Paper%20%237684736-003366.svg?logo=elsevier&logoColor=white)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7684736)
 [![SSRN Paper 2](https://img.shields.io/badge/SSRN-Paper%20%237684807-003366.svg?logo=elsevier&logoColor=white)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7684807)
 [![SSRN Paper 3](https://img.shields.io/badge/SSRN-Paper%20%237684918-003366.svg?logo=elsevier&logoColor=white)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7684918)
@@ -34,11 +34,13 @@
 [![GitHub stars](https://img.shields.io/github/stars/ramuza0113-sketch/lumina-ai-hedge-fund?style=social)](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund)
 [![GitHub forks](https://img.shields.io/github/forks/ramuza0113-sketch/lumina-ai-hedge-fund?style=social)](https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/network/members)
 
-<br><br>
+</div>
 
 > [!TIP]
 > ⭐️ **Found this project inspiring? Give it a Star!**  
 > If you find Lumina Capital helpful or educational, please consider hitting the **⭐️ Star** button on the top right. It helps support active open-source research and continuous development of new factor models!
+
+<div align="center">
 
 [English](#-overview) | [📄 Paper #1: Microstructure & OFI (PDF)](docs/whitepaper/Hashimoto_2026_Lumina_Quantitative_Microstructure_Whitepaper.pdf) | [📄 Paper #2: Anti-Sycophancy & Memory (PDF)](docs/whitepaper/Hashimoto_2026b_Lumina_Anti_Sycophancy_Episodic_Memory_Whitepaper.pdf) | [📄 Paper #3: Volume Clock & Async Covariance (PDF)](docs/whitepaper/Hashimoto_2026c_Lumina_Asynchronous_Econometrics_Volume_Clock_Whitepaper.pdf) | [📄 Paper #4: Z3 SMT Verification & Cross-Asset Asymmetry (PDF)](docs/whitepaper/Hashimoto_2026d_Lumina_Formal_Verification_Z3_Cross_Asset_Asymmetry_Whitepaper.pdf) | [📖 Master Architecture & Math Specification](docs/lumina_fund_master_system_architecture.md) | [Author & Academic Contacts](#-author--academic-contacts) | [日本語ドキュメント](#-日本語概要-japanese-summary) ([🇯🇵 完全仕様書](docs/lumina_fund_master_system_architecture.ja.md))
 
@@ -152,7 +154,7 @@ Replaces noisy wall-clock timers (1m/5m/1h bars) with market-activity-driven clo
 - **Hayashi-Yoshida Asynchronous Covariance**: Eliminates the Epps effect across non-synchronous US/TSE trading hours for Lead-Lag causality and Adaptive HRP correlation spike defense.
 
 ### 5. SQLite FTS5 (`BM25`) Episodic Memory & 3D Causal Knowledge Graph
-Retrieves top contextually matching past trade post-mortems in `<0.5ms` via SQLite FTS5 (`bm25()`) (`core/ai_hedge_fund/reflexion_engine.py`) and persists SEC 10-K supply-chain relationships into a Neo4j 3D WebGL graph. Upstream bottlenecks (e.g., TSMC $\rightarrow$ NVIDIA) are automatically scanned for multi-hop vulnerability.
+Retrieves top contextually matching past trade post-mortems in `<0.5ms` via SQLite FTS5 (`bm25()`) (`core/ai_hedge_fund/reflexion_engine.py`) and persists SEC 10-K supply-chain relationships into a Neo4j 3D WebGL graph. Upstream bottlenecks (e.g., TSMC → NVIDIA) are automatically scanned for multi-hop vulnerability.
 
 ### 6. Reproducible Probabilistic Forecasting (Pinned TimesFM 2.5, Normalized Quantile Skew & Purged Calibration)
 Extends *"Models reason, software calculates"* directly to the time-series foundation forecasting layer (`core/ai_hedge_fund/timesfm_forecaster.py`, `core/ai_hedge_fund/lightgbm_gatekeeper.py`):
@@ -171,7 +173,7 @@ To meet the rigorous quantitative due-diligence standards of institutional alloc
 | Institutional Audit Pillar | Core Attack Scenarios & Stress Parameters | Empirical Resilience Metric | Verdict |
 | :--- | :--- | :--- | :---: |
 | **1. Real-World Execution Failure Modes** *(6 Scenarios)* | • Forced overnight gap-downs (`-18%` gap, `-22%` limit-down lock)<br>• Friction multiplier scaling (base `0.05%` to `2x`, `3x`, `5x`, `26.5x`)<br>• Zero-volatility range-bound churn stress (low-beta low-vol assets)<br>• Simultaneous 6-slot Black Swan stop-loss liquidation burst<br>• TSFM AI blackout & inverted adversarial predictions (OOD)<br>• Premarket crossed-book spoofing & TSE special quote freezes | • Open gap-down: **+69.91% (PF 1.74)**<br>• Limit-down lock: **+5.56% (Zero ruin)**<br>• Break-even friction: **26.5x slippage**<br>• 6-slot crash exit: **212.72 ms (0.21s)**<br>• 14-day range churn lock: **PF 4.85**<br>• Premarket OFI contamination: **0.0** | ✅ **100% PASS**<br>*(6/6 Pass)* |
-| **2. Overfitting & Capacity Diagnostics** *(7 Audits)* | • Rolling Walk-Forward Analysis (IS 360d ➔ OOS 160d × 7 windows)<br>• Combinatorial Purged Cross-Validation (CPCV: 15 combinatorial splits)<br>• Deflated Sharpe Ratio (DSR) & Probability of Overfitting (PBO)<br>• 5-parameter 2D sensitivity surface perturbation ($\pm 10\% \sim \pm 20\%$)<br>• Multi-dimensional Sortino, Calmar, and Underwater Duration<br>• Almgren-Chriss square-root market impact capacity (¥10M to ¥3.0B AUM)<br>• Point-in-Time financial statement reporting lag (+45d, +90d, 1-year) | • Walk-Forward Efficiency: **89.5% (±1–2 pp, snapshot-dependent)**<br>• CPCV OOS Median Sharpe: **1.30 (Mean 1.36)**<br>• Negative OOS paths: **0.0% (0/15)**<br>• DSR: **98.11% (75/75 full universe; 97.76% ref)**<br>• PBO: **46.67% strict IS-argmax (7/15) / 26.67% baseline (4/15) / 20% ref**<br>• Optimal capacity: **¥50M–¥500M**<br>• Max underwater duration: **176 days**<br>• +90d Point-in-Time lag: **+40.69%** | ✅ **100% PASS**<br>*(7/7 Pass)* |
+| **2. Overfitting & Capacity Diagnostics** *(7 Audits)* | • Rolling Walk-Forward Analysis (IS 360d ➔ OOS 160d × 7 windows)<br>• Combinatorial Purged Cross-Validation (CPCV: 15 combinatorial splits)<br>• Deflated Sharpe Ratio (DSR) & Probability of Overfitting (PBO)<br>• 5-parameter 2D sensitivity surface perturbation (`±10%` to `±20%`)<br>• Multi-dimensional Sortino, Calmar, and Underwater Duration<br>• Almgren-Chriss square-root market impact capacity (¥10M to ¥3.0B AUM)<br>• Point-in-Time financial statement reporting lag (+45d, +90d, 1-year) | • Walk-Forward Efficiency: **89.5% (±1–2 pp, snapshot-dependent)**<br>• CPCV OOS Median Sharpe: **1.30 (Mean 1.36)**<br>• Negative OOS paths: **0.0% (0/15)**<br>• DSR: **98.11% (75/75 full universe; 97.76% ref)**<br>• PBO: **46.67% strict IS-argmax (7/15) / 26.67% baseline (4/15) / 20% ref**<br>• Optimal capacity: **¥50M–¥500M**<br>• Max underwater duration: **176 days**<br>• +90d Point-in-Time lag: **+40.69%** | ✅ **100% PASS**<br>*(7/7 Pass)* |
 | **3. Tier-1 Hedge Fund Adversarial Gauntlets** *(6 Tests)* | • FX regime inversion (Severe Yen appreciation crash: `161 ➔ 103 JPY`)<br>• Hero-Stock dependency ablation (Banishing Top-1 to Top-10 winners)<br>• 10,000-run Monte Carlo order shuffle + Day-1 6-loss streak injection<br>• Signal execution latency & alpha decay (`+1d`, `+2d`, `+3d`, `+5d` delay)<br>• Flash-crash `-13.5%` whipsaw lower-wick stop-hunt attacks<br>• 100,000-tick high-frequency fuzzing (`NaN`, `±Inf`, negative vol spikes) | • FX Crash (`161➔103`): **+109.91%**<br>• Top-1 winner banished: **+120.41%**<br>• 10k Monte Carlo ruin prob: **0.0000%**<br>• Day-1 6-loss recovery: **+281.76%**<br>• +5d delay alpha retention: **99.8%**<br>• Wick defense: **63 false stops blocked**<br>• 100k ticks: **28,059 ops/s (0 leaks)** | ✅ **100% PASS**<br>*(6/6 Pass)* |
 | **4. Production Chaos Engineering CI Suite** *(`test_15`–`test_18`)* | • Socket ACK timeout & orphaned order double-execution retry guard<br>• In-flight Corporate Action (`1:5` stock split) auto-scaling adjustment<br>• Multi-leg Partial Fill weighted average & 100-share TSE breakeven/trailing<br>• Process crash (`kill -9` / `SIGKILL`) SQLite 14-day cooldown state hydration | • Duplicate retry: **100% blocked**<br>• `1:5` Split: **Auto-scaled (`100➔500` sh)**<br>• 100-sh odd-lot error: **0 (Breakeven locked)**<br>• `SIGKILL` state recovery: **100% hydrated** | ✅ **100% PASS**<br>*(18/18 CI Pass)* |
 | **5. Survivorship Bias Ablation** *(15 Chronic Crashes)* | 5 years exclusively on 15 severe losing equities (Peloton `-96%`, PayPal `-75%`, Zoom `-73%`, M3 `-80%`, Nidec `-73%`, Nissan `-48%`) | • Buy & Hold benchmark: **-56.09%**<br>• Lumina v6.6.9: **-1.30% (DD -3.17%)**<br>• **98.7% capital preserved (0 ruin)** | ✅ **100% PASS** |
@@ -297,19 +299,19 @@ If you use **Lumina Capital**, its **Schmitt-Trigger Factor Ontology**, **Scroll
 ### Official Preprints (Elsevier SSRN & CERN Zenodo)
 1. **Paper #1 (Microstructure, Deep OFI & Pyramiding)**:  
    **Hashimoto, K. (2026).** *Eliminating Polarity Hallucinations and Order Book Horizon Truncation Bias in Autonomous Multi-Agent Quantitative Systems: Schmitt-Trigger Factor Ontologies, Scroll-Out Resistant Deep OFI, and Slippage-Proof Pyramiding.*  
-   [![SSRN Paper #7684736](https://img.shields.io/badge/SSRN-Paper%20%237684736-003366.svg?logo=elsevier&logoColor=white)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7684736) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23935930.svg)](https://doi.org/10.5281/zenodo.23935930) | [Download PDF](docs/whitepaper/Hashimoto_2026_Lumina_Quantitative_Microstructure_Whitepaper.pdf)
+   [![SSRN Paper #7684736](https://img.shields.io/badge/SSRN-Paper%20%237684736-003366.svg?logo=elsevier&logoColor=white)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7684736) [![DOI](https://img.shields.io/badge/Zenodo%20DOI-10.5281%2Fzenodo.23935930-007EC6.svg?logo=zenodo&logoColor=white)](https://doi.org/10.5281/zenodo.23935930) | [Download PDF](docs/whitepaper/Hashimoto_2026_Lumina_Quantitative_Microstructure_Whitepaper.pdf)
 
 2. **Paper #2 (Anti-Sycophancy & Episodic Memory)**:  
    **Hashimoto, K. (2026).** *Suppressing Sycophancy Cascades and Trauma Lock-In in Autonomous Financial Multi-Agent LLMs: Bounded Adversarial Deliberation, Exponential Time-Decay Episodic Memory, and Foundation Model OOD Veto.*  
-   [![SSRN Paper #7684807](https://img.shields.io/badge/SSRN-Paper%20%237684807-003366.svg?logo=elsevier&logoColor=white)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7684807) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23997654.svg)](https://doi.org/10.5281/zenodo.23997654) | [Download PDF](docs/whitepaper/Hashimoto_2026b_Lumina_Anti_Sycophancy_Episodic_Memory_Whitepaper.pdf)
+   [![SSRN Paper #7684807](https://img.shields.io/badge/SSRN-Paper%20%237684807-003366.svg?logo=elsevier&logoColor=white)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7684807) [![DOI](https://img.shields.io/badge/Zenodo%20DOI-10.5281%2Fzenodo.23997654-007EC6.svg?logo=zenodo&logoColor=white)](https://doi.org/10.5281/zenodo.23997654) | [Download PDF](docs/whitepaper/Hashimoto_2026b_Lumina_Anti_Sycophancy_Episodic_Memory_Whitepaper.pdf)
 
 3. **Paper #3 (Volume Clocks & Asynchronous Econometrics)**:  
    **Hashimoto, K. (2026).** *Resolving Illiquidity Liveness Deadlocks and Spectral Indefiniteness in Asynchronous Cross-Market Quantitative Systems: Timeout-Bounded Subordinated Volume Clocks, Higham-Projected Hayashi-Yoshida Covariance, and Discrete Exchange Lot Quantization.*  
-   [![SSRN Paper #7684918](https://img.shields.io/badge/SSRN-Paper%20%237684918-003366.svg?logo=elsevier&logoColor=white)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7684918) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24002731.svg)](https://doi.org/10.5281/zenodo.24002731) | [Download PDF](docs/whitepaper/Hashimoto_2026c_Lumina_Asynchronous_Econometrics_Volume_Clock_Whitepaper.pdf)
+   [![SSRN Paper #7684918](https://img.shields.io/badge/SSRN-Paper%20%237684918-003366.svg?logo=elsevier&logoColor=white)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7684918) [![DOI](https://img.shields.io/badge/Zenodo%20DOI-10.5281%2Fzenodo.24002731-007EC6.svg?logo=zenodo&logoColor=white)](https://doi.org/10.5281/zenodo.24002731) | [Download PDF](docs/whitepaper/Hashimoto_2026c_Lumina_Asynchronous_Econometrics_Volume_Clock_Whitepaper.pdf)
 
 4. **Paper #4 (SMT Verification & Cross-Asset Asymmetry)**:  
    **Hashimoto, K. (2026).** *SMT Formal Verification of Quantitative Execution Invariants and the Friday Afternoon Cross-Asset Exit Divergence: Microsoft Z3 Theorem Proving, Opening Range Compression Gates, and Pre-Weekend Equity vs. Safe-Haven Gold Asymmetry.*  
-   [![SSRN Paper #7684998](https://img.shields.io/badge/SSRN-Paper%20%237684998-003366.svg?logo=elsevier&logoColor=white)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7684998) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24050440.svg)](https://doi.org/10.5281/zenodo.24050440) | [Download PDF](docs/whitepaper/Hashimoto_2026d_Lumina_Formal_Verification_Z3_Cross_Asset_Asymmetry_Whitepaper.pdf)
+   [![SSRN Paper #7684998](https://img.shields.io/badge/SSRN-Paper%20%237684998-003366.svg?logo=elsevier&logoColor=white)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7684998) [![DOI](https://img.shields.io/badge/Zenodo%20DOI-10.5281%2Fzenodo.24050440-007EC6.svg?logo=zenodo&logoColor=white)](https://doi.org/10.5281/zenodo.24050440) | [Download PDF](docs/whitepaper/Hashimoto_2026d_Lumina_Formal_Verification_Z3_Cross_Asset_Asymmetry_Whitepaper.pdf)
 
 ```bibtex
 @article{hashimoto2026eliminating,
@@ -330,7 +332,7 @@ If you use **Lumina Capital**, its **Schmitt-Trigger Factor Ontology**, **Scroll
 
 <p align="center">
   <a href="https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund">
-    <img src="https://img.shields.io/badge/⭐_Star_on_GitHub-Lumina_Capital-yellow?style=for-the-badge&logo=github" alt="Star on GitHub" />
+    <img src="https://img.shields.io/badge/%E2%AD%90_Star_on_GitHub-Lumina_Capital-yellow?style=for-the-badge&logo=github" alt="Star on GitHub" />
   </a>
 </p>
 
@@ -349,7 +351,7 @@ We'd love to hear your thoughts and experiences! Drop a comment in our pinned co
 
 <p align="center">
   <a href="https://github.com/ramuza0113-sketch/lumina-ai-hedge-fund/discussions/3">
-    <img src="https://img.shields.io/badge/💬_Join_Discussions-Share_Feedback_%26_Ideas-blue?style=for-the-badge&logo=github" alt="Join GitHub Discussions" />
+    <img src="https://img.shields.io/badge/%F0%9F%92%AC_Join_Discussions-Share_Feedback_%26_Ideas-blue?style=for-the-badge&logo=github" alt="Join GitHub Discussions" />
   </a>
 </p>
 
