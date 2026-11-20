@@ -983,17 +983,17 @@ class FundContentGenerator:
         else:
             order_info_lines.append("・本日の新規約定なし（基準を満たす押し目・シグナルまで無駄な取引を自律回避）")
 
-        # QuantStats クオンツ指標取得（30日未満は実戦確定損益・勝率ベースで正直に公表）
+        # QuantStats クオンツ指標取得（実績0件時は「取引実績データなし」を明記）
         try:
             from core.ai_hedge_fund.quant_reporter import QuantReporter
             q_rets = QuantReporter.get_returns_series_from_engine(engine)
             q_metrics = QuantReporter.compute_metrics(q_rets, broker_engine=engine)
             quant_stat_line = q_metrics.get(
                 "summary_line",
-                "・クオンツ運用フェーズ: 実戦稼働 5営業日目 ｜ 確定損益: +$4.58 ｜ 決済勝率: 100% (1勝0敗) ｜ 最大DD: -1.04%"
+                "・クオンツ運用フェーズ: 取引実績データなし（シグナル待機・計測準備中）"
             )
         except Exception:
-            quant_stat_line = "・クオンツ運用フェーズ: 実戦稼働 5営業日目 ｜ 確定損益: +$4.58 ｜ 決済勝率: 100% (1勝0敗) ｜ 最大DD: -1.04%"
+            quant_stat_line = "・クオンツ運用フェーズ: 取引実績データなし（シグナル待機・計測準備中）"
 
         # 📡 OpenBB Platform (v4/v5) 機関投資家データOS 速報インテル取得
         openbb_news_lines = []

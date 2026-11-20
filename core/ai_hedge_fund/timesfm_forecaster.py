@@ -211,14 +211,22 @@ class TimesFMForecaster:
             idx_90 = (n_q - 1) if n_q >= 2 else 0
 
             trajectory: List[Dict[str, Any]] = []
-            cum_r10, cum_r50, cum_r90 = 0.0, 0.0, 0.0
+            cum_r50 = 0.0
+            cum_var_low = 0.0
+            cum_var_high = 0.0
             for step_idx in range(horizon_days):
                 step = step_idx + 1
                 if forecast_mode == "log_returns":
                     r_vals = np.sort([float(q_arr[step_idx, idx_10]), float(point_fc[0][step_idx]), float(q_arr[step_idx, idx_90])])
-                    cum_r10 += r_vals[0]
-                    cum_r50 += r_vals[1]
-                    cum_r90 += r_vals[2]
+                    r_med = float(r_vals[1])
+                    spread_low = max(0.0, r_med - float(r_vals[0]))
+                    spread_high = max(0.0, float(r_vals[2]) - r_med)
+                    cum_r50 += r_med
+                    # Aggregate quantile dispersion in root-sum-of-squares (quantiles are not linearly additive)
+                    cum_var_low += spread_low * spread_low
+                    cum_var_high += spread_high * spread_high
+                    cum_r10 = cum_r50 - float(np.sqrt(cum_var_low))
+                    cum_r90 = cum_r50 + float(np.sqrt(cum_var_high))
                     low_p = curr_price * np.exp(cum_r10)
                     med_p = curr_price * np.exp(cum_r50)
                     high_p = curr_price * np.exp(cum_r90)
@@ -358,21 +366,29 @@ class TimesFMForecaster:
         )
 
         # 5. 急落リスク確率 P(Return < -3.0%) および 上昇ブレイク確率 P(Return > +3.0%)
-        horizon_vol = vol_daily * np.sqrt(horizon_days)
         threshold_down = -0.030
         threshold_up = 0.030
+        if native_traj is not None and final_median > 0 and final_lower > 0 and final_upper > 0:
+            eff_drift = float(np.log(final_median / curr_price))
+            eff_vol_down = max(1e-4, float(np.log(max(final_median, final_lower) / final_lower)) / 1.28155)
+            eff_vol_up = max(1e-4, float(np.log(final_upper / min(final_median, final_upper))) / 1.28155)
+        else:
+            eff_drift = total_drift
+            horizon_vol = max(1e-4, vol_daily * np.sqrt(horizon_days))
+            eff_vol_down = horizon_vol
+            eff_vol_up = horizon_vol
 
         if HAS_SCIPY:
-            z_down = (threshold_down - total_drift) / horizon_vol
+            z_down = (threshold_down - eff_drift) / eff_vol_down
             downside_risk_prob = round(float(stats.norm.cdf(z_down)) * 100, 1)
             
-            z_up = (threshold_up - total_drift) / horizon_vol
+            z_up = (threshold_up - eff_drift) / eff_vol_up
             upside_breakout_prob = round(float(1.0 - stats.norm.cdf(z_up)) * 100, 1)
         else:
             # 標準正規分布のシグモイド近似
-            z_down = (threshold_down - total_drift) / horizon_vol
+            z_down = (threshold_down - eff_drift) / eff_vol_down
             downside_risk_prob = round(float(1.0 / (1.0 + np.exp(-1.7 * z_down))) * 100, 1)
-            z_up = (threshold_up - total_drift) / horizon_vol
+            z_up = (threshold_up - eff_drift) / eff_vol_up
             upside_breakout_prob = round(float(1.0 - (1.0 / (1.0 + np.exp(-1.7 * z_up)))) * 100, 1)
 
         downside_risk_prob = float(np.clip(downside_risk_prob, 2.0, 95.0))
@@ -382,13 +398,18 @@ class TimesFMForecaster:
         conf_score = int(75 + (5.0 if consensus.get("number_of_analysts", 0) >= 10 else 0) - (vol_daily * 400))
         conf_score = int(np.clip(conf_score, 50, 95))
 
-        # 6. サマリーテキスト生成（日本語）
+        # 6. サマリーテキスト生成（日本語 — バックエンドに応じ見出しを誠実に分岐）
+        heading_label = (
+            f"Google TimesFM {horizon_days}日先予測"
+            if native_traj is not None
+            else f"パラメトリック時系列近似予測 (TimesFM未導入フォールバック・{horizon_days}日先)"
+        )
         summary_text = (
-            f"【Google TimesFM 5日先予測】銘柄: {ticker} (現在値: ${curr_price:,.2f})\n"
-            f"・5日後中央値予測: ${final_median:,.2f} ({expected_ret:+.1f}%)\n"
+            f"【{heading_label}】銘柄: {ticker} (現在値: ${curr_price:,.2f})\n"
+            f"・{horizon_days}日後中央値予測: ${final_median:,.2f} ({expected_ret:+.1f}%)\n"
             f"・80%想定レンジ: ${final_lower:,.2f} 〜 ${final_upper:,.2f}\n"
             f"・急落リスク確率(-3%超): {downside_risk_prob:.1f}% | 上昇突破確率(+3%超): {upside_breakout_prob:.1f}%\n"
-            f"・モデル確信度: {conf_score}点"
+            f"・推論確信度: {conf_score}点 (backend={backend_used})"
         )
         if consensus.get("target_mean"):
             summary_text += f" | アナリスト平均目標: ${consensus['target_mean']:,.2f} ({consensus['recommendation']})"

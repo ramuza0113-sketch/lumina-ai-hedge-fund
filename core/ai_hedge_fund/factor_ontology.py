@@ -420,13 +420,16 @@ class FactorOntology:
 
         # 2. Alpha158 metrics
         if alpha158_summary and isinstance(alpha158_summary, dict):
-            extracted["alpha158_z_score"] = alpha158_summary.get("composite_z_score") or alpha158_summary.get("alpha_score_z")
+            z_val = alpha158_summary.get("composite_z_score")
+            if z_val is None:
+                z_val = alpha158_summary.get("alpha_score_z")
+            extracted["alpha158_z_score"] = z_val
             kf = alpha158_summary.get("key_factors", {})
             if isinstance(kf, dict):
-                extracted["roc_20"] = kf.get("ROC_20") or kf.get("roc_20")
-                extracted["rsv_20"] = kf.get("RSV_20") or kf.get("rsv_20")
-                extracted["vol_spike_20"] = kf.get("VMA_RATIO_20") or kf.get("vol_spike_20")
-                extracted["volatility_20"] = kf.get("STD_20") or kf.get("volatility_20")
+                extracted["roc_20"] = kf["ROC_20"] if kf.get("ROC_20") is not None else kf.get("roc_20")
+                extracted["rsv_20"] = kf["RSV_20"] if kf.get("RSV_20") is not None else kf.get("rsv_20")
+                extracted["vol_spike_20"] = kf["VMA_RATIO_20"] if kf.get("VMA_RATIO_20") is not None else kf.get("vol_spike_20")
+                extracted["volatility_20"] = kf["STD_20"] if kf.get("STD_20") is not None else kf.get("volatility_20")
 
         # 3. Microstructure (Volume Clock & Deep OFI)
         if microstructure_info and isinstance(microstructure_info, dict):
@@ -435,10 +438,10 @@ class FactorOntology:
 
         # 4. Lead-Lag Hayashi-Yoshida Correlation
         if lead_lag_info and isinstance(lead_lag_info, dict):
-            extracted["hayashi_yoshida_corr"] = (
-                lead_lag_info.get("hayashi_yoshida_corr")
-                or lead_lag_info.get("correlation")
-            )
+            hy_val = lead_lag_info.get("hayashi_yoshida_corr")
+            if hy_val is None:
+                hy_val = lead_lag_info.get("correlation")
+            extracted["hayashi_yoshida_corr"] = hy_val
 
         entries: List[Dict[str, Any]] = []
         for fid, raw_val in extracted.items():

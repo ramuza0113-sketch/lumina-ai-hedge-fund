@@ -158,6 +158,7 @@ class ChronosForecaster:
                 return {
                     "ticker": ticker,
                     "model": "Amazon Chronos-Bolt",
+                    "backend": "amazon/chronos-bolt-small",
                     "status": "SUCCESS_NEURAL",
                     "current_price": round(curr_price, 2),
                     "horizon_days": horizon_days,
@@ -209,16 +210,17 @@ class ChronosForecaster:
             })
 
         summary = (
-            f"【Amazon Chronos】{ticker} 現在値 {curr_price:,.1f} ➔ "
-            f"{horizon_days}営業日後予測: {final_median:,.1f} ({expected_return:+.2f}%) "
+            f"【パラメトリック自己回帰近似 (Chronos未導入フォールバック)】{ticker} 現在値 {curr_price:,.1f} ➔ "
+            f"{horizon_days}営業日後近似値: {final_median:,.1f} ({expected_return:+.2f}%) "
             f"[80%CI: {final_low:,.1f}〜{final_high:,.1f}] "
             f"急落率: {downside_prob:.1f}% / 急騰率: {upside_prob:.1f}% (確信度: {conf}点)"
         )
 
         return {
             "ticker": ticker,
-            "model": "Amazon Chronos (Fast Algorithmic)",
-            "status": "SUCCESS",
+            "model": "Parametric Autoregressive Approximation (Chronos not installed)",
+            "backend": "parametric_autoregressive_fallback",
+            "status": "SUCCESS_FALLBACK",
             "current_price": round(curr_price, 2),
             "horizon_days": horizon_days,
             "target_date": target_date,

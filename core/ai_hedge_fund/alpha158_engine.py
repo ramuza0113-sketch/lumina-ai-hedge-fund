@@ -203,3 +203,77 @@ class Alpha158Engine:
             return {}
         latest_row = factors_df.iloc[-1]
         return {col: float(val) for col, val in latest_row.items()}
+
+    @classmethod
+    def compute_symbol_summary(cls, symbol: str) -> Dict[str, Any]:
+        """
+        銘柄シンボルから直近6ヶ月の日足を取得し、Qlib Alpha158の主要代表ファクターおよび
+        総合アルファZスコア（composite_z_score / composite_alpha_zscore）を算出して合議コンテキストへ提供する。
+        """
+        try:
+            import yfinance as yf
+            norm_sym = f"{symbol.strip()}.T" if str(symbol).strip().isdigit() and len(str(symbol).strip()) == 4 else str(symbol).strip().upper()
+            ticker = yf.Ticker(norm_sym)
+            df = ticker.history(period="6mo")
+            if df is None or len(df) < 60:
+                return {}
+            factors = cls.get_latest_factors(df)
+            if not factors:
+                return {}
+
+            kmid = round(factors.get("KMID", 0.0) * 100.0, 2)
+            klow2 = round(factors.get("KLOW2", 0.0) * 100.0, 1)
+            roc5 = round(factors.get("ROC5", 0.0) * 100.0, 2)
+            roc20 = round(factors.get("ROC20", 0.0) * 100.0, 2)
+            rsv20 = round(factors.get("RSV20", 0.5), 4)
+            acc20 = round(factors.get("ACC20", 0.0) * 100.0, 2)
+            vsumd20 = round(factors.get("VSUMD20", 0.0), 3)
+            sharpe20 = round(factors.get("SHARPE20", 0.0), 2)
+            skew20 = round(factors.get("SKEW20", 0.0), 2)
+            beta20 = round(factors.get("BETA20", 0.0) * 100.0, 3)
+            rsqr20 = round(factors.get("RSQR20", 0.0), 2)
+
+            vma20_rel = float(factors.get("VMA20", 0.0))
+            vma_ratio_20 = round(1.0 / max(1.0 + vma20_rel, 1e-4), 3)
+            daily_ret_20 = df["Close"].pct_change().dropna().tail(20)
+            std20_pct = round(float(daily_ret_20.std()) * 100.0, 3) if len(daily_ret_20) >= 5 else round(factors.get("STD20", 0.0) * 100.0, 3)
+
+            # Composite Alpha Z-Score (-3.0 to +3.0)
+            z_raw = (
+                (factors.get("ROC20", 0.0) * 4.5)
+                + (factors.get("VSUMD20", 0.0) * 1.2)
+                + (factors.get("SHARPE20", 0.0) * 0.25)
+                + (factors.get("BETA20", 0.0) * 120.0 * factors.get("RSQR20", 0.0))
+            )
+            z_score = round(max(-3.0, min(3.0, float(z_raw))), 2)
+            regime = (
+                "STRONG_BULL_ALPHA (機関買い集め・強トレンド)" if z_score >= 0.80
+                else ("MILD_POSITIVE_ALPHA (順張り優位)" if z_score >= 0.15
+                else ("BEAR_DISTRIBUTION (売り抜け・減速警戒)" if z_score <= -0.60 else "NEUTRAL_CONSOLIDATION (均衡)"))
+            )
+
+            return {
+                "engine": "Microsoft Qlib Alpha158 (158 Orthogonal Factors)",
+                "composite_z_score": z_score,
+                "composite_alpha_zscore": f"{z_score:+.2f}σ",
+                "quant_regime": regime,
+                "key_factors": {
+                    "KMID_body_pct": f"{kmid:+.2f}%",
+                    "KLOW2_lower_wick_ratio": f"{klow2:.1f}%",
+                    "ROC5_5d_momentum": f"{roc5:+.2f}%",
+                    "ROC20_20d_momentum": f"{roc20:+.2f}%",
+                    "ACC20_acceleration": f"{acc20:+.2f}%",
+                    "VSUMD20_net_volume_accumulation": vsumd20,
+                    "SHARPE20_risk_adj_trend": sharpe20,
+                    "SKEW20_return_skewness": skew20,
+                    "BETA20_reg_slope_pct": f"{beta20:+.3f}%/day",
+                    "RSQR20_trend_linearity_r2": rsqr20,
+                    "ROC_20": roc20,
+                    "RSV_20": rsv20,
+                    "VMA_RATIO_20": vma_ratio_20,
+                    "STD_20": std20_pct,
+                },
+            }
+        except Exception:
+            return {}
+

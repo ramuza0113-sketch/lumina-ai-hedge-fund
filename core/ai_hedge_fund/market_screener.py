@@ -337,6 +337,9 @@ class MarketScreener:
                 div = data.get("dividend_yield", 0.0)
                 roe = data.get("roe")
                 ret20 = data.get("history_metrics", {}).get("return_20d_pct", 0.0)
+                ret60 = data.get("history_metrics", {}).get("return_60d_pct", ret20)
+                f_score = data.get("piotroski_f_score")
+                rs_composite = round((0.65 * ret20) + (0.35 * ret60), 2)
 
                 # Composite Quant Score Calculation (Base: 72)
                 score = 72
@@ -368,11 +371,19 @@ class MarketScreener:
                 if strat in ["DEEP_VALUE", "ALL"]:
                     if pb and pb <= 1.0: score += 14
                 sma200 = data.get("history_metrics", {}).get("sma_200")
-                is_stage2 = (price >= (sma200 * 0.98)) if (sma200 and price > 0) else True
-                if is_stage2:
-                    score += 4  # Stage 2 Uptrend Bonus
-                else:
-                    score -= 15 # Stage 4 Downtrend Falling Knife Penalty
+                is_stage2 = (price >= (sma200 * 0.98)) if (sma200 and price > 0) else False
+                if sma200 and price > 0:
+                    if is_stage2:
+                        score += 4  # Stage 2 Uptrend Bonus
+                    else:
+                        score -= 15 # Stage 4 Downtrend Falling Knife Penalty
+
+                # Pillar 2: Piotroski F-Score (0-9) Financial Quality Audit
+                if f_score is not None:
+                    if f_score >= 7:
+                        score += 5  # Fortress Balance Sheet & Cash Flow Bonus
+                    elif f_score < 6:
+                        score -= 16 # High Leverage / Weak Cash-Flow Penalty
 
                 # SEC Form 4 Insider Catalyst (US stocks):
                 # When stock is in Stage 2 uptrend, cluster insider buying provides +5 catalyst bonus
@@ -400,7 +411,10 @@ class MarketScreener:
                     "pb": pb,
                     "dividend_yield": div,
                     "roe": roe,
+                    "piotroski_f_score": f_score,
                     "return_20d_pct": ret20,
+                    "return_60d_pct": ret60,
+                    "rs_composite": rs_composite,
                     "sma_200": sma200,
                     "is_stage2": is_stage2,
                     "insider_metrics": insider_metrics,
@@ -419,14 +433,73 @@ class MarketScreener:
                 if res and res.get("current_price", 0) > 0:
                     results.append(res)
 
+        # Pillar 1 & 3: Compute Market Breadth (% in Stage 2) and Cross-Sectional RS Rating (1-99)
+        if results:
+            valid_sma_items = [r for r in results if r.get("sma_200")]
+            if valid_sma_items:
+                stage2_cnt = sum(1 for r in valid_sma_items if r.get("is_stage2"))
+                cls._last_market_breadth = round(stage2_cnt / len(valid_sma_items), 3)
+
+            results.sort(key=lambda x: x.get("rs_composite", 0.0), reverse=True)
+            n_res = len(results)
+            for idx_r, r_item in enumerate(results):
+                rs_rank = int(round((1.0 - (idx_r / max(1, n_res))) * 99))
+                r_item["rs_rating"] = max(1, min(99, rs_rank))
+                if rs_rank >= 80:
+                    r_item["ai_score"] = min(99, r_item["ai_score"] + 4)
+                elif rs_rank < 50:
+                    r_item["ai_score"] = max(50, r_item["ai_score"] - 8)
+
         # Sort descending by composite AI score
-        results.sort(key=lambda x: x["ai_score"], reverse=True)
+        results.sort(key=lambda x: (x["ai_score"], x.get("rs_composite", 0.0)), reverse=True)
         final_top = results[:max_results]
         try:
             cls.save_screener_cache(category, final_top)
         except Exception:
             pass
         return final_top
+
+    _last_market_breadth: Optional[float] = None
+
+    @classmethod
+    def get_market_breadth_regime(cls) -> Dict[str, Any]:
+        """
+        Pillar 1: Market Regime Cash Shield (Cross-Sectional Stage 2 Breadth Model)
+        Returns current cross-sectional market breadth (% of universe in Stage 2 uptrend),
+        dynamic slot cap (6 -> 4 -> 2), and minimum Relative Strength rating threshold.
+        """
+        raw_breadth = cls._last_market_breadth
+        breadth = 0.50 if raw_breadth is None else float(raw_breadth)
+        if breadth < 0.45:
+            return {
+                "breadth_ratio": breadth,
+                "breadth_pct": round(breadth * 100, 1),
+                "regime": "BEAR_CASH_SHIELD",
+                "regime_label": "🌪️ 暴落警戒・キャッシュ防衛モード (Bear Regime)",
+                "max_slots_cap": 2,
+                "min_rs_required": 85,
+                "is_estimated": raw_breadth is None,
+            }
+        elif breadth < 0.58:
+            return {
+                "breadth_ratio": breadth,
+                "breadth_pct": round(breadth * 100, 1),
+                "regime": "CAUTIOUS_ROTATION",
+                "regime_label": "⛅ 選別ローテーションモード (Cautious Regime)",
+                "max_slots_cap": 4,
+                "min_rs_required": 70,
+                "is_estimated": raw_breadth is None,
+            }
+        else:
+            return {
+                "breadth_ratio": breadth,
+                "breadth_pct": round(breadth * 100, 1),
+                "regime": "BULL_EXPANSION",
+                "regime_label": "☀️ 全面強気・フル稼働モード (Bull Regime)",
+                "max_slots_cap": 6,
+                "min_rs_required": 65,
+                "is_estimated": raw_breadth is None,
+            }
 
     @classmethod
     def get_ai_market_hot_brief(cls) -> Dict[str, Any]:

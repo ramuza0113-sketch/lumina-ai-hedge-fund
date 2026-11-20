@@ -181,6 +181,14 @@ class HedgeFundCouncil:
         except Exception as lle:
             print(f"[HedgeFundCouncil] LeadLagAnalyzer warning: {lle}")
 
+        deep_ofi_ctx: Dict[str, Any] = {}
+        try:
+            ob_snap = memory_engine.get_order_book(symbol, depth=10) if hasattr(memory_engine, "get_order_book") else {}
+            if isinstance(ob_snap, dict):
+                deep_ofi_ctx = dict(ob_snap.get("ofi_analysis") or {})
+        except Exception:
+            deep_ofi_ctx = {}
+
         factor_ontology = {}
         try:
             from core.ai_hedge_fund.factor_ontology import FactorOntology
@@ -188,6 +196,7 @@ class HedgeFundCouncil:
                 stock_data=stock_data,
                 alpha158_summary=alpha158_summary,
                 lead_lag_info=lead_lag_info,
+                microstructure_info=deep_ofi_ctx,
             )
         except Exception as foe:
             print(f"[HedgeFundCouncil] FactorOntology warning: {foe}")
@@ -197,16 +206,19 @@ class HedgeFundCouncil:
             "macro_liquidity": macro_status,
             "insider_trading": insider_metrics,
             "options_gex": {
+                "is_turbulence": bool(market_turbulence.get("is_turbulence", False)),
                 "market_turbulence": market_turbulence.get("summary_text"),
                 "ticker_gex": gex_profile.get("summary_text")
             },
             "openbb_bundle": openbb_bundle,
             "qlib_alpha158": alpha158_summary,
             "lead_lag_causality": lead_lag_info,
+            "deep_ofi": deep_ofi_ctx,
             "factor_ontology": factor_ontology,
             "timesfm_forecast": timesfm_forecast,
             "chronos_forecast": chronos_forecast,
             "dual_quantum": dual_quantum,
+            "quantum_forecast": dual_quantum,
             "news_intelligence": news_audit,
             "recent_news": [news_audit.get("sanitized_briefing")] if news_audit.get("sanitized_briefing") else [n.get("title") for n in news_items[:3]],
             "broker_engine": memory_engine,
@@ -226,7 +238,7 @@ class HedgeFundCouncil:
                     metadata={
                         "price": stock_data.get("current_price"),
                         "currency": stock_data.get("currency"),
-                        "macro": macro_status.get("macro_weather"),
+                        "macro": macro_status.get("regime") or macro_status.get("macro_weather"),
                         "graph_lessons_count": len(graph_lessons)
                     }
                 )
@@ -458,7 +470,8 @@ class HedgeFundCouncil:
             pb = stock_data.get("pb_ratio", "N/A")
             roe = stock_data.get("roe", "N/A")
             gex_summary = context_data.get("options_gex", {}).get("ticker_gex", "中立")
-            macro_summary = context_data.get("macro_liquidity", {}).get("summary_headline", "中立")
+            macro_ctx = context_data.get("macro_liquidity", {})
+            macro_summary = macro_ctx.get("summary_text") or macro_ctx.get("summary_headline") or "中立"
 
             # Deterministic Mathematical Metrics (FinRobot Inspired)
             det = context_data.get("deterministic_metrics", {})

@@ -23,23 +23,46 @@ class PortfolioManagerAgent:
         """
         macro = (context_data or {}).get("macro_liquidity", {})
         gex = (context_data or {}).get("options_gex", {})
-        mkt_turb = str(gex.get("market_turbulence", ""))
-        ticker_gex = str(gex.get("ticker_gex", ""))
-        summary_hl = str(macro.get("summary_headline", ""))
-        status = str(macro.get("status", "NORMAL"))
-        trend = str(macro.get("net_liquidity_trend", "FLAT"))
+        mkt_turb = str(gex.get("market_turbulence", "") or "")
+        ticker_gex = str(gex.get("ticker_gex", "") or "")
+        gex_flag = bool(gex.get("is_turbulence", False))
+        summary_hl = str(macro.get("summary_text") or macro.get("summary_headline") or "")
+        regime_code = str(macro.get("regime") or macro.get("status") or "NEUTRAL").upper()
+        trend = str(macro.get("net_liquidity_trend") or "").upper()
 
         is_turbulent = (
-            "警戒" in mkt_turb or "乱流" in mkt_turb or "ネガティブガンマ" in mkt_turb or
-            "急変" in mkt_turb or "CRITICAL" in status.upper() or 
-            ("SHRINKING" in trend.upper() and "ALERT" in mkt_turb.upper())
+            gex_flag
+            or "警戒" in mkt_turb
+            or "乱気流" in mkt_turb
+            or "乱流" in mkt_turb
+            or "ネガティブ・ガンマ" in mkt_turb
+            or "ネガティブガンマ" in mkt_turb
+            or "NEGATIVE GAMMA" in mkt_turb.upper()
+            or "急変" in mkt_turb
+            or "CRITICAL" in regime_code
+            or ("SHRINKING" in trend and "ALERT" in mkt_turb.upper())
         )
         is_bull_liquidity = (
-            ("EXPANDING" in trend.upper() or "増加" in trend or "良好" in summary_hl or "金余り" in summary_hl or "NORMAL" in status.upper())
+            (
+                regime_code == "RISK_ON"
+                or "EXPANDING" in trend
+                or "拡大" in summary_hl
+                or "増加" in summary_hl
+                or "良好" in summary_hl
+                or "金余り" in summary_hl
+            )
             and not is_turbulent
         )
         is_tightening = (
-            ("引き締め" in summary_hl or "収縮" in summary_hl or "縮小" in trend or "CONTRACTION" in trend.upper() or "SHRINKING" in trend.upper())
+            (
+                regime_code == "RISK_OFF"
+                or "SHRINKING" in trend
+                or "CONTRACTION" in trend
+                or "TIGHTENING" in str(macro.get("net_liquidity_weather", "")).upper()
+                or "引き締め" in summary_hl
+                or "収縮" in summary_hl
+                or "縮小" in summary_hl
+            )
             and not is_turbulent
         )
 

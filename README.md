@@ -253,8 +253,8 @@ cp .env.example .env
 
 > [!NOTE]
 > - **Free Tier Friendly**: You can run the entire 7-agent council using a 100% free API key from [Google AI Studio](https://aistudio.google.com/) (`GEMINI_API_KEY`). No expensive paid subscriptions or OpenAI credits are required.
-> - **No GPU Required**: Runs smoothly on standard laptops, Mac (Apple Silicon M1/M2/M3/M4), Windows, and Linux on pure CPU.
-> - **100% Safe Local Simulation**: Broker order execution operates in **local paper simulation mode** by default. Zero real brokerage orders are ever transmitted without your explicit paper/live credentials.
+> - **No GPU Required & Optional Foundation Models**: Runs smoothly on standard laptops (CPU-only) out of the box. Heavyweight neural time-series weights (`torch`, `timesfm`, `chronos-forecasting`) are **optional** and omitted from default `requirements.txt` to keep installation fast; unless installed and enabled via `LUMINA_USE_NATIVE_TIMESFM=1`, the forecasters automatically run lightweight parametric approximations and explicitly label their output as such in the council prompt (`backend="parametric_log_return_fallback"` / `"parametric_autoregressive_fallback"`).
+> - **Broker Adapters (`LUMINA_BROKER`)**: By default (`LUMINA_BROKER=paper`), the daemon runs `PaperTradingEngine` (100% local SQLite paper simulation). Setting `LUMINA_BROKER=ibkr` connects `IBKRClient` (`ib_insync`) to a local TWS / IB Gateway (`IBKR_HOST` / `IBKR_PORT`) with 3-leg `ib.bracketOrder` OCO support. `KabuStationClient` is included as an extensible REST reference stub.
 
 #### 3. Launch Dashboard
 ```bash

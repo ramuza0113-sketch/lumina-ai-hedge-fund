@@ -9,7 +9,7 @@ from core.ai_hedge_fund.auto_trader import AutoTrader
 from core.ai_hedge_fund.market_screener import MarketScreener
 from core.ai_hedge_fund.hedge_fund_notifier import HedgeFundNotifier
 from core.ai_hedge_fund.market_session import MarketSession
-from core.ai_hedge_fund.broker_client import PaperTradingEngine
+from core.ai_hedge_fund.broker_client import PaperTradingEngine, IBKRClient
 
 class HedgeFundDaemon:
     """
@@ -47,7 +47,14 @@ class HedgeFundDaemon:
         self.total_cycles: int = 0
         self.total_buys: int = 0
         self.total_sells: int = 0
-        self.engine = PaperTradingEngine()
+        broker_mode = os.getenv("LUMINA_BROKER", "paper").strip().lower()
+        if broker_mode == "ibkr":
+            ib_host = os.getenv("IBKR_HOST", "127.0.0.1")
+            ib_port = int(os.getenv("IBKR_PORT", "7497"))
+            ib_cid = int(os.getenv("IBKR_CLIENT_ID", "11"))
+            self.engine = IBKRClient(host=ib_host, port=ib_port, client_id=ib_cid)
+        else:
+            self.engine = PaperTradingEngine()
         self._load_persisted_state()
 
     def _state_file_path(self) -> str:

@@ -62,6 +62,8 @@ class BaseBrokerClient:
         raise NotImplementedError
     def place_order(self, symbol: str, side: str, quantity: int, price: Optional[float] = None, order_type: str = "MARKET", notes: str = "", target_price: Optional[float] = None, stop_loss_price: Optional[float] = None) -> Dict[str, Any]:
         raise NotImplementedError
+    def get_order_book(self, symbol: str, depth: int = 10) -> Dict[str, Any]:
+        raise NotImplementedError
 
 
 class PaperTradingEngine(BaseBrokerClient):
@@ -1360,10 +1362,14 @@ class PaperTradingEngine(BaseBrokerClient):
             "prompt_text": prompt_text
         }
 
+    def get_order_book(self, symbol: str, depth: int = 10) -> Dict[str, Any]:
+        """Fetch Level 2 / Intraday Volume-at-Price Order Book & Deep OFI Telemetry for Paper Trading"""
+        return fetch_level2_order_book(symbol, depth=depth, ib_instance=None)
+
 
 class KabuStationClient(BaseBrokerClient):
     """
-    au Kabucom Securities kabuステーション REST API Connector
+    au Kabucom Securities kabuステーション REST API Connector (Reference Adapter Stub)
     Port: 18080 (Prod) / 18082 (Simulation)
     Allows live automated execution on the Tokyo Stock Exchange (TSE).
     """
@@ -1409,6 +1415,10 @@ class KabuStationClient(BaseBrokerClient):
             "success": False,
             "message": "auカブコム証券 kabuステーションAPI実発注モード: kabuステーションアプリが起動している必要があります。"
         }
+
+    def get_order_book(self, symbol: str, depth: int = 10) -> Dict[str, Any]:
+        """Fetch order book snapshot via fallback intraday VAP engine when kabu station DOM is disconnected."""
+        return fetch_level2_order_book(symbol, depth=depth, ib_instance=None)
 
 
 class IBKRClient(BaseBrokerClient):
@@ -1561,26 +1571,210 @@ class IBKRClient(BaseBrokerClient):
             ib.qualifyContracts(contract)
 
             action = side.upper()
-            if stop_loss_price:
-                stop_loss_price = round_price_to_exchange_tick(float(stop_loss_price), is_jp=is_jp)
-            if target_price:
-                target_price = round_price_to_exchange_tick(float(target_price), is_jp=is_jp)
-            if order_type.upper() == "LIMIT" and price:
-                order = ib_insync.LimitOrder(action, quantity, round_price_to_exchange_tick(float(price), is_jp=is_jp))
+            stp_p = round_price_to_exchange_tick(float(stop_loss_price), is_jp=is_jp) if stop_loss_price else None
+            tgt_p = round_price_to_exchange_tick(float(target_price), is_jp=is_jp) if target_price else None
+            lmt_p = round_price_to_exchange_tick(float(price), is_jp=is_jp) if (order_type.upper() == "LIMIT" and price) else None
+            rejected_statuses = {"Cancelled", "Inactive", "ApiCancelled"}
+
+            # 1. Server-Side 3-Leg OCO Bracket Order (Parent + Take-Profit Limit + Stop-Loss)
+            if action == "BUY" and tgt_p and stp_p:
+                ref_p = lmt_p or (float(price) if price and float(price) > 0 else MarketDataFeed.get_realtime_price(norm_sym))
+                use_mkt_parent = (order_type.upper() == "MARKET")
+                if not ref_p or float(ref_p) <= 0.0:
+                    if use_mkt_parent:
+                        ref_p = 0.5 * (float(stp_p) + float(tgt_p))
+                    else:
+                        return {
+                            "success": False,
+                            "message": f"【IBKR参照価格未取得ガード】{norm_sym} の現在値が取得できないため指値ブラケット発注を中断しました。"
+                        }
+                entry_lmt = lmt_p if lmt_p else round_price_to_exchange_tick(float(ref_p), is_jp=is_jp)
+                bracket = ib.bracketOrder(
+                    action=action,
+                    quantity=quantity,
+                    limitPrice=entry_lmt,
+                    takeProfitPrice=tgt_p,
+                    stopLossPrice=stp_p,
+                )
+                for idx, o in enumerate(bracket):
+                    if idx == 0 and use_mkt_parent:
+                        o.orderType = "MKT"
+                        o.lmtPrice = 0.0
+                    elif idx in (1, 2):
+                        o.tif = "GTC"
+
+                trades = [ib.placeOrder(contract, o) for o in bracket]
+                ib.sleep(0.5)
+                parent_trade = trades[0]
+                parent_status = str(getattr(parent_trade.orderStatus, "status", "") or "")
+                is_ok = parent_status not in rejected_statuses
+                return {
+                    "success": is_ok,
+                    "order_id": parent_trade.order.orderId,
+                    "status": parent_status,
+                    "type": "SERVER_SIDE_BRACKET_OCO",
+                    "target_price": tgt_p,
+                    "stop_loss_price": stp_p,
+                    "message": (
+                        f"IBKR サーバーサイドOCOブラケット発注{'完了' if is_ok else '拒否'}: "
+                        f"{norm_sym} {action} {quantity}株 ({order_type} / status={parent_status}) "
+                        f"[利確GTC: {tgt_p} / 逆指値GTC: {stp_p}]"
+                    ),
+                }
+
+            # 2. Single Order (Market or Limit — no server-side bracket attached)
+            if lmt_p:
+                order = ib_insync.LimitOrder(action, quantity, lmt_p)
             else:
                 order = ib_insync.MarketOrder(action, quantity)
 
             trade = ib.placeOrder(contract, order)
             ib.sleep(0.5)
+            status_str = str(getattr(trade.orderStatus, "status", "") or "")
+            is_ok = status_str not in rejected_statuses
             return {
-                "success": True,
+                "success": is_ok,
                 "order_id": trade.order.orderId,
-                "status": trade.orderStatus.status,
-                "message": f"IBKR発注完了: {norm_sym} {action} {quantity}株 ({order_type})" + (f" [ブラケット逆指値: {stop_loss_price}]" if stop_loss_price else "")
+                "status": status_str,
+                "type": order_type.upper(),
+                "message": f"IBKR単発発注{'完了' if is_ok else '拒否'}: {norm_sym} {action} {quantity}株 ({order_type} / status={status_str})"
             }
         except Exception as e:
             return {
                 "success": False,
                 "message": f"IBKR発注例外: {e}"
             }
+
+    def get_order_book(self, symbol: str, depth: int = 10) -> Dict[str, Any]:
+        """Fetch Level 2 Order Book via IBKR DOM when connected, or intraday VAP fallback."""
+        ib = self._get_connection()
+        return fetch_level2_order_book(symbol, depth=depth, ib_instance=ib)
+
+
+_OFI_ANALYZERS: Dict[str, Any] = {}
+_OFI_LOCK = threading.Lock()
+
+
+def _get_or_create_ofi_analyzer(symbol: str):
+    norm_sym = MarketDataFeed.normalize_symbol(symbol)
+    with _OFI_LOCK:
+        if norm_sym not in _OFI_ANALYZERS:
+            from core.ai_hedge_fund.deep_ofi_analyzer import DeepOFIAnalyzer
+            _OFI_ANALYZERS[norm_sym] = DeepOFIAnalyzer(norm_sym, alpha_decay=0.25)
+        return _OFI_ANALYZERS[norm_sym]
+
+
+def fetch_level2_order_book(symbol: str, depth: int = 10, ib_instance=None) -> Dict[str, Any]:
+    """
+    Fetch Level 2 Market Depth & Deep OFI Telemetry:
+    1. Live IBKR Market Depth (`reqMktDepth`) when `ib_instance` is connected and subscribed.
+    2. Intraday 5m Volume-at-Price (VAP) & Bulk Volume Classification (BVC) book via `yfinance`,
+       feeding `DeepOFIAnalyzer.update` across consecutive intraday snapshots.
+    Returns `{}` when market data is unavailable (never fabricates random order books).
+    """
+    norm_sym = MarketDataFeed.normalize_symbol(symbol)
+    is_jp = norm_sym.endswith(".T")
+    currency = "JPY" if is_jp else "USD"
+
+    # 1. Live IBKR DOM if connected
+    if ib_instance is not None and getattr(ib_instance, "isConnected", lambda: False)():
+        try:
+            import ib_insync
+            ib_sym = norm_sym[:-2] if is_jp else norm_sym
+            contract = (
+                ib_insync.Stock(ib_sym, "SMART", currency, primaryExchange="TSEJ")
+                if is_jp
+                else ib_insync.Stock(ib_sym, "SMART", currency)
+            )
+            ib_instance.qualifyContracts(contract)
+            ticker = ib_instance.reqMktDepth(contract, numRows=depth)
+            ib_instance.sleep(0.3)
+            if ticker and ticker.domBids and ticker.domAsks:
+                bids = [{"price": round(float(b.price), 2), "size": int(b.size)} for b in ticker.domBids[:depth] if float(b.size) > 0]
+                asks = [{"price": round(float(a.price), 2), "size": int(a.size)} for a in ticker.domAsks[:depth] if float(a.size) > 0]
+                if bids and asks:
+                    total_bid = sum(b["size"] for b in bids)
+                    total_ask = sum(a["size"] for a in asks)
+                    imbalance = (total_bid / max(1, total_bid + total_ask)) * 100.0
+                    analyzer = _get_or_create_ofi_analyzer(norm_sym)
+                    ofi_res = analyzer.update(bids, asks, timestamp=time.time())
+                    return {
+                        "symbol": norm_sym,
+                        "mode": "IBKR Live DOM",
+                        "last_price": bids[0]["price"],
+                        "currency": currency,
+                        "spread": round(max(0.01, asks[0]["price"] - bids[0]["price"]), 2),
+                        "depth_levels": min(len(bids), len(asks)),
+                        "bids": bids,
+                        "asks": asks,
+                        "total_bid_size": total_bid,
+                        "total_ask_size": total_ask,
+                        "imbalance_pct": round(imbalance, 1),
+                        "ofi_analysis": ofi_res,
+                    }
+        except Exception:
+            pass
+
+    # 2. Intraday 5m Volume-at-Price (VAP) & BVC Approximation (returns {} on failure)
+    try:
+        import yfinance as yf
+        import numpy as np
+        df = yf.download(norm_sym, period="2d", interval="5m", progress=False)
+        if df is None or len(df) < 12:
+            return {}
+
+        closes = df["Close"].squeeze().values.astype(float)
+        highs = df["High"].squeeze().values.astype(float)
+        lows = df["Low"].squeeze().values.astype(float)
+        vols = df["Volume"].squeeze().values.astype(float)
+        last_p = float(closes[-1])
+        if not math.isfinite(last_p) or last_p <= 0:
+            return {}
+
+        tick = 1.0 if is_jp else 0.05
+        def _build_vap_ladder(c_arr, h_arr, l_arr, v_arr, ref_px: float):
+            clv = np.clip((c_arr - l_arr) / np.maximum(h_arr - l_arr, 1e-6), 0.05, 0.95)
+            buy_v = v_arr * clv
+            sell_v = v_arr * (1.0 - clv)
+            bids_out, asks_out = [], []
+            for lvl in range(1, depth + 1):
+                bp = round(ref_px - lvl * tick, 2)
+                ap = round(ref_px + lvl * tick, 2)
+                b_mask = (l_arr <= bp + tick) & (h_arr >= bp - tick)
+                a_mask = (l_arr <= ap + tick) & (h_arr >= ap - tick)
+                b_sz = max(100, int(float(np.sum(buy_v[b_mask])) // max(1, len(c_arr))))
+                a_sz = max(100, int(float(np.sum(sell_v[a_mask])) // max(1, len(c_arr))))
+                bids_out.append({"price": bp, "size": b_sz})
+                asks_out.append({"price": ap, "size": a_sz})
+            return bids_out, asks_out
+
+        prev_bids, prev_asks = _build_vap_ladder(closes[:-1], highs[:-1], lows[:-1], vols[:-1], float(closes[-2]))
+        bids, asks = _build_vap_ladder(closes, highs, lows, vols, last_p)
+
+        analyzer = _get_or_create_ofi_analyzer(norm_sym)
+        now_ts = time.time()
+        if len(analyzer.history) == 0:
+            analyzer.update(prev_bids, prev_asks, timestamp=now_ts - 1.0)
+        ofi_res = analyzer.update(bids, asks, timestamp=now_ts)
+
+        total_bid = sum(b["size"] for b in bids)
+        total_ask = sum(a["size"] for a in asks)
+        imbalance = (total_bid / max(1, total_bid + total_ask)) * 100.0
+        return {
+            "symbol": norm_sym,
+            "mode": "Intraday 5m VAP Approximation",
+            "last_price": round(last_p, 2),
+            "currency": currency,
+            "spread": round(asks[0]["price"] - bids[0]["price"], 2),
+            "depth_levels": depth,
+            "bids": bids,
+            "asks": asks,
+            "total_bid_size": total_bid,
+            "total_ask_size": total_ask,
+            "imbalance_pct": round(imbalance, 1),
+            "ofi_analysis": ofi_res,
+        }
+    except Exception:
+        return {}
+
 

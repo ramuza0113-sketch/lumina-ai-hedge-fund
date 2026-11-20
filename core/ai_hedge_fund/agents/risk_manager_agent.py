@@ -40,9 +40,18 @@ class RiskManagerAgent(BaseInvestmentAgent):
             stop_loss = round(price * (1.0 - min_breathing_pct / 100.0), 2 if currency == "USD" else 1)
 
         
-        # Market turbulence / Options Gamma Flip check
-        mkt_turb = OptionsGexFeed.get_market_turbulence_warning()
-        is_turbulence = mkt_turb.get("is_turbulence", False)
+        # Market turbulence / Options Gamma Flip check (prefer context_data when provided)
+        ctx_gex = (context_data or {}).get("options_gex", {}) if context_data else {}
+        if isinstance(ctx_gex, dict) and "is_turbulence" in ctx_gex:
+            is_turbulence = bool(ctx_gex.get("is_turbulence"))
+        elif isinstance(ctx_gex, dict) and any(
+            kw in str(ctx_gex.get("market_turbulence", ""))
+            for kw in ("乱気流警報", "ネガティブ・ガンマ", "ネガティブガンマ", "Negative Gamma")
+        ):
+            is_turbulence = True
+        else:
+            mkt_turb = OptionsGexFeed.get_market_turbulence_warning()
+            is_turbulence = bool(mkt_turb.get("is_turbulence", False))
         
         # Default safety score
         safety_score = min(92, max(30, int(78 - vol * 0.7)))
@@ -65,7 +74,12 @@ class RiskManagerAgent(BaseInvestmentAgent):
         veto_reason = ""
         
         macro_liq = context_data.get("macro_liquidity", {}) if context_data else {}
-        is_crunch = macro_liq.get("liquidity_crunch", False) or macro_liq.get("net_liquidity_weather") == "TIGHTENING"
+        is_crunch = bool(
+            macro_liq.get("liquidity_crunch", False)
+            or str(macro_liq.get("regime", "")).upper() == "RISK_OFF"
+            or str(macro_liq.get("net_liquidity_weather", "")).upper() == "TIGHTENING"
+            or str(macro_liq.get("net_liquidity_trend", "")).upper() == "SHRINKING"
+        )
         
         if is_turbulence and vol >= 30.0:
             veto_triggered = True
@@ -81,7 +95,7 @@ class RiskManagerAgent(BaseInvestmentAgent):
             veto_reason = "Quarantine protocol triggered: suspicious hype or malicious misinformation detected" if is_en else "不審な風説・煽りニュース検知による情報汚染遮断（検疫プロトコル発動）"
         else:
             # 🛡️ TSFM Out-of-Distribution (OOD) / Adversarial Divergence Veto Guard
-            qf = (context_data or {}).get("quantum_forecast", {})
+            qf = (context_data or {}).get("dual_quantum") or (context_data or {}).get("quantum_forecast") or {}
             tsfm_ret = float(qf.get("ensemble_expected_return_pct", 0.0) or 0.0)
             tsfm_status = str(qf.get("consensus_status", "NEUTRAL"))
             f_score_val = stock_data.get("piotroski_f_score")

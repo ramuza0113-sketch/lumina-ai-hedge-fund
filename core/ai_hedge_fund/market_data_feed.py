@@ -321,6 +321,11 @@ class MarketDataFeed:
             current = float(closes.iloc[-1])
             prev_20 = float(closes.iloc[-20])
             hist_metrics["return_20d_pct"] = round(((current - prev_20) / prev_20) * 100, 2)
+            if len(closes) >= 60:
+                prev_60 = float(closes.iloc[-60])
+                hist_metrics["return_60d_pct"] = round(((current - prev_60) / prev_60) * 100, 2)
+            else:
+                hist_metrics["return_60d_pct"] = hist_metrics["return_20d_pct"]
             hist_metrics["sma_20"] = round(float(closes.tail(20).mean()), 2)
             if len(closes) >= 50:
                 hist_metrics["sma_50"] = round(float(closes.tail(50).mean()), 2)
@@ -332,6 +337,7 @@ class MarketDataFeed:
                 hist_metrics["volatility_annualized_pct"] = round(float(daily_returns.std() * (252 ** 0.5) * 100), 2)
         else:
             hist_metrics["return_20d_pct"] = 0.0
+            hist_metrics["return_60d_pct"] = 0.0
 
         # 14-day ATR (Average True Range) Volatility Calculation
         atr_14 = None
@@ -372,6 +378,40 @@ class MarketDataFeed:
         if eps and bps and eps > 0 and bps > 0:
             graham_number = round((22.5 * eps * bps) ** 0.5, 2)
 
+        norm_roe = round(info.get("returnOnEquity", 0) * 100, 2) if info.get("returnOnEquity") is not None else None
+        op_cf = info.get("operatingCashflow")
+        net_inc = info.get("netIncomeToCommon")
+        roa_val = info.get("returnOnAssets")
+        op_m = info.get("operatingMargins")
+        dte = info.get("debtToEquity")
+        cur_r = info.get("currentRatio")
+        rev_g = info.get("revenueGrowth")
+        earn_g = info.get("earningsGrowth")
+
+        # 9-Point Piotroski F-Score (returns None when fundamental statements are missing)
+        piotroski_f_score: Optional[int] = None
+        if op_cf is not None and roa_val is not None:
+            f_pts = 0
+            if roa_val > 0:
+                f_pts += 1
+            if op_cf > 0:
+                f_pts += 1
+            if net_inc is not None and op_cf > net_inc:
+                f_pts += 1
+            if dte is not None and dte < 110.0:
+                f_pts += 1
+            if cur_r is not None and cur_r >= 1.1:
+                f_pts += 1
+            if norm_roe is not None and norm_roe >= 12.0:
+                f_pts += 1
+            if op_m is not None and op_m >= 0.10:
+                f_pts += 1
+            if rev_g is not None and rev_g > 0:
+                f_pts += 1
+            if earn_g is not None and earn_g > 0:
+                f_pts += 1
+            piotroski_f_score = f_pts
+
         data = {
             "symbol": norm_sym,
             "company_name": company_name,
@@ -396,7 +436,8 @@ class MarketDataFeed:
             "bps": bps,
             
             # Profitability & Moat Metrics (Buffett Focus)
-            "roe": round(info.get("returnOnEquity", 0) * 100, 2) if info.get("returnOnEquity") else None,
+            "roe": norm_roe,
+            "piotroski_f_score": piotroski_f_score,
             "roa": round(info.get("returnOnAssets", 0) * 100, 2) if info.get("returnOnAssets") else None,
             "operating_margin": round(info.get("operatingMargins", 0) * 100, 2) if info.get("operatingMargins") else None,
             "profit_margin": round(info.get("profitMargins", 0) * 100, 2) if info.get("profitMargins") else None,
@@ -428,6 +469,18 @@ class MarketDataFeed:
             "data": data
         }
         return data
+
+    @classmethod
+    def get_realtime_price(cls, symbol: str, force_refresh: bool = False) -> Optional[float]:
+        """Fetch latest quote price for symbol, returning None if unavailable."""
+        try:
+            sd = cls.get_stock_data(symbol, force_refresh=force_refresh)
+            px = sd.get("current_price")
+            if px is not None and float(px) > 0:
+                return float(px)
+        except Exception:
+            pass
+        return None
 
     @classmethod
     def format_for_council_prompt(cls, data: Dict[str, Any]) -> str:

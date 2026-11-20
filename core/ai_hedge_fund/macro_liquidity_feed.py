@@ -1,7 +1,29 @@
 # -*- coding: utf-8 -*-
 import time
 import pandas as pd
-from typing import Dict, Any
+from typing import Dict, Any, TypedDict
+
+
+class MacroLiquidityStatus(TypedDict, total=False):
+    net_liquidity_t: float
+    prev_net_liquidity_t: float
+    chg_t: float
+    chg_pct: float
+    regime: str
+    status: str
+    macro_weather: str
+    net_liquidity_trend: str
+    net_liquidity_weather: str
+    liquidity_crunch: bool
+    regime_desc: str
+    emoji: str
+    walcl_t: float
+    tga_b: float
+    rrp_b: float
+    summary_text: str
+    summary_headline: str
+    updated_at: str
+    error: str
 
 class MacroLiquidityFeed:
     """
@@ -76,18 +98,27 @@ class MacroLiquidityFeed:
                 regime_desc = "流動性中立・巡航安定期"
                 emoji = "⚖️"
 
-            status = {
+            summary_str = f"{emoji} FRB純流動性: ${cur_net_liq_t:.2f}T (前週比: {chg_pct:+.1f}% / {regime_desc})"
+            trend_code = "EXPANDING" if regime == "RISK_ON" else ("SHRINKING" if regime == "RISK_OFF" else "FLAT")
+            weather_code = "EXPANDING" if regime == "RISK_ON" else ("TIGHTENING" if regime == "RISK_OFF" else "NEUTRAL")
+            status: MacroLiquidityStatus = {
                 "net_liquidity_t": round(cur_net_liq_t, 2),
                 "prev_net_liquidity_t": round(prev_net_liq_t, 2),
                 "chg_t": round(chg_t, 2),
                 "chg_pct": round(chg_pct, 2),
                 "regime": regime,
+                "status": regime,
+                "macro_weather": regime,
+                "net_liquidity_trend": trend_code,
+                "net_liquidity_weather": weather_code,
+                "liquidity_crunch": bool(regime == "RISK_OFF"),
                 "regime_desc": regime_desc,
                 "emoji": emoji,
                 "walcl_t": round(cur_walcl_mil / 1e6, 2),
                 "tga_b": round(cur_tga_mil / 1e3, 1),
                 "rrp_b": round(cur_rrp_bil, 1),
-                "summary_text": f"{emoji} FRB純流動性: ${cur_net_liq_t:.2f}T (前週比: {chg_pct:+.1f}% / {regime_desc})",
+                "summary_text": summary_str,
+                "summary_headline": summary_str,
                 "updated_at": time.strftime("%Y-%m-%d %H:%M:%S")
             }
 
@@ -96,18 +127,25 @@ class MacroLiquidityFeed:
             return status
 
         except Exception as e:
-            fallback = {
+            fb_summary = "⚖️ FRB純流動性: データ未取得（フェイルセーフ・中立）"
+            fallback: MacroLiquidityStatus = {
                 "net_liquidity_t": 5.80,
                 "prev_net_liquidity_t": 5.80,
                 "chg_t": 0.0,
                 "chg_pct": 0.0,
                 "regime": "NEUTRAL",
+                "status": "NEUTRAL",
+                "macro_weather": "NEUTRAL",
+                "net_liquidity_trend": "FLAT",
+                "net_liquidity_weather": "NEUTRAL",
+                "liquidity_crunch": False,
                 "regime_desc": "流動性中立（フェイルセーフ）",
                 "emoji": "⚖️",
                 "walcl_t": 6.74,
                 "tga_b": 948.0,
                 "rrp_b": 1.5,
-                "summary_text": "⚖️ FRB純流動性: $5.80T (平穏巡航・中立)",
+                "summary_text": fb_summary,
+                "summary_headline": fb_summary,
                 "updated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
                 "error": str(e)
             }

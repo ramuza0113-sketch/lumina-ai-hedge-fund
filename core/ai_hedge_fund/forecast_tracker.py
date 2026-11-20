@@ -155,25 +155,34 @@ class ForecastTracker:
         
         total_v = len(verified)
         acc_v = sum(1 for x in verified if x.get("is_accurate"))
-        acc_rate = round((acc_v / total_v * 100), 1) if total_v > 0 else 83.3
+        acc_rate = round((acc_v / total_v * 100), 1) if total_v > 0 else None
         
         errors = [x.get("error_pct") for x in verified if x.get("error_pct") is not None]
-        avg_err = round(float(sum(errors) / len(errors)), 1) if errors else 1.9
+        avg_err = round(float(sum(errors) / len(errors)), 1) if errors else None
 
         returns = [x.get("actual_return_pct") for x in verified if x.get("actual_return_pct") is not None]
-        avg_ret = round(float(sum(returns) / len(returns)), 1) if returns else 4.2
+        avg_ret = round(float(sum(returns) / len(returns)), 1) if returns else None
 
         # 直近の検証済みアイテム（最大5件）
         recent_items = verified[:5] if verified else []
 
-        # note向けの美しいマークダウンテキスト
-        note_md = f"""### 📊 【実績公開】AI未来予測の答え合わせ＆検証トラックレコード
-当AIヘッジファンド（Lumina AI）では、Google開発の時系列基盤モデル（TimesFM）による予測を**すべてデータベースに事前記録し、毎週完全自動で答え合わせ・検証**を行っています。
+        # note向けのマークダウンテキスト（実績0件時は「検証データなし」を明記）
+        if total_v == 0:
+            note_md = (
+                "### 📊 AI未来予測の答え合わせ＆検証トラックレコード\n"
+                "現在、満期到来・検証完了済みの予測レコードはありません（データ蓄積中）。\n"
+            )
+        else:
+            acc_str = f"{acc_rate:.1f}%" if acc_rate is not None else "N/A"
+            err_str = f"±{avg_err:.1f}%" if avg_err is not None else "N/A"
+            ret_str = f"{avg_ret:+.1f}%" if avg_ret is not None else "N/A"
+            note_md = f"""### 📊 【実績公開】AI未来予測の答え合わせ＆検証トラックレコード
+当AIヘッジファンド（Lumina AI）では、時系列予測モデルの出力をデータベースに事前記録し、満期到来後に自動で答え合わせ・検証を行っています。
 
-* **累計予測検証数**: {max(total_v, 12)}件
-* **80%信頼区間 的中率**: **{acc_rate:.1f}%**
-* **中央値予測の平均誤差**: **わずか ±{avg_err:.1f}%**
-* **推奨銘柄の平均獲得リターン**: **+{avg_ret:.1f}%**
+* **累計予測検証数**: {total_v}件
+* **80%信頼区間 的中率**: **{acc_str}**
+* **中央値予測の平均誤差**: **{err_str}**
+* **対象銘柄の平均実績リターン**: **{ret_str}**
 """
         if recent_items:
             note_md += "\n**▼ 直近の予測と実際の結果（実データ検証）**\n\n"
@@ -184,6 +193,7 @@ class ForecastTracker:
                 note_md += f"| {it.get('ticker')} | ${it.get('base_price'):,.2f} | ${it.get('actual_price'):,.2f} | **{it.get('actual_return_pct'):+.1f}%** | {st_icon} | {it.get('error_pct'):.1f}% |\n"
 
         return {
+            "has_track_record": bool(total_v > 0),
             "total_count": len(history),
             "verified_count": total_v,
             "accuracy_rate_pct": acc_rate,

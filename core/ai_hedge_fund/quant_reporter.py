@@ -67,22 +67,24 @@ class QuantReporter:
                         trough = min(equities)
                         mdd = ((trough - peak) / peak * 100.0) if peak > 0 else 0.0
 
-                if hasattr(broker_engine, "get_order_history"):
-                    orders = broker_engine.get_order_history(limit=100)
-                    for o in orders:
-                        if o.get("side") == "SELL":
+                if hasattr(broker_engine, "get_trade_memories"):
+                    fx_rate = float(broker_engine.get_usdjpy_rate()) if hasattr(broker_engine, "get_usdjpy_rate") else 155.0
+                    mems = broker_engine.get_trade_memories(limit=200)
+                    for m in mems:
+                        if m.get("trade_type") in ("SELL_EXIT", "PARTIAL_TAKE_PROFIT") and m.get("realized_pnl") is not None:
+                            pnl_val = float(m.get("realized_pnl") or 0.0)
+                            curr = str(m.get("currency") or "USD").upper()
+                            pnl_usd = (pnl_val / fx_rate) if (curr == "JPY" and fx_rate > 0) else pnl_val
                             closed_trades += 1
-                            notes = str(o.get("notes", ""))
-                            if "+" in notes or "利確" in notes or "勝ち" in notes or "プラス" in notes:
+                            realized_pnl_usd += pnl_usd
+                            if pnl_val > 0:
                                 win_trades += 1
-                                if "USD" in notes or "$" in notes:
-                                    realized_pnl_usd += 4.58
-                            elif "-" in notes or "損切り" in notes or "ロスカット" in notes:
+                            elif pnl_val < 0:
                                 loss_trades += 1
             except Exception as e:
                 logger.warning(f"Failed to gather broker engine facts: {e}")
 
-        win_rate = (win_trades / closed_trades * 100.0) if closed_trades > 0 else 100.0
+        win_rate = round(win_trades / closed_trades * 100.0, 1) if closed_trades > 0 else None
 
         # 2. If we have at least 15 daily return data points, calculate QuantStats
         if rets is not None and len(rets) >= 15:
@@ -97,6 +99,7 @@ class QuantReporter:
                 cagr = float(qs.stats.cagr(rets)) * 100.0
                 pf = float(qs.stats.profit_factor(rets))
                 return {
+                    "has_track_record": True,
                     "is_warmup": False,
                     "sharpe": round(sharpe, 2) if not np.isnan(sharpe) else 0.0,
                     "sortino": round(sortino, 2) if not np.isnan(sortino) else 0.0,
@@ -111,30 +114,34 @@ class QuantReporter:
             except Exception as e:
                 logger.warning(f"Quantstats computation failed: {e}")
 
-        # 3. 100% Genuine Warm-up Performance Reporting
-        pnl_str = f"+${realized_pnl_usd:,.2f}" if realized_pnl_usd > 0 else (f"${realized_pnl_usd:,.2f}" if realized_pnl_usd < 0 else "+$4.58")
-        win_cnt = max(1, win_trades)
-        loss_cnt = loss_trades
-        summary_line = (
-            f"・クオンツ運用フェーズ: 実戦稼働 {days_active}営業日目（初期資産形成期） ｜ "
-            f"確定損益: {pnl_str} ｜ 決済勝率: {win_rate:.0f}% ({win_cnt}勝{loss_cnt}敗) ｜ 最大DD: {mdd:.2f}%"
-        )
+        # 3. Genuine Warm-up / Zero-Track-Record Reporting (no fabricated PnL or 100% win rate)
+        if closed_trades == 0:
+            summary_line = f"・クオンツ運用フェーズ: 稼働 {days_active}営業日目 ｜ 決済確定取引なし（実績データ蓄積中） ｜ 最大DD: {mdd:.2f}%"
+            pf_display = None
+        else:
+            pnl_str = f"+${realized_pnl_usd:,.2f}" if realized_pnl_usd >= 0 else f"-${abs(realized_pnl_usd):,.2f}"
+            summary_line = (
+                f"・クオンツ運用フェーズ: 実戦稼働 {days_active}営業日目 ｜ "
+                f"確定損益: {pnl_str} ｜ 決済勝率: {win_rate:.1f}% ({win_trades}勝{loss_trades}敗) ｜ 最大DD: {mdd:.2f}%"
+            )
+            pf_display = None
 
         return {
+            "has_track_record": bool(closed_trades > 0),
             "is_warmup": True,
             "days_active": days_active,
-            "sharpe": "蓄積中",
-            "sortino": "蓄積中",
-            "calmar": "蓄積中",
+            "sharpe": None,
+            "sortino": None,
+            "calmar": None,
             "max_drawdown": round(mdd, 2),
-            "win_rate": round(win_rate, 1),
-            "volatility": "蓄積中",
-            "cagr": "蓄積中",
-            "profit_factor": "1.00",
+            "win_rate": win_rate,
+            "volatility": None,
+            "cagr": None,
+            "profit_factor": pf_display,
             "closed_trades": closed_trades,
-            "win_trades": win_cnt,
-            "loss_trades": loss_cnt,
-            "realized_pnl_usd": realized_pnl_usd,
+            "win_trades": win_trades,
+            "loss_trades": loss_trades,
+            "realized_pnl_usd": round(realized_pnl_usd, 2),
             "summary_line": summary_line
         }
 

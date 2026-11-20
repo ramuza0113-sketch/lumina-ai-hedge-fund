@@ -82,13 +82,14 @@ class LeadLagAnalyzer:
             "ticker": clean_sym,
             "benchmark_symbol": bm_sym,
             "benchmark_name": bm_info["name"],
-            "optimal_lag_days": 1,
-            "correlation": 0.65,
-            "granger_pvalue": 0.04,
-            "is_statistically_significant": True,
-            "lead_lag_signal": "BULLISH_LAG",
-            "signal_badge": f"🔗 先行波及: {bm_info['name']} ➔ 1日遅延余波あり",
-            "summary_text": f"{clean_sym} は {bm_info['name']} に約1日遅れて正相関で波及する傾向。"
+            "optimal_lag_days": 0,
+            "correlation": None,
+            "hayashi_yoshida_corr": None,
+            "granger_pvalue": None,
+            "is_statistically_significant": False,
+            "lead_lag_signal": "UNKNOWN",
+            "signal_badge": "⚪ データ未取得・因果判定保留",
+            "summary_text": f"{clean_sym}: {bm_info['name']} との価格履歴が未取得またはサンプル不足のためリードラグ判定保留（中立）。"
         }
 
         try:
@@ -139,17 +140,17 @@ class LeadLagAnalyzer:
             # 直近3日間の先行指標トレンド（余波の方向性）
             recent_bm_change = float(df_pair[bm_sym].iloc[-1] / df_pair[bm_sym].iloc[-3] - 1.0) * 100
             
-            # グレンジャー因果性検定 (p値)
-            p_val = 0.05
+            # グレンジャー因果性検定 (p値: 未検証または例外時は None とし有意判定しない)
+            p_val: Optional[float] = None
             if HAS_STATSMODELS and len(df_pair) >= 30:
                 try:
                     gc_data = np.column_stack([ret_tgt, ret_bm])
                     gc_res = grangercausalitytests(gc_data, maxlag=[best_lag], verbose=False)
                     p_val = round(float(gc_res[best_lag][0]['ssr_ftest'][1]), 4)
                 except Exception:
-                    p_val = 0.04
+                    p_val = None
 
-            is_sig = (p_val < 0.10)
+            is_sig = bool(p_val is not None and p_val < 0.10)
             
             # 先行余波シグナルの判定
             if abs(effective_corr) > 0.3:
@@ -166,9 +167,10 @@ class LeadLagAnalyzer:
                 sig = "UNCORRELATED"
                 badge = f"🔹 独自モメンタム推移 ({bm_info['name']} との相関微弱)"
 
+            p_str = f"{p_val:.3f}" if p_val is not None else "N/A"
             summary = (
                 f"【先行リードラグ因果 (Hayashi-Yoshida補正)】{clean_sym} は {bm_info['name']} と最適遅延 {best_lag}営業日 "
-                f"(有効相関 {effective_corr:+.2f} / HY非同期相関 {hy_corr:+.2f}, p値 {p_val:.3f})。直近先行変動 {recent_bm_change:+.2f}% ➔ {badge}"
+                f"(有効相関 {effective_corr:+.2f} / HY非同期相関 {hy_corr:+.2f}, p値 {p_str})。直近先行変動 {recent_bm_change:+.2f}% ➔ {badge}"
             )
 
             res = {
