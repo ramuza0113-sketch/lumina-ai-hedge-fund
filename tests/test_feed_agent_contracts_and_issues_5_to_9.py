@@ -401,3 +401,39 @@ def test_issue11_dividend_yield_scale_normalization():
     with patch("yfinance.Ticker", return_value=fake_bad):
         d_bad = MarketDataFeed.get_stock_data("BADX", force_refresh=True)
     assert d_bad["dividend_yield"] == 0.0
+
+
+# ==============================================================================
+# Additional Cross-Module Contract Guard: LightGBMGatekeeper, OpenBBProvider & MarketDataFeed
+# ==============================================================================
+def test_lightgbm_openbb_and_stock_data_contracts():
+    from core.ai_hedge_fund.lightgbm_gatekeeper import LightGBMGatekeeper
+    from core.openbb_provider import OpenBBProvider
+
+    # 1. LightGBMGatekeeper must handle correlation=None & pe_trailing=None cleanly
+    res_lgb = LightGBMGatekeeper.evaluate_gate(
+        ticker="NVDA",
+        dual_quantum={"consensus_status": "NEUTRAL", "current_price": 100.0, "models": {}},
+        lead_lag_data={"lead_lag_signal": "UNKNOWN", "correlation": None},
+        context_data={
+            "macro_liquidity": {"regime": "RISK_OFF"},
+            "options_gex": {"is_turbulence": True, "market_turbulence": "⚠️【市場乱気流警報: Negative Gamma】"},
+        },
+        stock_data={"pe_trailing": None, "roe": None},
+    )
+    assert isinstance(res_lgb["win_probability"], float)
+
+    # 2. OpenBBProvider must return neutral/unknown fallbacks (not "+15%..+30%" or score=75) when offline
+    with patch.object(OpenBBProvider, "_get_cached_data", return_value=None), patch.object(
+        OpenBBProvider, "_set_cached_data", return_value=None
+    ), patch.object(OpenBBProvider, "_get_obb", return_value=None), patch(
+        "yfinance.Ticker"
+    ) as mock_tk, patch("pandas.read_csv", side_effect=RuntimeError("offline")):
+        mock_tk.return_value.info = {}
+        mock_tk.return_value.history.return_value = pd.DataFrame()
+        cathie = OpenBBProvider.get_cathie_growth_intel("AAPL")
+        mom = OpenBBProvider.get_momentum_intel("AAPL")
+        soros = OpenBBProvider.get_soros_macro_intel()
+    assert "+15.0%" not in cathie["target_upside_pct"]
+    assert mom["can_slim_score"] == 50
+    assert "5.28%" not in soros["us_10y_yield"]

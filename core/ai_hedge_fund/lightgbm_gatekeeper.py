@@ -128,31 +128,43 @@ class LightGBMGatekeeper:
         c_code_map = {"DOUBLE_BULLISH": 1.0, "DOUBLE_BEARISH": -1.0, "DISAGREEMENT": 0.2, "NEUTRAL": 0.0}
         c_code = c_code_map.get(c_status, 0.0)
 
-        # リードラグコード
+        # リードラグコード (欠損時 correlation=None でも安全に 0.0 中立処理)
         ll_sig = lead_lag_data.get("lead_lag_signal", "NEUTRAL")
-        ll_code_map = {"BULLISH_LAG": 1.0, "BEARISH_LAG": -1.0, "NEUTRAL": 0.0, "UNCORRELATED": 0.0}
+        ll_code_map = {"BULLISH_LAG": 1.0, "BEARISH_LAG": -1.0, "NEUTRAL": 0.0, "UNCORRELATED": 0.0, "UNKNOWN": 0.0}
         ll_code = ll_code_map.get(ll_sig, 0.0)
-        ll_corr = float(lead_lag_data.get("correlation", 0.0))
+        raw_ll_corr = lead_lag_data.get("correlation")
+        ll_corr = float(raw_ll_corr) if raw_ll_corr is not None else 0.0
 
-        # GEXレジーム
+        # GEXレジーム (OptionsGexFeed の is_turbulence / ネガティブ・ガンマ に完全一致)
         gex_info = context_data.get("options_gex", {})
-        gex_reg = gex_info.get("market_turbulence", "")
-        gex_code = 1.0 if "安定" in gex_reg or "POSITIVE" in gex_reg else (-1.0 if "TURBULENCE" in gex_reg or "急変" in gex_reg else 0.0)
+        gex_reg = str(gex_info.get("market_turbulence", "") or "")
+        if bool(gex_info.get("is_turbulence")) or any(
+            k in gex_reg for k in ("乱気流", "ネガティブ・ガンマ", "ネガティブガンマ", "Negative Gamma", "TURBULENCE", "急変")
+        ):
+            gex_code = -1.0
+        elif "安定" in gex_reg or "POSITIVE" in gex_reg.upper():
+            gex_code = 1.0
+        else:
+            gex_code = 0.0
 
-        # 財務指標
+        # 財務指標 (None 時は赤字・不明として保守的中立値を使用)
+        pe_raw = stock_data.get("pe_trailing")
         try:
-            pe_val = float(stock_data.get("pe_trailing", 15.0))
+            pe_val = float(pe_raw) if pe_raw is not None else 25.0
         except (ValueError, TypeError):
-            pe_val = 15.0
+            pe_val = 25.0
 
+        roe_raw = stock_data.get("roe")
         try:
-            roe_val = float(stock_data.get("roe", 10.0))
+            roe_val = float(roe_raw) if roe_raw is not None else 0.0
         except (ValueError, TypeError):
-            roe_val = 10.0
+            roe_val = 0.0
 
-        # マクロ
-        macro_code = 0.5 if "SUNNY" in str(context_data.get("macro_liquidity", {})) else 0.0
-        insider_boost = float(context_data.get("insider_trading", {}).get("score_boost", 0))
+        # マクロ (MacroLiquidityFeed の regime: RISK_ON / RISK_OFF / NEUTRAL と完全整合)
+        macro_d = context_data.get("macro_liquidity", {})
+        macro_reg = str(macro_d.get("regime") or macro_d.get("status") or "NEUTRAL").upper() if isinstance(macro_d, dict) else ""
+        macro_code = 0.5 if macro_reg == "RISK_ON" else (-0.5 if macro_reg == "RISK_OFF" else 0.0)
+        insider_boost = float(context_data.get("insider_trading", {}).get("score_boost") or 0.0)
 
         # 正規化分位点特徴量 (Expected Move / Relative Uncertainty / Quantile Skew)
         norm_f = tfm.get("normalized_features")

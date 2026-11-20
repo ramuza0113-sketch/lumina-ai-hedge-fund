@@ -126,9 +126,9 @@ class OpenBBProvider:
                 fcf_data["operating_cf_growth"] = f"営業CF: {ocf_fmt}"
                 fcf_data["raw_summary"] = f"財務諸表より実数抽出: フリーCF {fcf_fmt} / 営業CF {ocf_fmt}"
             else:
-                # Japanese or financial institutions
-                fcf_data["fcf_trend"] = "本業黒字推移（営業利益ベースで堅調）"
-                fcf_data["raw_summary"] = "国内財務諸表の損益計算書・営業利益を同期"
+                # Missing FCF data (e.g., financials or unreported): keep neutral/unknown
+                fcf_data["fcf_trend"] = "フリーCFデータ未取得（損益・営業CFを別途確認）"
+                fcf_data["raw_summary"] = "フリーCF実数値が未取得のため中立扱い"
         except Exception as e:
             pass
 
@@ -182,8 +182,8 @@ class OpenBBProvider:
                 de_str = f" / 負債資本比率: {safety_data['debt_to_equity']}" if safety_data["debt_to_equity"] != "N/A" else ""
                 safety_data["raw_summary"] = f"B/S財務指標同期: 流動比率 {cr:.2f}倍{de_str} ➔ {safety_data['margin_of_safety_status']}"
             else:
-                safety_data["margin_of_safety_status"] = "自己資本比率・PBRベースで健全性を確認"
-                safety_data["raw_summary"] = "自己資本比率およびPBR水準から財務安全域を審査"
+                safety_data["margin_of_safety_status"] = "流動比率データ未取得（中立保留）"
+                safety_data["raw_summary"] = "流動比率（B/S）実数値が未取得のため中立扱い"
         except Exception as e:
             pass
 
@@ -209,11 +209,11 @@ class OpenBBProvider:
 
         growth_data = {
             "symbol": symbol,
-            "target_upside_pct": "国内中小型株カバレッジ（独自クオンツ算定）" if is_japan else "+15.0%〜+30.0%",
-            "analyst_rating_consensus": "独自モメンタム判定（Buy / Hold）" if is_japan else "Moderate Buy / Strong Buy",
+            "target_upside_pct": "N/A（アナリスト目標株価未取得）",
+            "analyst_rating_consensus": "N/A（データ未取得）",
             "high_target": "N/A",
             "low_target": "N/A",
-            "raw_summary": "東証上場銘柄につき国内財務・出来高モメンタムを優先分析" if is_japan else "ウォール街アナリストの目標株価とEPS上方修正サプライズを追跡中"
+            "raw_summary": "アナリストコンセンサス未取得のため中立扱い"
         }
 
         if not is_japan:
@@ -247,7 +247,7 @@ class OpenBBProvider:
             except Exception:
                 pass
 
-            # 2. Fallback to OpenBB yfinance estimates if FMP wasn't available
+            # 2. Fallback to OpenBB or direct yfinance analyst target fields
             if not fmp_success and obb:
                 try:
                     tgt_res = obb.yfinance.estimates.price_target(symbol=symbol)
@@ -255,6 +255,25 @@ class OpenBBProvider:
                         df = tgt_res.to_df()
                         if not df.empty:
                             growth_data["raw_summary"] = f"Yahoo Financeアナリスト目標株価データを同期済み: {df.iloc[0].to_dict() if len(df) > 0 else ''}"
+                            fmp_success = True
+                except Exception:
+                    pass
+            if not fmp_success:
+                try:
+                    import yfinance as yf
+                    info = yf.Ticker(symbol).info or {}
+                    t_mean = info.get("targetMeanPrice")
+                    t_high = info.get("targetHighPrice")
+                    t_low = info.get("targetLowPrice")
+                    cur_p = info.get("currentPrice") or info.get("regularMarketPrice")
+                    rec_key = info.get("recommendationKey")
+                    if t_mean and cur_p and float(cur_p) > 0:
+                        up_pct = ((float(t_mean) / float(cur_p)) - 1.0) * 100.0
+                        growth_data["target_upside_pct"] = f"{up_pct:+.1f}% (平均目標 ${float(t_mean):,.2f})"
+                        growth_data["high_target"] = f"${float(t_high):,.2f}" if t_high else "N/A"
+                        growth_data["low_target"] = f"${float(t_low):,.2f}" if t_low else "N/A"
+                        growth_data["analyst_rating_consensus"] = str(rec_key).upper() if rec_key else "N/A"
+                        growth_data["raw_summary"] = f"yfinanceアナリスト目標株価同期: 平均 ${float(t_mean):,.2f} ({up_pct:+.1f}%)"
                 except Exception:
                     pass
 
@@ -334,15 +353,16 @@ class OpenBBProvider:
             return cached
 
         macro_data = {
-            "us_10y_yield": "5.28%（前日比 +0.01%）",
-            "us_2y_yield": "4.77%（前日比 -0.02%）",
-            "yield_spread_10_2": "+0.47%（前日比 -4.0bps / 逆イールド解消・スティープニング進行）",
-            "fed_policy_stance": "金利据え置き〜緩やかな利下げサイクル",
-            "reflexivity_climate": "市場は利下げ期待と企業業績の強さを織り込み中。前日比の金利微動を見極め中。",
-            "raw_summary": "FRED連銀金利カーブおよび長短スプレッドを同期中"
+            "us_10y_yield": "N/A（金利データ未取得）",
+            "us_2y_yield": "N/A（金利データ未取得）",
+            "yield_spread_10_2": "N/A（スプレッド未取得）",
+            "fed_policy_stance": "マクロ金利動向監視（データ未取得時は中立）",
+            "reflexivity_climate": "外部金利フィード未取得のため中立扱い",
+            "raw_summary": "FRED金利データ未取得のため中立保留"
         }
 
         obb = cls._get_obb()
+        fetched_fred = False
         if obb:
             try:
                 from core.state_manager import load_app_settings
@@ -361,6 +381,7 @@ class OpenBBProvider:
                         diff_spread_bps = (last_spread - prev_spread) * 100
                         status_str = "逆イールド解消・スティープニング進行" if last_spread >= 0 else "逆イールド進行（リセッション警戒）"
                         macro_data["yield_spread_10_2"] = f"{last_spread:+.2f}%（前日比 {diff_spread_bps:+.1f}bps / {status_str}）"
+                        fetched_fred = True
 
                 # 2. Fetch US 10Y Yield
                 res_10y = obb.fred.economy.fred_series(symbol="DGS10")
@@ -382,9 +403,37 @@ class OpenBBProvider:
                         diff_2y = last_2y - prev_2y
                         macro_data["us_2y_yield"] = f"{last_2y:.2f}%（前日比 {diff_2y:+.2f}%）"
 
-                macro_data["raw_summary"] = f"FREDセントルイス連銀より公式金利スプレッド({macro_data['yield_spread_10_2']})・10年債利回り({macro_data['us_10y_yield']})をリアルタイム同期済み"
+                if fetched_fred:
+                    macro_data["raw_summary"] = f"FREDセントルイス連銀より公式金利スプレッド({macro_data['yield_spread_10_2']})・10年債利回り({macro_data['us_10y_yield']})をリアルタイム同期済み"
             except Exception as e:
                 print(f"[OpenBBProvider] FRED fetch error: {e}")
+
+        # Zero-API-key direct FRED CSV fallback when OpenBB SDK is not installed
+        if not fetched_fred:
+            try:
+                import pandas as pd
+                def _fred_latest_pair(series_id: str):
+                    df_f = pd.read_csv(f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}")
+                    s = pd.to_numeric(df_f[series_id], errors="coerce").dropna()
+                    if len(s) >= 2:
+                        return float(s.iloc[-1]), float(s.iloc[-2])
+                    return (float(s.iloc[-1]), float(s.iloc[-1])) if len(s) == 1 else (None, None)
+
+                s_cur, s_prev = _fred_latest_pair("T10Y2Y")
+                y10_cur, y10_prev = _fred_latest_pair("DGS10")
+                y2_cur, y2_prev = _fred_latest_pair("DGS2")
+                if s_cur is not None:
+                    diff_bps = (s_cur - s_prev) * 100.0
+                    st_str = "順イールド" if s_cur >= 0 else "逆イールド警戒"
+                    macro_data["yield_spread_10_2"] = f"{s_cur:+.2f}%（前日比 {diff_bps:+.1f}bps / {st_str}）"
+                if y10_cur is not None:
+                    macro_data["us_10y_yield"] = f"{y10_cur:.2f}%（前日比 {y10_cur - y10_prev:+.2f}%）"
+                if y2_cur is not None:
+                    macro_data["us_2y_yield"] = f"{y2_cur:.2f}%（前日比 {y2_cur - y2_prev:+.2f}%）"
+                if s_cur is not None or y10_cur is not None:
+                    macro_data["raw_summary"] = f"FRED公開CSVより金利同期済み: 10Y={macro_data['us_10y_yield']}, 10Y-2Y={macro_data['yield_spread_10_2']}"
+            except Exception:
+                pass
 
         cls._set_cached_data(cache_key, "soros", macro_data, ttl_seconds=43200)
         return macro_data
@@ -466,14 +515,14 @@ class OpenBBProvider:
         except Exception as e:
             print(f"[OpenBBProvider] Momentum calculation error for {symbol}: {e}")
 
-        # Fallback if yfinance failed
+        # Fallback if yfinance failed (neutral score 50 instead of optimistic 75)
         momentum_data = {
             "symbol": symbol,
-            "breakout_status": "トレンド推移監視中",
-            "volume_spike_ratio": "平常水準",
-            "ma25_divergence": "0.0%",
-            "can_slim_score": 75,
-            "raw_summary": "テクニカル指標算出中"
+            "breakout_status": "テクニカルデータ未取得（中立保留）",
+            "volume_spike_ratio": "N/A",
+            "ma25_divergence": "N/A",
+            "can_slim_score": 50,
+            "raw_summary": "価格履歴未取得のため中立扱い"
         }
         cls._set_cached_data(cache_key, "momentum", momentum_data, ttl_seconds=3600)
         return momentum_data

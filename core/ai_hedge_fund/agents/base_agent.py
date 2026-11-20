@@ -110,7 +110,7 @@ class BaseInvestmentAgent:
     @classmethod
     def _build_evaluation_prompt(cls, stock_data: Dict[str, Any], context_data: Optional[Dict[str, Any]] = None) -> str:
         symbol = stock_data.get("symbol", "UNKNOWN")
-        name = stock_data.get("name", symbol)
+        name = stock_data.get("name") or stock_data.get("company_name") or symbol
         price = stock_data.get("current_price", 0.0)
         currency = stock_data.get("currency", "JPY")
         pe = stock_data.get("pe_trailing", "N/A")
@@ -118,7 +118,16 @@ class BaseInvestmentAgent:
         roe = stock_data.get("roe", "N/A")
         rev_growth = stock_data.get("revenue_growth", "N/A")
         div_yield = stock_data.get("dividend_yield", "N/A")
-        news_text = stock_data.get("news_sentiment_summary", "特記事項なし")
+        news_text = stock_data.get("news_sentiment_summary")
+        if not news_text and context_data:
+            news_intel = context_data.get("news_intelligence") or {}
+            if isinstance(news_intel, dict) and news_intel.get("sanitized_briefing"):
+                news_text = news_intel.get("sanitized_briefing")
+            elif context_data.get("recent_news"):
+                rn = context_data.get("recent_news")
+                news_text = "\n".join(str(x) for x in rn if x) if isinstance(rn, list) else str(rn)
+        if not news_text:
+            news_text = "特記事項なし"
         
         ctx_str = ""
         if context_data:

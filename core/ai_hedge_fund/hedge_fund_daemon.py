@@ -260,16 +260,19 @@ class HedgeFundDaemon:
                         a_res = AlphaResearcher.run_research_scan()
                         self._add_log(f"🕵️ 【特選アルファ発掘完了】今週のテーマ: 『{a_res.get('weekly_theme')}』 (Top {len(a_res.get('top_picks', []))} 銘柄選定)")
 
-                        # 4. 週末特選有料note（来週上がる株・厳選本命）の自動下書き保存パイプライン
-                        try:
-                            from core.ai_hedge_fund.weekly_paid_note_pipeline import WeeklyPaidNotePipeline
-                            if WeeklyPaidNotePipeline.should_run_weekly_draft():
-                                self._add_log("💎 【週刊AIアルファ】来週上がる株の有料note下書き保存パイプラインを自動起動中...")
-                                wn_res = WeeklyPaidNotePipeline.generate_and_publish_weekly_draft(force=False)
-                                if wn_res.get("success") and not wn_res.get("skipped"):
-                                    self._add_log(f"💎 【週刊AIアルファ】有料note下書き保存完了！ ({wn_res.get('title')[:35]}...) -> {wn_res.get('edit_url')}")
-                        except Exception as _wn_err:
-                            self._add_log(f"⚠️ 週刊有料note自動パイプラインエラー: {_wn_err}")
+                        # 4. 週末特選レポートパイプライン（オプション拡張モジュールが存在する場合のみ実行）
+                        import importlib.util
+                        if importlib.util.find_spec("core.ai_hedge_fund.weekly_paid_note_pipeline") is not None:
+                            try:
+                                wn_mod = importlib.import_module("core.ai_hedge_fund.weekly_paid_note_pipeline")
+                                wn_cls = getattr(wn_mod, "WeeklyPaidNotePipeline", None)
+                                if wn_cls and hasattr(wn_cls, "should_run_weekly_draft") and wn_cls.should_run_weekly_draft():
+                                    self._add_log("💎 【週刊AIアルファ】下書き保存パイプラインを自動起動中...")
+                                    wn_res = wn_cls.generate_and_publish_weekly_draft(force=False)
+                                    if wn_res.get("success") and not wn_res.get("skipped"):
+                                        self._add_log(f"💎 【週刊AIアルファ】下書き保存完了！ ({wn_res.get('title')[:35]}...)")
+                            except Exception as _wn_err:
+                                self._add_log(f"⚠️ 週刊レポート自動パイプラインエラー: {_wn_err}")
                     except Exception as res_err:
                         self._add_log(f"⚠️ 週末自律研究エラー: {res_err}")
 

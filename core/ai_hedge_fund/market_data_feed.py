@@ -427,14 +427,23 @@ class MarketDataFeed:
         if cand_div is not None and 0.0 < cand_div <= 25.0:
             norm_div_yield = round(cand_div, 2)
 
+        prev_close_val = info.get("previousClose")
+        if prev_close_val is None and hist is not None and len(hist) >= 2:
+            prev_close_val = float(hist["Close"].iloc[-2])
+        price_change = round(float(current_price) - float(prev_close_val), 2) if (current_price and prev_close_val) else 0.0
+        price_change_pct = round((price_change / float(prev_close_val)) * 100.0, 2) if (prev_close_val and float(prev_close_val) > 0) else 0.0
+
         data = {
             "symbol": norm_sym,
+            "name": company_name,
             "company_name": company_name,
             "sector": info.get("sector", "N/A"),
             "industry": info.get("industry", "N/A"),
             "currency": currency,
             "current_price": current_price,
-            "previous_close": info.get("previousClose"),
+            "previous_close": prev_close_val,
+            "change": price_change,
+            "change_pct": price_change_pct,
             "fifty_two_week_high": info.get("fiftyTwoWeekHigh"),
             "fifty_two_week_low": info.get("fiftyTwoWeekLow"),
             "market_cap": info.get("marketCap"),

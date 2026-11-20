@@ -93,8 +93,10 @@ class LuminaLangGraphCouncil:
         context_data = state.get("context_data", {})
         quantum = state.get("quantum_consensus", {})
         
-        # Inject quantum consensus, lead-lag, and lightgbm into context for analysts
+        # Inject quantum consensus, lead-lag, and lightgbm into context for analysts & CRO
         enhanced_context = dict(context_data or {})
+        enhanced_context["dual_quantum"] = quantum
+        enhanced_context["quantum_forecast"] = quantum
         enhanced_context["dual_quantum_forecaster"] = {
             "status": quantum.get("consensus_status"),
             "badge": quantum.get("consensus_badge"),
