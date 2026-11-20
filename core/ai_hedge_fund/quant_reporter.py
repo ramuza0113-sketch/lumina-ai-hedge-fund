@@ -11,7 +11,11 @@ import logging
 from typing import Dict, Any, Optional, Tuple
 import pandas as pd
 import numpy as np
-import streamlit as st
+
+try:
+    import streamlit as st
+except ImportError:
+    st = None
 
 logger = logging.getLogger(__name__)
 

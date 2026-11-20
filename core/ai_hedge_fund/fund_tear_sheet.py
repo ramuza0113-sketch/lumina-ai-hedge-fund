@@ -13,10 +13,16 @@ import math
 from typing import Dict, Any, List, Optional
 import numpy as np
 import pandas as pd
-import matplotlib
-matplotlib.use("Agg")  # Non-interactive headless backend
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
+
+try:
+    import matplotlib
+    matplotlib.use("Agg")  # Non-interactive headless backend
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+except ImportError:
+    matplotlib = None
+    plt = None
+    mdates = None
 
 from core.ai_hedge_fund.broker_client import PaperTradingEngine
 
@@ -151,6 +157,8 @@ class FundTearSheet:
     @classmethod
     def _render_matplotlib_tearsheet(cls, kpis: Dict[str, Any]):
         """Render high-resolution 3-panel tear sheet chart (Dark Cyberpunk Theme)"""
+        if plt is None:
+            return
         os.makedirs(cls.OUTPUT_DIR, exist_ok=True)
 
         fig = plt.figure(figsize=(12, 8), dpi=150)

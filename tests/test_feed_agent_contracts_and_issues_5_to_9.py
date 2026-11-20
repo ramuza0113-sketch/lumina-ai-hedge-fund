@@ -340,6 +340,7 @@ def test_issue9_ibkr_bracket_order_and_status_check():
 # Issue #10: GEMINI_API_KEY -> google_api_key wiring across state_manager & agents
 # ==============================================================================
 def test_issue10_gemini_api_key_reaches_agents(monkeypatch):
+    import google
     from core import state_manager
     from core.ai_hedge_fund.agents.buffett_agent import BuffettAgent
 
@@ -352,7 +353,18 @@ def test_issue10_gemini_api_key_reaches_agents(monkeypatch):
     fake_client.models.generate_content.return_value = types.SimpleNamespace(
         text='{"stance": "BULLISH", "score": 82, "dialogue": "Strong moat"}'
     )
-    with patch("google.genai.Client", return_value=fake_client) as mock_client_cls:
+    mock_client_cls = MagicMock(return_value=fake_client)
+    fake_genai_types = types.ModuleType("google.genai.types")
+    fake_genai_types.GenerateContentConfig = MagicMock(return_value={})
+    fake_genai = types.ModuleType("google.genai")
+    fake_genai.Client = mock_client_cls
+    fake_genai.types = fake_genai_types
+
+    monkeypatch.setattr(google, "genai", fake_genai, raising=False)
+    with patch.dict(
+        sys.modules,
+        {"google.genai": fake_genai, "google.genai.types": fake_genai_types},
+    ):
         res = BuffettAgent._call_gemini_json("Evaluate KO")
     mock_client_cls.assert_called_once_with(api_key="test_placeholder_gemini_key_123")
     assert res is not None
