@@ -336,8 +336,8 @@ class OptionsGexFeed:
         # Taleb Fail-Safe: If both SPY and QQQ data are completely missing from live API & persistent cache
         if spy_prof.get("status") != "OK" and qqq_prof.get("status") != "OK":
             try:
-                vix_hist = yf.Ticker("^VIX").history(period="2d")
-                vix_val = float(vix_hist['Close'].iloc[-1]) if not vix_hist.empty else 22.0
+                vix_hist = yf.Ticker("^VIX").history(period="5d")
+                vix_val = float(vix_hist['Close'].dropna().iloc[-1]) if (vix_hist is not None and not vix_hist.empty) else 22.0
             except Exception:
                 vix_val = 22.0
             if vix_val >= 20.0:
@@ -350,15 +350,27 @@ class OptionsGexFeed:
                     "spy_profile": spy_prof,
                     "qqq_profile": qqq_prof
                 }
+            return {
+                "is_turbulence": False,
+                "size_multiplier": 1.0,
+                "spy_regime": "UNKNOWN",
+                "qqq_regime": "UNKNOWN",
+                "summary_text": f"⚪【オプションGEXデータ未取得】SPY/QQQ オプション板未取得（VIX: {vix_val:.1f} < 20.0）のため中立保留・標準ロットを維持します。",
+                "spy_profile": spy_prof,
+                "qqq_profile": qqq_prof
+            }
 
-        spy_gex = spy_prof.get("net_gex_millions", 0.0)
-        qqq_gex = qqq_prof.get("net_gex_millions", 0.0)
+        def _fmt_gex_m(v: float) -> str:
+            return f"+${v:,.0f}M" if v >= 0 else f"-${abs(v):,.0f}M"
+
+        spy_gex = float(spy_prof.get("net_gex_millions", 0.0) or 0.0)
+        qqq_gex = float(qqq_prof.get("net_gex_millions", 0.0) or 0.0)
         return {
             "is_turbulence": False,
             "size_multiplier": 1.0,
             "spy_regime": spy_prof.get("regime"),
             "qqq_regime": qqq_prof.get("regime"),
-            "summary_text": f"🟢【オプション流動性安定】SPY (Net GEX +${spy_gex:,.0f}M) & QQQ (Net GEX +${qqq_gex:,.0f}M) ともにポジティブ・ガンマ維持。MMのクッション効果による安定レジーム。",
+            "summary_text": f"🟢【オプション流動性安定】SPY (Net GEX {_fmt_gex_m(spy_gex)}) & QQQ (Net GEX {_fmt_gex_m(qqq_gex)}) ともにポジティブ・ガンマ維持。MMのクッション効果による安定レジーム。",
             "spy_profile": spy_prof,
             "qqq_profile": qqq_prof
         }
