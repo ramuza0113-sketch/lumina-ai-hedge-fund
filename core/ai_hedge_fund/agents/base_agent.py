@@ -199,14 +199,25 @@ class BaseInvestmentAgent:
 
 上記のデータのみを元に、あなたの哲学に基づき冷徹な審査スコアと発言（dialogue）をJSONで生成してください。"""
 
+    _warned_missing_api_key: bool = False
+
     @classmethod
     def _call_gemini_json(cls, prompt: str) -> Optional[Dict[str, Any]]:
         if cls.is_circuit_open():
             return None
         try:
             cfg = load_app_settings()
-            api_key = cfg.get("google_api_key", "")
+            api_key = (
+                cfg.get("google_api_key")
+                or cfg.get("gemini_api_key")
+                or os.getenv("GEMINI_API_KEY")
+                or os.getenv("GOOGLE_API_KEY")
+                or ""
+            )
             if not api_key:
+                if not BaseInvestmentAgent._warned_missing_api_key:
+                    BaseInvestmentAgent._warned_missing_api_key = True
+                    print("[Lumina Council] GEMINI_API_KEY is not configured; running deterministic rule-based evaluation.")
                 return None
             
             from google import genai
@@ -219,7 +230,9 @@ class BaseInvestmentAgent:
                 response_mime_type="application/json"
             )
             
-            for model_name in ["gemini-3.8-flash", "gemini-2.5-flash"]:
+            primary_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash"
+            candidate_models = [primary_model] + [m for m in ("gemini-2.5-flash", "gemini-2.0-flash") if m != primary_model]
+            for model_name in candidate_models:
                 if cls.is_circuit_open():
                     return None
                 try:

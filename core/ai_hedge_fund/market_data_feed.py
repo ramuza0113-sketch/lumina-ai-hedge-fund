@@ -412,6 +412,21 @@ class MarketDataFeed:
                 f_pts += 1
             piotroski_f_score = f_pts
 
+        # Normalize dividend yield in % using unambiguous ratio fields first (yfinance >= 1.x returns dividendYield in %)
+        norm_div_yield = 0.0
+        trail_div_ratio = info.get("trailingAnnualDividendYield")
+        div_rate = info.get("dividendRate") or info.get("trailingAnnualDividendRate")
+        raw_div_pct = info.get("dividendYield")
+        cand_div = None
+        if trail_div_ratio is not None and float(trail_div_ratio) > 0:
+            cand_div = float(trail_div_ratio) * 100.0
+        elif div_rate is not None and current_price and float(current_price) > 0 and float(div_rate) > 0:
+            cand_div = (float(div_rate) / float(current_price)) * 100.0
+        elif raw_div_pct is not None and float(raw_div_pct) > 0:
+            cand_div = float(raw_div_pct)
+        if cand_div is not None and 0.0 < cand_div <= 25.0:
+            norm_div_yield = round(cand_div, 2)
+
         data = {
             "symbol": norm_sym,
             "company_name": company_name,
@@ -430,7 +445,7 @@ class MarketDataFeed:
             "pb_ratio": info.get("priceToBook"),
             "ps_ratio": info.get("priceToSalesTrailing12Months"),
             "peg_ratio": info.get("pegRatio"),
-            "dividend_yield": round(info.get("dividendYield", 0) * 100, 2) if info.get("dividendYield") else 0.0,
+            "dividend_yield": norm_div_yield,
             "graham_number": graham_number,
             "eps": eps,
             "bps": bps,

@@ -74,6 +74,11 @@ def main():
             value=os.getenv("OPENAI_API_KEY", ""), 
             type="password"
         )
+        if gemini_key:
+            os.environ["GEMINI_API_KEY"] = gemini_key.strip()
+            os.environ["GOOGLE_API_KEY"] = gemini_key.strip()
+        if openai_key:
+            os.environ["OPENAI_API_KEY"] = openai_key.strip()
 
         st.markdown("---")
         st.caption("🌐 **Interface Language / 言語**")

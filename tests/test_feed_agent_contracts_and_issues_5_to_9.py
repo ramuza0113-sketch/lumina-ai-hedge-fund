@@ -334,3 +334,70 @@ def test_issue9_ibkr_bracket_order_and_status_check():
         )
         res_cancel = client.place_order(symbol="NVDA", side="BUY", quantity=5, order_type="MARKET")
         assert res_cancel["success"] is False
+
+
+# ==============================================================================
+# Issue #10: GEMINI_API_KEY -> google_api_key wiring across state_manager & agents
+# ==============================================================================
+def test_issue10_gemini_api_key_reaches_agents(monkeypatch):
+    from core import state_manager
+    from core.ai_hedge_fund.agents.buffett_agent import BuffettAgent
+
+    monkeypatch.setenv("GEMINI_API_KEY", "test_placeholder_gemini_key_123")
+    cfg = state_manager.load_app_settings()
+    assert cfg["gemini_api_key"] == "test_placeholder_gemini_key_123"
+    assert cfg["google_api_key"] == "test_placeholder_gemini_key_123"
+
+    fake_client = MagicMock()
+    fake_client.models.generate_content.return_value = types.SimpleNamespace(
+        text='{"stance": "BULLISH", "score": 82, "dialogue": "Strong moat"}'
+    )
+    with patch("google.genai.Client", return_value=fake_client) as mock_client_cls:
+        res = BuffettAgent._call_gemini_json("Evaluate KO")
+    mock_client_cls.assert_called_once_with(api_key="test_placeholder_gemini_key_123")
+    assert res is not None
+    assert res["stance"] == "BULLISH"
+
+
+# ==============================================================================
+# Issue #11: Dividend yield scale (no 100x inflation on LMT / MSFT / NVDA / TSE)
+# ==============================================================================
+def test_issue11_dividend_yield_scale_normalization():
+    MarketDataFeed._cache.clear()
+    synth_df = _make_synthetic_ohlcv(60, seed=31)
+
+    # Case A: LMT in yfinance 1.8.0 (dividendYield=2.49 [%], trailingAnnualDividendYield=0.0239 [fraction])
+    fake_lmt = MagicMock()
+    fake_lmt.info = {
+        "currentPrice": 520.0,
+        "currency": "USD",
+        "dividendYield": 2.49,
+        "trailingAnnualDividendYield": 0.0239,
+        "dividendRate": 12.60,
+    }
+    fake_lmt.history.return_value = synth_df
+    with patch("yfinance.Ticker", return_value=fake_lmt):
+        d_lmt = MarketDataFeed.get_stock_data("LMT", force_refresh=True)
+    assert 2.30 <= d_lmt["dividend_yield"] <= 2.60  # NOT 249.0!
+
+    # Case B: Ultra-low dividend tech stock (NVDA: 0.02% yield -> must NOT become 2.0%)
+    fake_nvda = MagicMock()
+    fake_nvda.info = {
+        "currentPrice": 140.0,
+        "currency": "USD",
+        "dividendYield": 0.03,
+        "trailingAnnualDividendYield": 0.00028,
+        "dividendRate": 0.04,
+    }
+    fake_nvda.history.return_value = synth_df
+    with patch("yfinance.Ticker", return_value=fake_nvda):
+        d_nvda = MarketDataFeed.get_stock_data("NVDA", force_refresh=True)
+    assert 0.01 <= d_nvda["dividend_yield"] <= 0.10  # ~0.03%, NOT 3.0%!
+
+    # Case C: Corrupt >25% outlier rejected safely to 0.0
+    fake_bad = MagicMock()
+    fake_bad.info = {"currentPrice": 10.0, "currency": "USD", "dividendYield": 249.0}
+    fake_bad.history.return_value = synth_df
+    with patch("yfinance.Ticker", return_value=fake_bad):
+        d_bad = MarketDataFeed.get_stock_data("BADX", force_refresh=True)
+    assert d_bad["dividend_yield"] == 0.0
