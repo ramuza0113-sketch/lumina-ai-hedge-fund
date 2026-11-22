@@ -291,7 +291,8 @@ class MarketScreener:
         cls, 
         category: str = "ALL", 
         max_results: int = 6, 
-        include_europe: bool = True
+        include_europe: bool = True,
+        market_filter: str = "ALL"
     ) -> List[Dict[str, Any]]:
         """
         Scan and rank top investment opportunities across the expanded 65+ universe and custom watchlist.
@@ -315,6 +316,13 @@ class MarketScreener:
         # Filter out European ADRs if Europe inclusion is disabled (JP-US concentration mode)
         if not include_europe:
             candidates = [c for c in candidates if c["symbol"] not in cls.EUROPE_SYMBOLS]
+
+        # Filter by active market session (JP vs US) BEFORE scoring, RS ranking, and Top-N slicing
+        mf_upper = (market_filter or "ALL").upper()
+        if mf_upper == "JP":
+            candidates = [c for c in candidates if str(c.get("symbol", "")).endswith(".T")]
+        elif mf_upper == "US":
+            candidates = [c for c in candidates if not str(c.get("symbol", "")).endswith(".T")]
 
         # Deduplicate candidates by symbol
         seen = set()
@@ -392,6 +400,7 @@ class MarketScreener:
                 if is_stage2 and insider_boost > 0:
                     score += insider_boost
 
+                raw_score = score
                 score = min(99, max(50, score))
 
                 item_thesis = item["thesis"]
@@ -419,6 +428,7 @@ class MarketScreener:
                     "is_stage2": is_stage2,
                     "insider_metrics": insider_metrics,
                     "ai_score": score,
+                    "raw_score": raw_score,
                     "recent_closes": recent_closes
                 }
             except Exception:
@@ -433,6 +443,9 @@ class MarketScreener:
                 if res and res.get("current_price", 0) > 0:
                     results.append(res)
 
+        # Eliminate as_completed() thread-completion jitter via canonical symbol pre-sort
+        results.sort(key=lambda x: str(x.get("symbol", "")))
+
         # Pillar 1 & 3: Compute Market Breadth (% in Stage 2) and Cross-Sectional RS Rating (1-99)
         if results:
             valid_sma_items = [r for r in results if r.get("sma_200")]
@@ -440,18 +453,43 @@ class MarketScreener:
                 stage2_cnt = sum(1 for r in valid_sma_items if r.get("is_stage2"))
                 cls._last_market_breadth = round(stage2_cnt / len(valid_sma_items), 3)
 
-            results.sort(key=lambda x: x.get("rs_composite", 0.0), reverse=True)
+            results.sort(
+                key=lambda x: (
+                    -float(x.get("rs_composite") or 0.0),
+                    -float(x.get("return_20d_pct") or 0.0),
+                    str(x.get("symbol", "")),
+                )
+            )
             n_res = len(results)
-            for idx_r, r_item in enumerate(results):
-                rs_rank = int(round((1.0 - (idx_r / max(1, n_res))) * 99))
-                r_item["rs_rating"] = max(1, min(99, rs_rank))
-                if rs_rank >= 80:
-                    r_item["ai_score"] = min(99, r_item["ai_score"] + 4)
-                elif rs_rank < 50:
-                    r_item["ai_score"] = max(50, r_item["ai_score"] - 8)
+            i_grp = 0
+            while i_grp < n_res:
+                j_grp = i_grp
+                cur_rs_val = float(results[i_grp].get("rs_composite") or 0.0)
+                while j_grp + 1 < n_res and float(results[j_grp + 1].get("rs_composite") or 0.0) == cur_rs_val:
+                    j_grp += 1
+                mid_idx = (i_grp + j_grp) / 2.0
+                rs_rank = max(1, min(99, int(round((1.0 - (mid_idx / max(1, n_res))) * 99))))
+                for k_grp in range(i_grp, j_grp + 1):
+                    r_item = results[k_grp]
+                    r_item["rs_rating"] = rs_rank
+                    if rs_rank >= 80:
+                        r_item["raw_score"] = r_item.get("raw_score", r_item["ai_score"]) + 4
+                        r_item["ai_score"] = min(99, r_item["ai_score"] + 4)
+                    elif rs_rank < 50:
+                        r_item["raw_score"] = r_item.get("raw_score", r_item["ai_score"]) - 8
+                        r_item["ai_score"] = max(50, r_item["ai_score"] - 8)
+                i_grp = j_grp + 1
 
-        # Sort descending by composite AI score
-        results.sort(key=lambda x: (x["ai_score"], x.get("rs_composite", 0.0)), reverse=True)
+        # Sort descending by composite AI score (strict total order: ai_score -> raw_score -> rs_composite -> roe -> symbol)
+        results.sort(
+            key=lambda x: (
+                -int(x["ai_score"]),
+                -float(x.get("raw_score", x["ai_score"])),
+                -float(x.get("rs_composite") or 0.0),
+                -float(x.get("roe") or 0.0),
+                str(x.get("symbol", "")),
+            )
+        )
         final_top = results[:max_results]
         try:
             cls.save_screener_cache(category, final_top)

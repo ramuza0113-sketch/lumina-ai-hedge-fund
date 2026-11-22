@@ -849,6 +849,65 @@ def test_20_scroll_out_spoofing_immunity_and_pyramiding_bound():
     print(f"[PASS] 20. Theorem 1 (0% Scroll-Out False Spoof) & Theorem 2 (delta_slip_max={delta_slip_max*100:.3f}%) verified.")
 
 
+def test_21_deterministic_screener_tie_breaking_and_market_prefilter():
+    """
+    21. Deterministic Screener Tie-Breaking (Uncapped Raw Score + Symbol Total Order) & Market Pre-Filter:
+    Verifies that even when multiple candidates clamp at ai_score=99 with identical rs_composite and random
+    worker jitter, MarketScreener.scan_opportunities returns 100% identical candidate orderings across runs,
+    and that market_filter='JP' prevents US equities from crowding out Japanese candidates in Top-12 slicing.
+    """
+    import time as _t
+    import random as _rnd
+    from unittest.mock import patch
+    from core.ai_hedge_fund.market_screener import MarketScreener
+    from core.ai_hedge_fund.market_data_feed import MarketDataFeed
+    from core.ai_hedge_fund.sec_insider_feed import SecInsiderFeed
+
+    def _fake_stock_data(sym: str):
+        # Introduce deliberate random sleep so ThreadPoolExecutor as_completed() order permutes every run
+        _t.sleep(_rnd.uniform(0.0005, 0.004))
+        is_jp = sym.endswith(".T")
+        # Make US stocks have higher RS so without market_filter='JP' they would crowd out Top-12
+        ret20 = 15.0 if not is_jp else 8.0
+        # Give specific JP symbols distinct uncapped fundamentals even though all clamp at ai_score=99:
+        # 8058.T gets revenue_growth=22.0 (+10 uncapped raw_score), 7011.T gets higher ROE=24.0 tie-break
+        rev_g = 22.0 if sym == "8058.T" else 5.0
+        roe_val = 25.0 if sym == "8058.T" else (24.0 if sym == "7011.T" else 18.0)
+        return {
+            "symbol": sym,
+            "current_price": 3000.0 if is_jp else 200.0,
+            "currency": "JPY" if is_jp else "USD",
+            "pe_trailing": 11.0,
+            "pb_ratio": 0.9,
+            "dividend_yield": 4.2,
+            "roe": roe_val,
+            "revenue_growth": rev_g,
+            "piotroski_f_score": 8,
+            "history_metrics": {
+                "return_20d_pct": ret20,
+                "return_60d_pct": ret20,
+                "sma_200": 2200.0 if is_jp else 150.0,
+            },
+        }
+
+    with patch.object(MarketDataFeed, "get_stock_data", side_effect=_fake_stock_data), \
+         patch.object(MarketDataFeed, "get_historical_closes", return_value=[100.0, 102.0]), \
+         patch.object(SecInsiderFeed, "get_insider_metrics", return_value={"score_boost": 0, "signal": "NEUTRAL"}), \
+         patch.object(MarketScreener, "get_custom_watchlist", return_value=[]), \
+         patch.object(MarketScreener, "save_screener_cache", return_value=None):
+        runs_jp = [
+            [c["symbol"] for c in MarketScreener.scan_opportunities("ALL", max_results=12, include_europe=False, market_filter="JP")]
+            for _ in range(5)
+        ]
+        assert len(runs_jp[0]) == 12, f"Expected full 12 JP candidates when market_filter='JP', got {len(runs_jp[0])}"
+        assert all(sym.endswith(".T") for sym in runs_jp[0]), "market_filter='JP' must return only .T equities!"
+        for r in runs_jp[1:]:
+            assert r == runs_jp[0], f"Non-deterministic screener ordering detected: {r} != {runs_jp[0]}"
+        # 8058.T has revenue_growth=22% (+10 uncapped raw_score above 99) and 7011.T has ROE=24% (>18%):
+        assert runs_jp[0][0] == "8058.T" and runs_jp[0][1] == "7011.T", f"Uncapped raw_score/ROE tie-break failed: {runs_jp[0][:3]}"
+    print("[PASS] 21. Deterministic Screener Tie-Breaking & Market Pre-Filter verified across 5 concurrent runs.")
+
+
 if __name__ == "__main__":
     test_1_ci_factor_ontology_contracts()
     test_2_schmitt_trigger_hysteresis_and_deadzone()
@@ -870,4 +929,5 @@ if __name__ == "__main__":
     test_18_sigkill_crash_recovery_and_cooldown_hydration()
     test_19_statistical_overfitting_audit_wfe_cpcv_dsr_monte_carlo()
     test_20_scroll_out_spoofing_immunity_and_pyramiding_bound()
-    print("\n[SUCCESS] ALL 20 INSTITUTIONAL HARDENING, EXTREME SCENARIO & STATISTICAL AUDIT TESTS PASSED SUCCESSFULLY!")
+    test_21_deterministic_screener_tie_breaking_and_market_prefilter()
+    print("\n[SUCCESS] ALL 21 INSTITUTIONAL HARDENING, EXTREME SCENARIO & STATISTICAL AUDIT TESTS PASSED SUCCESSFULLY!")

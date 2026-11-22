@@ -920,13 +920,27 @@ class AutoTrader:
                 "logs": logs
             }
 
-        # 3. Market Scan for Top Candidates (with Adaptive Europe Filter)
+        # 3. Market Scan for Top Candidates (with Adaptive Europe Filter & Active Market Pre-Filter)
         logs.append(f"[{now_str}] 🔍 株式市場をスキャンし、投資妙味の高い銘柄を発掘中...（欧州ADR組入: {'ON (日米欧)' if include_europe else 'OFF (日米集中)'}）")
-        candidates = MarketScreener.scan_opportunities(
-            category=strategy, 
-            max_results=12, 
-            include_europe=include_europe
-        )
+        _target_market_filter = "ALL"
+        if enforce_market_hours:
+            if active_market == "JP":
+                _target_market_filter = "JP"
+            elif active_market == "US":
+                _target_market_filter = "US"
+        try:
+            candidates = MarketScreener.scan_opportunities(
+                category=strategy, 
+                max_results=12, 
+                include_europe=include_europe,
+                market_filter=_target_market_filter
+            )
+        except TypeError:
+            candidates = MarketScreener.scan_opportunities(
+                category=strategy, 
+                max_results=64, 
+                include_europe=include_europe
+            )
 
         # Pillar 1: Market Breadth Regime Cash Shield (QuantConnect Lean / HMM Breadth Model)
         breadth_info = MarketScreener.get_market_breadth_regime()
@@ -941,10 +955,10 @@ class AutoTrader:
         # Real broker API filter: Prioritize only open market equities
         if enforce_market_hours:
             if active_market == "JP":
-                candidates = [c for c in candidates if c["symbol"].endswith(".T")]
+                candidates = [c for c in candidates if c["symbol"].endswith(".T")][:12]
                 logs.append(f"[{now_str}] 🇯🇵 【東証取引時間中】日本株のみを重点発掘・合議します（米国株は{us_open_str}のNY開場まで待機）")
             elif active_market == "US":
-                candidates = [c for c in candidates if not c["symbol"].endswith(".T")]
+                candidates = [c for c in candidates if not c["symbol"].endswith(".T")][:12]
                 logs.append(f"[{now_str}] 🇺🇸 【米国市場取引時間中】米国株のみを重点発掘・合議します（日本株は翌09:00の東証開場まで待機）")
 
         # Filter candidates by 90-minute cooldown to ensure rich symbol rotation
